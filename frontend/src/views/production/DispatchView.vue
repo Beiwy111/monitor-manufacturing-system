@@ -1,0 +1,175 @@
+<template>
+  <MesPageShell
+    :status-items="statusItems"
+    toolbar-title="工单派工"
+    :status-options="DISPATCH_STATUS"
+    :toolbar-actions="[{ label: '新建派工', key: 'create', type: 'primary' }]"
+    :detail-rows="rows"
+    :logs="mes.operationLogs.slice(0, 10)"
+    @toolbar-action="openDialog()"
+  >
+    <template #table>
+      <div v-if="pendingWo.length" class="pending-block">
+        <div class="pending-block__title">待派工生产工单（{{ pendingWo.length }}）</div>
+        <el-table :data="pendingWo" size="small" style="margin-bottom: 16px">
+          <el-table-column prop="id" label="工单号" width="130" />
+          <el-table-column prop="orderNo" label="订单号" width="130" />
+          <el-table-column prop="productModel" label="型号" width="130" />
+          <el-table-column prop="quantity" label="数量" width="80" />
+          <el-table-column prop="status" label="状态" width="90" />
+          <el-table-column label="操作" width="120">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openDialog(row.id)">派工</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <el-table :data="filtered" highlight-current-row @current-change="onRowClick">
+        <el-table-column prop="id" label="派工单号" width="130" />
+        <el-table-column prop="workOrderNo" label="工单号" width="130" />
+        <el-table-column prop="processStep" label="工序" width="100" />
+        <el-table-column prop="operatorName" label="操作员" width="100" />
+        <el-table-column prop="planQty" label="计划量" width="80" />
+        <el-table-column prop="status" label="状态" width="90">
+          <template #default="{ row }"><StatusBadge :status="row.status" /></template>
+        </el-table-column>
+      </el-table>
+    </template>
+    <template #detail-actions>
+      <p v-if="selected" class="dispatch-hint">已派给 {{ selected.operatorName }}（账号 {{ selected.operator }}），操作员登录后可接收</p>
+    </template>
+  </MesPageShell>
+
+  <el-dialog v-model="dialogVisible" title="新建派工" width="480px">
+    <el-form label-width="100px">
+      <el-form-item label="生产工单">
+        <el-select v-model="form.workOrderId" style="width:100%" placeholder="请选择已下达工单">
+          <el-option v-for="w in dispatchableWo" :key="w.id" :label="`${w.id} · ${w.productModel}`" :value="w.id" />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-if="!dispatchableWo.length">
+        <el-alert type="warning" :closable="false" title="没有可派工工单。请先在「生产工单」页下达工单（状态须为「已下达」）。" />
+      </el-form-item>
+      <el-form-item label="工序">
+        <el-select v-model="form.processStep" style="width:100%">
+          <el-option v-for="s in PROCESS_STEPS" :key="s" :label="s" :value="s" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="设备"><el-input v-model="form.equipment" /></el-form-item>
+      <el-form-item label="操作员">
+        <el-select v-model="form.operator" style="width:100%" @change="onOperatorChange">
+          <el-option
+            v-for="u in mes.operatorUsers"
+            :key="u.username"
+            :label="`${u.realName}（${u.username}）`"
+            :value="u.username"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="派工数量">
+        <el-input-number v-model="form.planQty" :min="1" style="width:100%" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="dialogVisible = false">取消</el-button>
+      <el-button type="primary" :disabled="!form.workOrderId || !form.operator" @click="save">确认派工</el-button>
+    </template>
+  </el-dialog>
+</template>
+
+<script setup>
+import { computed, ref, reactive, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { useMesStore } from '@/stores/mes'
+import { useUserStore } from '@/stores/user'
+import { DISPATCH_STATUS, PROCESS_STEPS } from '@/mock/constants'
+import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import MesPageShell from '@/components/mes/MesPageShell.vue'
+import StatusBadge from '@/components/mes/StatusBadge.vue'
+
+const route = useRoute()
+const mes = useMesStore()
+const userStore = useUserStore()
+const dialogVisible = ref(false)
+const form = reactive({
+  workOrderId: '',
+  processStep: PROCESS_STEPS[0],
+  equipment: '装配线 A',
+  operator: 'operator',
+  operatorName: '王操作',
+  planQty: 100,
+  planStart: '2026-03-06 08:00',
+  planEnd: '2026-03-06 18:00'
+})
+
+const pendingWo = computed(() => mes.pendingDispatchWorkOrders)
+const dispatchableWo = computed(() => mes.workOrders.filter((w) => ['已下达', '已派工', '生产中'].includes(w.status)))
+const { selected, filtered, onRowClick } = useMesFilter(computed(() => mes.dispatches), ['id', 'workOrderNo'])
+
+const statusItems = computed(() => [
+  { label: '待派工工单', value: pendingWo.value.length, warn: pendingWo.value.length > 0 },
+  { label: '派工记录', value: mes.dispatches.length },
+  { label: '待接收', value: mes.dispatches.filter((d) => d.status === '已分配').length }
+])
+
+const rows = computed(() => detailRows(selected.value, [
+  { key: 'id', label: '派工单' }, { key: 'processStep', label: '工序' },
+  { key: 'operatorName', label: '操作员' }, { key: 'operator', label: '账号' }, { key: 'status', label: '状态' }
+]))
+
+onMounted(() => {
+  if (route.query.workOrderId) openDialog(String(route.query.workOrderId))
+})
+
+watch(() => route.query.workOrderId, (id) => {
+  if (id) openDialog(String(id))
+})
+
+function onOperatorChange(username) {
+  const user = mes.operatorUsers.find((u) => u.username === username)
+  form.operatorName = user?.realName || username
+}
+
+function openDialog(workOrderId) {
+  form.workOrderId = workOrderId || pendingWo.value[0]?.id || dispatchableWo.value[0]?.id || ''
+  form.operator = mes.operatorUsers[0]?.username || 'operator'
+  onOperatorChange(form.operator)
+  if (form.workOrderId) {
+    const wo = mes.workOrders.find((w) => w.id === form.workOrderId)
+    if (wo) form.planQty = Math.min(100, wo.quantity)
+  }
+  dialogVisible.value = true
+}
+
+function save() {
+  const d = mes.createDispatch(form, userStore.displayName, userStore.roleKey)
+  if (d) {
+    ElMessage.success(`派工成功，已分配给 ${d.operatorName}（${d.operator}），请操作员登录接收`)
+    dialogVisible.value = false
+  } else {
+    ElMessage.warning('派工失败：请确认工单已下达（状态为「已下达」）')
+  }
+}
+</script>
+
+<style scoped>
+.pending-block {
+  padding: 12px 0 4px;
+  border-bottom: 1px solid #e8ecf0;
+  margin-bottom: 8px;
+}
+.pending-block__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #001b3f;
+  margin-bottom: 8px;
+}
+.dispatch-hint {
+  font-size: 12px;
+  color: #4f5f73;
+  margin: 0;
+  width: 100%;
+}
+</style>

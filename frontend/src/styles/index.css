@@ -1,0 +1,33 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #f5f7fa;
+}
+
+.page-card {
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.page-title {
+  font-size: var(--fs-page-title);
+  font-weight: var(--heading-weight);
+  line-height: var(--lh-heading);
+  color: var(--heading-color);
+  margin-bottom: 16px;
+}
+
+.page-hint {
+  font-size: var(--fs-caption);
+  font-weight: var(--body-weight);
+  line-height: var(--lh-body);
+  color: var(--text-placeholder);
+  margin-bottom: 16px;
+}
