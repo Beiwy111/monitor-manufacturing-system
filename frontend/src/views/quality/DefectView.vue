@@ -1,7 +1,7 @@
 <template>
   <MesPageShell toolbar-title="不合格品处理" :detail-rows="rows" :logs="mes.operationLogs.slice(0,8)">
     <template #table>
-      <el-table :data="defectList" highlight-current-row @current-change="onRowClick">
+      <el-table :data="defectList" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="id" label="编号" width="120" />
         <el-table-column prop="workOrderId" label="工单" width="130" />
         <el-table-column prop="defectLocation" label="问题部位" width="110" />

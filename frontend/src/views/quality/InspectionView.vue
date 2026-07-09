@@ -1,7 +1,7 @@
 <template>
   <MesPageShell toolbar-title="待检任务" :status-options="['待检']" :detail-rows="rows" :logs="mes.operationLogs.slice(0,8)">
     <template #table>
-      <el-table :data="pending" highlight-current-row @current-change="onRowClick">
+      <el-table :data="pending" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="id" label="质检单" width="130" />
         <el-table-column prop="workOrderId" label="工单" width="130" />
         <el-table-column prop="operatorName" label="操作员" width="100" />
@@ -112,7 +112,7 @@ const rows = computed(() => detailRows(selected.value, [
   { key: 'status', label: '状态' }
 ]))
 
-function submit() {
+async function submit() {
   if (!selected.value) return
   if (form.result === '不合格') {
     if (!form.defectLocation) {
@@ -133,17 +133,21 @@ function submit() {
     }
   }
   form.inspectorName = userStore.displayName
-  const ok = mes.submitInspection(selected.value.id, form, userStore.userInfo.username, 'quality')
-  if (!ok) {
-    ElMessage.error('提交失败')
-    return
-  }
-  if (form.result === '合格') {
-    ElMessage.success('质检合格，已生成仓储入库待办')
-  } else if (form.result === '不合格') {
-    ElMessage.warning('合格品已生成入库待办；不合格品请在「不合格品」页报废或派返修')
-  } else {
-    ElMessage.success('已记录让步接收，已生成入库待办')
+  try {
+    const ok = await mes.submitInspection(selected.value.id, form, userStore.userInfo.username, 'quality')
+    if (!ok) {
+      ElMessage.error('提交失败')
+      return
+    }
+    if (form.result === '合格') {
+      ElMessage.success('质检合格，已生成仓储入库待办和质量报告')
+    } else if (form.result === '不合格') {
+      ElMessage.warning('合格品已生成入库待办；系统已生成质量报告，不合格品请在「不合格品」页处理')
+    } else {
+      ElMessage.success('已记录让步接收，已生成入库待办和质量报告')
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '提交质检结果失败')
   }
 }
 </script>

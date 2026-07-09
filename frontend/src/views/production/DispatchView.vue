@@ -9,9 +9,30 @@
     @toolbar-action="openDialog()"
   >
     <template #table>
+      <div v-if="agentPlans.length" class="pending-block">
+        <div class="pending-block__title">Agent 计划 · 一键派工（{{ agentPlans.length }}）</div>
+        <el-table :data="agentPlans" border stripe size="small" style="margin-bottom: 12px">
+          <el-table-column prop="id" label="计划号" width="140" />
+          <el-table-column prop="orderNo" label="订单号" width="130" />
+          <el-table-column prop="productModel" label="型号" width="120" />
+          <el-table-column label="Agent建议" min-width="160">
+            <template #default="{ row }">
+              {{ row.agentRecommendation?.totalOperators || '-' }} 人 ·
+              {{ row.agentRecommendation?.totalMachines || '-' }} 台设备 ·
+              {{ (row.agentRecommendation?.workshops || []).length }} 车间
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="160">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="agentDispatch(row)">Agent 一键派工</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
       <div v-if="pendingWo.length" class="pending-block">
         <div class="pending-block__title">待派工生产工单（{{ pendingWo.length }}）</div>
-        <el-table :data="pendingWo" size="small" style="margin-bottom: 16px">
+        <el-table :data="pendingWo" border stripe size="small" style="margin-bottom: 12px">
           <el-table-column prop="id" label="工单号" width="130" />
           <el-table-column prop="orderNo" label="订单号" width="130" />
           <el-table-column prop="productModel" label="型号" width="130" />
@@ -25,7 +46,7 @@
         </el-table>
       </div>
 
-      <el-table :data="filtered" highlight-current-row @current-change="onRowClick">
+      <el-table :data="filtered" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="id" label="派工单号" width="130" />
         <el-table-column prop="workOrderNo" label="工单号" width="130" />
         <el-table-column prop="processStep" label="工序" width="100" />
@@ -81,7 +102,7 @@
 <script setup>
 import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { DISPATCH_STATUS, PROCESS_STEPS } from '@/mock/constants'
@@ -97,14 +118,17 @@ const form = reactive({
   workOrderId: '',
   processStep: PROCESS_STEPS[0],
   equipment: '装配线 A',
-  operator: 'operator',
-  operatorName: '王操作',
+  operator: '',
+  operatorName: '',
   planQty: 100,
   planStart: '2026-03-06 08:00',
   planEnd: '2026-03-06 18:00'
 })
 
 const pendingWo = computed(() => mes.pendingDispatchWorkOrders)
+const agentPlans = computed(() =>
+  mes.plans.filter((p) => p.status === '已提交' && p.agentGenerated && p.dispatchSuggestions?.length)
+)
 const dispatchableWo = computed(() => mes.workOrders.filter((w) => ['已下达', '已派工', '生产中'].includes(w.status)))
 const { selected, filtered, onRowClick } = useMesFilter(computed(() => mes.dispatches), ['id', 'workOrderNo'])
 
@@ -143,13 +167,34 @@ function openDialog(workOrderId) {
   dialogVisible.value = true
 }
 
-function save() {
-  const d = mes.createDispatch(form, userStore.displayName, userStore.roleKey)
-  if (d) {
-    ElMessage.success(`派工成功，已分配给 ${d.operatorName}（${d.operator}），请操作员登录接收`)
-    dialogVisible.value = false
-  } else {
-    ElMessage.warning('派工失败：请确认工单已下达（状态为「已下达」）')
+async function save() {
+  try {
+    const d = await mes.createDispatch(form, userStore.username, userStore.roleKey)
+    if (d) {
+      ElMessage.success(`派工成功，已分配给 ${form.operatorName}（${form.operator}），请操作员登录接收`)
+      dialogVisible.value = false
+    } else {
+      ElMessage.warning('派工失败：请确认工单已下达（状态为「已下达」）')
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '派工失败')
+  }
+}
+
+async function agentDispatch(plan) {
+  try {
+    await ElMessageBox.confirm(
+      `将按 Agent 建议为计划 ${plan.id} 自动生成工单并批量派工，是否继续？`,
+      'Agent 一键派工',
+      { type: 'info' }
+    )
+    const res = await mes.agentBatchDispatch(plan.id, userStore.username, userStore.roleKey, {
+      operator: mes.operatorUsers[0]?.username || 'wang_operator',
+      operatorName: mes.operatorUsers[0]?.realName || '王操作'
+    })
+    ElMessage.success(`已创建 ${res?.count || 0} 条派工，请操作员接收`)
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(e?.message || 'Agent 派工失败')
   }
 }
 </script>

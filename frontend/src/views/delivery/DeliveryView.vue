@@ -1,7 +1,7 @@
 <template>
   <MesPageShell toolbar-title="发货管理" :status-options="DELIVERY_STATUS" :detail-rows="rows" :logs="mes.operationLogs.slice(0,8)">
     <template #table>
-      <el-table :data="mes.deliveries" highlight-current-row @current-change="onRowClick">
+      <el-table :data="mes.deliveries" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="id" label="发货单" width="130" />
         <el-table-column prop="orderNo" label="订单" width="130" />
         <el-table-column prop="customerName" label="客户" min-width="120" />

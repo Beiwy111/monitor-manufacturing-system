@@ -7,9 +7,6 @@ export const roleMenus = {
       { menuId: 13, menuName: '权限管理', path: '/system/permission' },
       { menuId: 14, menuName: '菜单管理', path: '/system/menu' },
       { menuId: 15, menuName: '操作日志', path: '/system/log' }
-    ]},
-    { menuId: 2, menuName: '全局监控', children: [
-      { menuId: 21, menuName: '系统看板', path: '/system/board' }
     ]}
   ],
   order: [
@@ -19,9 +16,17 @@ export const roleMenus = {
       { menuId: 33, menuName: '订单跟踪', path: '/order/track' }
     ]}
   ],
+  planner: [
+    { menuId: 12, menuName: '计划管理', children: [
+      { menuId: 121, menuName: '生产计划', path: '/production/plan' },
+      { menuId: 122, menuName: '订单跟踪', path: '/order/track' }
+    ]}
+  ],
   manager: [
+    { menuId: 40, menuName: '生产监控', children: [
+      { menuId: 41, menuName: '生产调度大屏', path: '/system/board' }
+    ]},
     { menuId: 4, menuName: '生产管理', children: [
-      { menuId: 41, menuName: '生产计划', path: '/production/plan' },
       { menuId: 42, menuName: '生产工单', path: '/production/work-order' },
       { menuId: 43, menuName: '工单派工', path: '/production/dispatch' },
       { menuId: 44, menuName: '生产进度', path: '/production/progress' },

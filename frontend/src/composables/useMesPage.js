@@ -1,8 +1,9 @@
-import { ref, computed } from 'vue'
+import { ref, computed, inject } from 'vue'
 
 export function useMesFilter(source, searchFields = []) {
-  const keyword = ref('')
-  const statusFilter = ref('')
+  const injected = inject('mesPageFilters', null)
+  const keyword = injected?.keyword ?? ref('')
+  const statusFilter = injected?.statusFilter ?? ref('')
   const selected = ref(null)
 
   const filtered = computed(() => {

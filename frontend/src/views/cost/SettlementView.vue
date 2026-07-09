@@ -6,7 +6,7 @@
     :logs="mes.operationLogs.slice(0,8)"
   >
     <template #table>
-      <el-table :data="mes.costSettlements" highlight-current-row @current-change="onRowClick">
+      <el-table :data="mes.costSettlements" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="id" label="结算单" width="130" />
         <el-table-column prop="workOrderId" label="工单" width="130" />
         <el-table-column prop="productModel" label="型号" width="130" />

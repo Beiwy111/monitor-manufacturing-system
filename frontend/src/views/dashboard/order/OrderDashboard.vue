@@ -10,7 +10,8 @@ const mes = useMesStore()
 const statusItems = computed(() => [
   { label: '订单总数', value: mes.orders.length },
   { label: '待审核', value: mes.pendingOrders.length, warn: mes.pendingOrders.length > 0 },
-  { label: '已审核', value: mes.approvedOrders.length },
+  { label: '待提交计划', value: mes.pendingSubmitToPlanner.length, warn: mes.pendingSubmitToPlanner.length > 0 },
+  { label: '待计划', value: mes.pendingPlanOrders.length },
   { label: '生产中', value: mes.orders.filter(o => o.status === '生产中').length },
   { label: '已发货', value: mes.orders.filter(o => o.status === '已发货').length }
 ])

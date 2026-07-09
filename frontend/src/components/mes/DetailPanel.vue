@@ -1,40 +1,34 @@
 <template>
-  <div class="mes-side">
-    <div class="mes-side-header">{{ title }}</div>
-    <div class="mes-side-body">
-      <template v-if="rows.length">
-        <div v-for="row in rows" :key="row.label" class="mes-detail-row">
-          <span class="mes-detail-label">{{ row.label }}</span>
-          <span class="mes-detail-value">
-            <StatusBadge v-if="row.badge" :status="row.value" />
-            <template v-else>{{ row.value ?? '-' }}</template>
-          </span>
-        </div>
-      </template>
-      <div v-else class="mes-detail-empty">{{ emptyText }}</div>
+  <div v-if="visible" class="ruoyi-detail">
+    <div class="ruoyi-detail__head">
+      <span class="ruoyi-detail__title">{{ title }}</span>
+    </div>
+    <div v-if="rows.length" class="ruoyi-detail__body">
+      <el-descriptions :column="3" border size="small">
+        <el-descriptions-item v-for="row in rows" :key="row.label" :label="row.label">
+          <StatusBadge v-if="row.badge" :status="row.value" />
+          <template v-else>{{ row.value ?? '-' }}</template>
+        </el-descriptions-item>
+      </el-descriptions>
       <slot />
     </div>
-    <div v-if="$slots.actions" class="mes-actions">
+    <div v-else class="ruoyi-detail__empty">{{ emptyText }}</div>
+    <div v-if="$slots.actions" class="ruoyi-detail__actions">
       <slot name="actions" />
     </div>
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import StatusBadge from './StatusBadge.vue'
 
-defineProps({
+const props = defineProps({
   title: { type: String, default: '详情' },
   rows: { type: Array, default: () => [] },
-  emptyText: { type: String, default: '请选择一条记录查看详情' }
+  emptyText: { type: String, default: '请选择一条记录查看详情' },
+  alwaysShow: { type: Boolean, default: false }
 })
-</script>
 
-<style scoped>
-.mes-detail-empty {
-  font-size: 13px;
-  color: #909399;
-  padding: 20px 0;
-  text-align: center;
-}
-</style>
+const visible = computed(() => props.alwaysShow || props.rows.length > 0)
+</script>

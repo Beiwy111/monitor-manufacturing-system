@@ -7,7 +7,7 @@
         title="入库任务由质检员检验合格后自动生成，确认后更新成品库存并创建发货待办。"
         style="margin-bottom: 12px"
       />
-      <el-table :data="mes.pendingInbound" highlight-current-row @current-change="onRowClick">
+      <el-table :data="mes.pendingInbound" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="id" label="入库单" width="100" />
         <el-table-column prop="productModel" label="产品型号" min-width="140" />
         <el-table-column prop="quantity" label="数量" width="80" />

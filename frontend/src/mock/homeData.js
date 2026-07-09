@@ -104,16 +104,17 @@ export const coreModules = [
 ]
 
 export const roleWorkbenches = [
-  { key: 'admin', name: '系统管理员', desc: '用户、角色、权限、菜单、日志与全局看板', account: 'admin', tasks: '权限配置、日志审计' },
-  { key: 'order', name: '订单管理员', desc: '客户订单、审核、跟踪与交付状态', account: 'sales', tasks: '订单审核' },
-  { key: 'manager', name: '生产主管', desc: '计划下达、工单派工、进度监控与异常处理', account: 'manager', tasks: '派工、进度、安灯' },
-  { key: 'operator', name: '生产操作员', desc: '接收派工、现场报工、工序执行与安灯触发', account: 'operator', tasks: '接单、报工' },
-  { key: 'quality', name: '质检员', desc: '待检任务、检验录入、不合格品与复检处理', account: 'qc', tasks: '检验、追溯' },
-  { key: 'warehouse', name: '仓库员', desc: '采购入库、领料出库、成品入库与库存管理', account: 'warehouse', tasks: '出入库' },
-  { key: 'purchase', name: '采购员', desc: '采购订单、到货跟进、供应商与采购异常', account: 'buyer', tasks: '采购跟进' },
-  { key: 'device', name: '设备维护人员', desc: '设备台账、报警接收、维修记录与保养计划', account: 'device', tasks: '维修、保养' },
-  { key: 'aftersale', name: '售后人员', desc: '售后登记、客户反馈、发货查询与质量追溯', account: 'aftersale', tasks: '售后处理' },
-  { key: 'cost', name: '财务/成本人员', desc: '工单成本、材料人工设备成本与结算报表', account: 'cost', tasks: '成本结算' }
+  { key: 'admin', name: '系统管理员', desc: '用户、角色、权限、菜单、日志与全局看板', tasks: '权限配置、日志审计' },
+  { key: 'order', name: '订单管理员', desc: '客户订单、审核、提交计划员与交付跟踪', tasks: '订单审核、提交计划' },
+  { key: 'planner', name: '计划员', desc: '接收订单、编制生产计划并提交生产主管', tasks: '编制计划、提交主管' },
+  { key: 'manager', name: '生产主管', desc: '接收计划、生成工单、派工与进度监控', tasks: '工单、派工、安灯' },
+  { key: 'operator', name: '生产操作员', desc: '接收派工、现场报工、工序执行与安灯触发', tasks: '接单、报工' },
+  { key: 'quality', name: '质检员', desc: '待检任务、检验录入、不合格品与复检处理', tasks: '检验、追溯' },
+  { key: 'warehouse', name: '仓库员', desc: '采购入库、领料出库、成品入库与库存管理', tasks: '出入库' },
+  { key: 'purchase', name: '采购员', desc: '采购订单、到货跟进、供应商与采购异常', tasks: '采购跟进' },
+  { key: 'device', name: '设备维护人员', desc: '设备台账、报警接收、维修记录与保养计划', tasks: '维修、保养' },
+  { key: 'aftersale', name: '售后人员', desc: '售后登记、客户反馈、发货查询与质量追溯', tasks: '售后处理' },
+  { key: 'cost', name: '财务/成本人员', desc: '工单成本、材料人工设备成本与结算报表', tasks: '成本结算' }
 ]
 
 export const opsKpis = [

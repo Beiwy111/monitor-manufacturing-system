@@ -1,7 +1,7 @@
 <template>
   <MesPageShell toolbar-title="维修处理" :detail-rows="rows">
     <template #table>
-      <el-table :data="faultList" highlight-current-row @current-change="onRowClick">
+      <el-table :data="faultList" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="name" label="设备" min-width="140" />
         <el-table-column prop="type" label="类型" width="120" />
         <el-table-column prop="status" label="状态" width="90" />

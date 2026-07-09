@@ -1,7 +1,7 @@
 <template>
   <MesPageShell toolbar-title="设备台账" :detail-rows="rows" :logs="mes.operationLogs.slice(0,6)">
     <template #table>
-      <el-table :data="mes.equipment" highlight-current-row @current-change="onRowClick">
+      <el-table :data="mes.equipment" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="id" label="编号" width="100" />
         <el-table-column prop="name" label="设备名称" min-width="140" />
         <el-table-column prop="type" label="类型" width="120" />

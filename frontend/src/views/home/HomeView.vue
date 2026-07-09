@@ -6,7 +6,7 @@
     <ProductShowcaseSection />
     <ProcessFlowSection />
     <ModuleGridSection />
-    <RoleWorkbenchSection @login-as="goLoginAs" />
+    <RoleWorkbenchSection @login="goLogin" />
     <HomeFooter />
   </div>
 </template>
@@ -30,10 +30,6 @@ function scrollTo(id) {
 
 function goLogin() {
   router.push('/login')
-}
-
-function goLoginAs(account) {
-  router.push({ path: '/login', query: { username: account } })
 }
 </script>
 

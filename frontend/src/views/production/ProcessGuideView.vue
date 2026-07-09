@@ -10,18 +10,32 @@
           <ProcessTimeline :items="guide.steps.map(s => ({ title: s }))" />
           <p style="margin-top:16px;color:#4f5f73;line-height:1.8;font-size:15px">{{ guide.keyPoints }}</p>
         </div>
+        <el-empty v-else description="暂无工艺数据，请确认后端已配置工艺路线" />
       </div>
     </template>
   </MesPageShell>
 </template>
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useMesStore } from '@/stores/mes'
-import { PRODUCT_MODELS } from '@/mock/constants'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import ProcessTimeline from '@/components/mes/ProcessTimeline.vue'
+
 const mes = useMesStore()
-const model = ref(PRODUCT_MODELS[0])
-const models = PRODUCT_MODELS
+const models = computed(() => Object.keys(mes.processGuide || {}))
+const model = ref('')
 const guide = computed(() => mes.processGuide[model.value])
+
+watch(models, (list) => {
+  if (!model.value && list.length) model.value = list[0]
+}, { immediate: true })
+
+onMounted(async () => {
+  try {
+    await mes.hydrateFromApi()
+    if (!model.value && models.value.length) model.value = models.value[0]
+  } catch {
+    /* ignore */
+  }
+})
 </script>

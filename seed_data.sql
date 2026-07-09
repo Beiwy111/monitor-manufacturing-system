@@ -35,22 +35,29 @@ TRUNCATE TABLE role;
 -- ==================== 1. 系统管理 ====================
 INSERT INTO role (role_code, role_name, role_description, status) VALUES
 ('ADMIN', '系统管理员', '拥有全部系统权限', 1),
+('ORDER', '订单管理员', '客户订单审核、跟踪与提交计划', 1),
 ('PLANNER', '计划员', '负责生产计划编制与下达', 1),
-('OPERATOR', '操作员', '负责现场生产操作与报工', 1),
+('MANAGER', '生产主管', '生成工单、派工与生产监控', 1),
+('OPERATOR', '生产操作员', '负责现场生产操作与报工', 1),
 ('QC', '质检员', '负责质量检验与不合格品处理', 1),
 ('PURCHASER', '采购员', '负责采购订单管理', 1),
 ('WAREHOUSE', '仓管员', '负责物料与库存管理', 1),
-('SERVICE', '售后专员', '负责售后案例处理', 1);
+('DEVICE', '设备维护人员', '设备台账、安灯与维修', 1),
+('SERVICE', '售后专员', '负责售后案例处理', 1),
+('COST', '财务成本人员', '工单成本与结算报表', 1);
 
 INSERT INTO `user` (role_id, username, password_hash, real_name, employee_no, phone, email, department, status, last_login_at) VALUES
-(1, 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '张管理', 'EMP001', '13800001001', 'admin@display.com', '信息部', 1, '2026-07-06 08:30:00'),
-(2, 'planner01', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '李计划', 'EMP002', '13800001002', 'planner@display.com', '计划部', 1, '2026-07-06 09:00:00'),
-(3, 'operator01', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '王操作', 'EMP003', '13800001003', 'op1@display.com', '生产一部', 1, '2026-07-06 07:45:00'),
-(3, 'operator02', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '赵操作', 'EMP004', '13800001004', 'op2@display.com', '生产二部', 1, '2026-07-05 16:20:00'),
-(4, 'qc01', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '陈质检', 'EMP005', '13800001005', 'qc@display.com', '质量部', 1, '2026-07-06 10:15:00'),
-(5, 'purchase01', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '刘采购', 'EMP006', '13800001006', 'purchase@display.com', '采购部', 1, '2026-07-06 11:00:00'),
-(6, 'warehouse01', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '周仓管', 'EMP007', '13800001007', 'wh@display.com', '仓储部', 1, '2026-07-06 08:00:00'),
-(7, 'service01', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '吴售后', 'EMP008', '13800001008', 'service@display.com', '售后部', 1, '2026-07-05 14:30:00');
+(1, 'admin', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '张管理', 'EMP001', '13800001001', 'admin@display.com', '信息部', 1, '2026-07-06 08:30:00'),
+(2, 'zhang_order', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '张订单', 'EMP101', '13800001101', 'order@display.com', '销售部', 1, NULL),
+(3, 'li_planner', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '李计划', 'EMP102', '13800001102', 'planner@display.com', '计划部', 1, NULL),
+(4, 'li_manager', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '李主管', 'EMP103', '13800001103', 'manager@display.com', '生产部', 1, NULL),
+(5, 'wang_operator', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '王操作', 'EMP104', '13800001104', 'operator@display.com', '生产一部', 1, NULL),
+(6, 'chen_qc', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '陈质检', 'EMP105', '13800001105', 'qc@display.com', '质量部', 1, NULL),
+(7, 'liu_purchase', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '刘采购', 'EMP106', '13800001106', 'purchase@display.com', '采购部', 1, NULL),
+(8, 'zhou_warehouse', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '周仓管', 'EMP107', '13800001107', 'warehouse@display.com', '仓储部', 1, NULL),
+(9, 'zhou_device', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '周设备', 'EMP108', '13800001108', 'device@display.com', '设备部', 1, NULL),
+(10, 'wu_service', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '吴售后', 'EMP109', '13800001109', 'service@display.com', '售后部', 1, NULL),
+(11, 'zheng_cost', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '郑财务', 'EMP110', '13800001110', 'cost@display.com', '财务部', 1, NULL);
 
 INSERT INTO permission (role_id, permission_code, permission_name, resource_type, resource_path, parent_id, sort_no, status) VALUES
 (1, 'system', '系统管理', 'MENU', '/system', NULL, 1, 1),

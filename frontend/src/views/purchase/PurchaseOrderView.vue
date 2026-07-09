@@ -8,7 +8,7 @@
     @toolbar-action="dialogVisible=true"
   >
     <template #table>
-      <el-table :data="mes.purchaseOrders" highlight-current-row @current-change="onRowClick">
+      <el-table :data="mes.purchaseOrders" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="id" label="采购单" width="130" />
         <el-table-column prop="supplier" label="供应商" min-width="120" />
         <el-table-column prop="materialName" label="物料" width="100" />

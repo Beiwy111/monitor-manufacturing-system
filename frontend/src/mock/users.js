@@ -4,6 +4,7 @@
 export const mockUsers = [
   { username: 'admin', password: '123456', roleKey: 'admin', roleCode: 'ADMIN', roleName: '系统管理员', realName: '系统管理员', dashboardPath: '/dashboard/admin' },
   { username: 'sales', password: '123456', roleKey: 'order', roleCode: 'ORDER', roleName: '订单管理员', realName: '张销售', dashboardPath: '/dashboard/order' },
+  { username: 'planner', password: '123456', roleKey: 'planner', roleCode: 'PLANNER', roleName: '计划员', realName: '孙计划', dashboardPath: '/dashboard/planner' },
   { username: 'manager', password: '123456', roleKey: 'manager', roleCode: 'MANAGER', roleName: '生产主管', realName: '李主管', dashboardPath: '/dashboard/manager' },
   { username: 'operator', password: '123456', roleKey: 'operator', roleCode: 'OPERATOR', roleName: '生产操作员', realName: '王操作', dashboardPath: '/dashboard/operator' },
   { username: 'qc', password: '123456', roleKey: 'quality', roleCode: 'QC', roleName: '质检员', realName: '赵质检', dashboardPath: '/dashboard/quality' },

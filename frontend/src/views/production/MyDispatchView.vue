@@ -8,7 +8,7 @@
         title="暂无派工任务。请生产主管在「工单派工」中选择您（operator / 王操作）并派工。"
         style="margin-bottom: 12px"
       />
-      <el-table v-else :data="myList" highlight-current-row @current-change="onRowClick">
+      <el-table v-else :data="myList" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="id" label="派工单" width="130" />
         <el-table-column prop="workOrderNo" label="工单" width="130" />
         <el-table-column prop="processStep" label="工序" width="100" />
@@ -54,21 +54,31 @@ const rows = computed(() => detailRows(selected.value, [
   { key: 'equipment', label: '设备' }, { key: 'planQty', label: '计划量' }, { key: 'status', label: '状态' }
 ]))
 
-function accept() {
+async function accept() {
   if (!selected.value) return
-  if (mes.acceptDispatch(selected.value.id, username.value, userStore.roleKey)) {
-    ElMessage.success('已接收派工，请点击「开始生产」')
-  } else {
-    ElMessage.error('接收失败，请确认该任务分配给当前账号')
+  try {
+    const ok = await mes.acceptDispatch(selected.value.id, username.value, userStore.roleKey)
+    if (ok !== false) {
+      ElMessage.success('已接收派工，请点击「开始生产」')
+    } else {
+      ElMessage.error('接收失败，请确认该任务分配给当前账号')
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '接收派工失败')
   }
 }
 
-function start() {
+async function start() {
   if (!selected.value) return
-  if (mes.startDispatch(selected.value.id, username.value, userStore.roleKey)) {
-    ElMessage.success('已开始生产，可前往报工')
-  } else {
-    ElMessage.warning('请先接收派工')
+  try {
+    const ok = await mes.startDispatch(selected.value.id, username.value, userStore.roleKey)
+    if (ok !== false) {
+      ElMessage.success('已开始生产，可前往报工')
+    } else {
+      ElMessage.warning('请先接收派工')
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '开始生产失败')
   }
 }
 

@@ -2,9 +2,44 @@ import { defineStore } from 'pinia'
 import { findMockUser } from '@/mock/users'
 import { getMenusByRoleKey } from '@/mock/menus'
 import { login as loginApi, getUserInfo, getMenus } from '@/api/auth'
+import { MES_LIVE_MODE } from '@/config/mes'
+import { useMesStore } from '@/stores/mes'
+import { normalizeMenus, getHomePath, BOARD_PATH, stripBoardFromMenus } from '@/utils/menuRoutes'
+import { useTagsViewStore } from '@/stores/tagsView'
 
 /** 是否使用 Mock 登录（后端接口就绪后改为 false） */
-const USE_MOCK_AUTH = true
+const USE_MOCK_AUTH = false
+
+function mapRoleCodeToKey(roleCode) {
+  const map = {
+    ADMIN: 'admin',
+    ORDER: 'order',
+    PLANNER: 'planner',
+    MANAGER: 'manager',
+    OPERATOR: 'operator',
+    QC: 'quality',
+    PURCHASER: 'purchase',
+    WAREHOUSE: 'warehouse',
+    DEVICE: 'device',
+    SERVICE: 'aftersale',
+    COST: 'cost'
+  }
+  return map[(roleCode || '').toUpperCase()] || 'admin'
+}
+
+function buildUserInfo(session) {
+  const roleKey = mapRoleCodeToKey(session.roleCode)
+  return {
+    userId: session.userId,
+    username: session.username,
+    realName: session.realName,
+    roleId: session.roleId,
+    roleCode: session.roleCode,
+    roleName: session.roleName,
+    roleKey,
+    dashboardPath: getHomePath(roleKey)
+  }
+}
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -16,7 +51,7 @@ export const useUserStore = defineStore('user', {
     isLoggedIn: (state) => !!state.token,
     displayName: (state) => state.userInfo?.realName || state.userInfo?.username || '用户',
     roleKey: (state) => state.userInfo?.roleKey || '',
-    dashboardPath: (state) => state.userInfo?.dashboardPath || '/dashboard/admin'
+    dashboardPath: (state) => state.userInfo?.dashboardPath || getHomePath(state.userInfo?.roleKey)
   },
   actions: {
     async login(form) {
@@ -33,49 +68,78 @@ export const useUserStore = defineStore('user', {
           roleKey: user.roleKey,
           roleCode: user.roleCode,
           roleName: user.roleName,
-          dashboardPath: user.dashboardPath
+          dashboardPath: getHomePath(user.roleKey)
         }
         this.token = data.token
         this.userInfo = data
         localStorage.setItem('token', data.token)
         localStorage.setItem('userInfo', JSON.stringify(data))
         await this.loadMenus()
+        this.resetTagsHome()
         return data
       }
 
       const data = await loginApi(form)
       this.token = data.token
-      this.userInfo = data
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('userInfo', JSON.stringify(data))
+      if (!this.token) {
+        throw new Error('登录失败：未返回 token')
+      }
+      localStorage.setItem('token', this.token)
+      localStorage.removeItem('menus')
+      await this.refreshUserInfo()
       await this.loadMenus()
-      return data
+      this.resetTagsHome()
+      if (MES_LIVE_MODE) {
+        try {
+          await useMesStore().hydrateFromApi()
+        } catch (e) {
+          console.warn('MES 数据加载失败，登录仍有效', e)
+        }
+      }
+      return this.userInfo
     },
     async loadMenus() {
-      if (USE_MOCK_AUTH) {
-        this.menus = getMenusByRoleKey(this.roleKey)
-        localStorage.setItem('menus', JSON.stringify(this.menus))
-        return this.menus
+      const fallback = getMenusByRoleKey(this.roleKey)
+      try {
+        const apiMenus = await getMenus()
+        this.menus = normalizeMenus(apiMenus, this.roleKey, fallback)
+      } catch {
+        this.menus = fallback
       }
-      const menus = await getMenus()
-      this.menus = menus || []
+      if (!this.menus.some((m) => m.children?.length) && fallback.length) {
+        this.menus = fallback
+      }
+      this.menus = stripBoardFromMenus(this.menus, this.roleKey)
       localStorage.setItem('menus', JSON.stringify(this.menus))
       return this.menus
     },
+    resetTagsHome() {
+      const path = this.dashboardPath
+      const title = path === BOARD_PATH ? '生产调度大屏' : '首页'
+      useTagsViewStore().visitedViews = [{ path, title, affix: true }]
+    },
     async refreshUserInfo() {
       if (USE_MOCK_AUTH) return this.userInfo
-      const user = await getUserInfo()
-      this.userInfo = { ...this.userInfo, ...user }
+      const session = await getUserInfo()
+      this.userInfo = buildUserInfo(session)
       localStorage.setItem('userInfo', JSON.stringify(this.userInfo))
       return this.userInfo
     },
     logout() {
+      const token = this.token
       this.token = ''
       this.userInfo = null
       this.menus = []
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
       localStorage.removeItem('menus')
+      useTagsViewStore().visitedViews = []
+
+      if (!USE_MOCK_AUTH && token) {
+        import('@/api/auth').then(({ logout }) => {
+          logout(token).catch(() => {})
+        })
+      }
     }
   }
 })

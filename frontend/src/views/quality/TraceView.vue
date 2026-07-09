@@ -5,9 +5,9 @@
       <el-button type="primary" @click="search">追溯</el-button>
     </template>
     <template #table>
-      <div style="padding:16px">
+      <div class="ruoyi-content-block">
         <ProcessTimeline v-if="chain" :items="items" />
-        <p v-else style="color:#909399">输入订单号查询全流程追溯</p>
+        <p v-else class="ruoyi-empty-tip">输入订单号查询全流程追溯</p>
       </div>
     </template>
   </MesPageShell>

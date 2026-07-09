@@ -7,7 +7,7 @@
         title="流程说明：先完成计划数量的生产报工，再点击「提交质检」；质检合格后由仓储管理员入库。"
         style="margin-bottom: 12px"
       />
-      <el-table :data="activeDispatches" highlight-current-row @current-change="onRowClick">
+      <el-table :data="activeDispatches" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="id" label="派工单" width="130" />
         <el-table-column prop="processStep" label="工序" width="100" />
         <el-table-column prop="planQty" label="计划" width="70" />
@@ -96,30 +96,38 @@ function canSubmitQc(row) {
   return row.status === '生产中' && row.completedQty >= row.planQty
 }
 
-function submit() {
+async function submit() {
   if (!selected.value) return
-  const rpt = mes.submitReport(
-    { ...form, dispatchId: selected.value.id, operatorName: userStore.displayName },
-    username.value,
-    'operator'
-  )
-  if (rpt) {
-    ElMessage.success('报工已提交')
-    if (selected.value.completedQty >= selected.value.planQty) {
-      ElMessage.info('计划数量已完成，请点击「提交质检」送交质检员')
+  try {
+    const rpt = await mes.submitReport(
+      { ...form, dispatchId: selected.value.id, operatorName: userStore.displayName },
+      username.value,
+      'operator'
+    )
+    if (rpt) {
+      ElMessage.success('报工已提交')
+      if (selected.value.completedQty >= selected.value.planQty) {
+        ElMessage.info('计划数量已完成，请点击「提交质检」送交质检员')
+      }
+    } else {
+      ElMessage.warning('报工失败，请确认派工状态')
     }
-  } else {
-    ElMessage.warning('报工失败，请确认派工状态')
+  } catch (e) {
+    ElMessage.error(e?.message || '报工失败')
   }
 }
 
-function submitQc() {
+async function submitQc() {
   if (!selected.value) return
-  const qcId = mes.submitToInspection(selected.value.id, username.value, 'operator')
-  if (qcId) {
-    ElMessage.success('已提交质检，质检员可在「待检任务」中处理')
-  } else {
-    ElMessage.warning('提交失败：请确认计划数量已全部报工且尚未重复提交')
+  try {
+    const qcId = await mes.submitToInspection(selected.value.id, username.value, 'operator')
+    if (qcId) {
+      ElMessage.success('已提交质检，质检员可在「待检任务」中处理')
+    } else {
+      ElMessage.warning('提交失败：请确认计划数量已全部报工且尚未重复提交')
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '提交质检失败')
   }
 }
 

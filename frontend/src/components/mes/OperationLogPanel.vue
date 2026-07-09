@@ -1,11 +1,12 @@
 <template>
-  <div class="mes-log-panel">
-    <div class="mes-log-header">{{ title }}（最近 {{ logs.length }} 条）</div>
-    <div v-for="log in logs" :key="log.id" class="mes-log-item">
-      <span class="mes-log-time">{{ log.createdAt }}</span>
-      <span>{{ log.operator }} · {{ log.action }} · {{ log.target }}</span>
+  <div v-if="logs.length" class="ruoyi-log">
+    <div class="ruoyi-log__head">{{ title }}（最近 {{ logs.length }} 条）</div>
+    <div class="ruoyi-log__list">
+      <div v-for="log in logs" :key="log.id" class="ruoyi-log__item">
+        <span class="ruoyi-log__time">{{ log.createdAt }}</span>
+        <span>{{ log.operator }} · {{ log.action }} · {{ log.target }}</span>
+      </div>
     </div>
-    <div v-if="!logs.length" class="mes-log-item">暂无操作记录</div>
   </div>
 </template>
 

@@ -3,14 +3,13 @@
     <div class="section-inner">
       <h2 class="section-title">角色工作台</h2>
       <p class="section-lead">
-        不同岗位登录后进入专属工作台，看到不同菜单与待办任务。演示账号密码均为 123456。
+        不同岗位登录后进入专属工作台，看到不同菜单与待办任务。账号由系统管理员统一创建与分配。
       </p>
       <table class="role-table">
         <thead>
           <tr>
             <th>岗位角色</th>
             <th>主要职责</th>
-            <th>演示账号</th>
             <th></th>
           </tr>
         </thead>
@@ -18,8 +17,7 @@
           <tr v-for="role in roleWorkbenches" :key="role.key">
             <td class="role-name">{{ role.name }}</td>
             <td>{{ role.desc }}</td>
-            <td class="role-account">{{ role.account }}</td>
-            <td><a class="role-link" @click="$emit('login-as', role.account)">进入</a></td>
+            <td><a class="role-link" @click="$emit('login')">登录系统</a></td>
           </tr>
         </tbody>
       </table>
@@ -30,7 +28,7 @@
 <script setup>
 import { roleWorkbenches } from '@/mock/homeData'
 
-defineEmits(['login-as'])
+defineEmits(['login'])
 </script>
 
 <style scoped>
@@ -80,27 +78,17 @@ defineEmits(['login-as'])
   vertical-align: top;
 }
 .role-name {
-  font-weight: var(--heading-weight);
   color: var(--heading-color);
+  font-weight: var(--body-weight-medium);
   white-space: nowrap;
 }
-.role-account {
-  font-family: var(--font-sans);
-  color: var(--text-placeholder);
-}
 .role-link {
-  color: var(--accent-color);
-  font-weight: var(--body-weight-medium);
+  color: #008793;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
+  font-weight: var(--body-weight-medium);
 }
 .role-link:hover {
-  color: var(--accent-hover);
-}
-@media (max-width: 768px) {
-  .role-table thead { display: none; }
-  .role-table td { display: block; padding: 8px 0; border: none; }
-  .role-table tr { display: block; padding: 16px 0; border-bottom: 1px solid #e8ecf0; }
+  text-decoration: underline;
 }
 </style>

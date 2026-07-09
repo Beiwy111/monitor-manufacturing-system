@@ -32,7 +32,7 @@ request.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       const userStore = useUserStore()
       userStore.logout()
-      router.push('/login')
+      router.replace('/login')
     }
     ElMessage.error(error.message || '网络异常')
     return Promise.reject(error)

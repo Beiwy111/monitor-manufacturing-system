@@ -1,10 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useMesStore } from '@/stores/mes'
+import { MES_LIVE_MODE } from '@/config/mes'
+import { BOARD_PATH, getHomePath } from '@/utils/menuRoutes'
 import MainLayout from '@/layouts/MainLayout.vue'
 
 const dashboardRoutes = [
   { path: 'dashboard/admin', name: 'DashboardAdmin', component: () => import('@/views/dashboard/admin/AdminDashboard.vue'), meta: { title: '系统管理工作台', roleKey: 'admin' } },
   { path: 'dashboard/order', name: 'DashboardOrder', component: () => import('@/views/dashboard/order/OrderDashboard.vue'), meta: { title: '订单管理工作台', roleKey: 'order' } },
+  { path: 'dashboard/planner', name: 'DashboardPlanner', component: () => import('@/views/dashboard/planner/PlannerDashboard.vue'), meta: { title: '计划员工作台', roleKey: 'planner' } },
   { path: 'dashboard/manager', name: 'DashboardManager', component: () => import('@/views/dashboard/manager/ManagerDashboard.vue'), meta: { title: '生产主管工作台', roleKey: 'manager' } },
   { path: 'dashboard/operator', name: 'DashboardOperator', component: () => import('@/views/dashboard/operator/OperatorDashboard.vue'), meta: { title: '生产操作员工作台', roleKey: 'operator' } },
   { path: 'dashboard/quality', name: 'DashboardQuality', component: () => import('@/views/dashboard/quality/QualityDashboard.vue'), meta: { title: '质检员工作台', roleKey: 'quality' } },
@@ -21,7 +25,7 @@ const businessRoutes = [
   { path: 'system/permission', component: () => import('@/views/system/PermissionView.vue'), meta: { title: '权限管理' } },
   { path: 'system/menu', component: () => import('@/views/system/MenuView.vue'), meta: { title: '菜单管理' } },
   { path: 'system/log', component: () => import('@/views/system/OperationLogView.vue'), meta: { title: '操作日志' } },
-  { path: 'system/board', component: () => import('@/views/system/BoardView.vue'), meta: { title: '系统看板' } },
+  { path: 'system/board', component: () => import('@/views/system/BoardView.vue'), meta: { title: '生产调度大屏', layout: 'screen', roleKey: 'manager' } },
   { path: 'order/list', component: () => import('@/views/order/OrderListView.vue'), meta: { title: '客户订单' } },
   { path: 'order/audit', component: () => import('@/views/order/OrderAuditView.vue'), meta: { title: '订单审核' } },
   { path: 'order/track', component: () => import('@/views/order/OrderTrackView.vue'), meta: { title: '订单跟踪' } },
@@ -69,6 +73,7 @@ const businessRoutes = [
 const routes = [
   { path: '/', name: 'Home', component: () => import('@/views/home/HomeView.vue'), meta: { public: true } },
   { path: '/login', name: 'Login', component: () => import('@/views/login/LoginView.vue'), meta: { public: true } },
+  { path: '/register', name: 'Register', component: () => import('@/views/login/RegisterView.vue'), meta: { public: true } },
   { path: '/', component: MainLayout, children: [...dashboardRoutes, ...businessRoutes] }
 ]
 
@@ -76,8 +81,10 @@ const router = createRouter({ history: createWebHistory(), routes })
 
 router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
+  const home = () => userStore.dashboardPath || getHomePath(userStore.roleKey)
+
   if (to.meta.public) {
-    if (userStore.isLoggedIn && to.path === '/login') next(userStore.dashboardPath)
+    if (userStore.isLoggedIn && (to.path === '/login' || to.path === '/register')) next(home())
     else next()
     return
   }
@@ -85,9 +92,27 @@ router.beforeEach(async (to, from, next) => {
     next({ path: '/login', query: { redirect: to.fullPath } })
     return
   }
-  if (!userStore.menus.length) await userStore.loadMenus()
+  if (!userStore.menus.length || !userStore.menus.some((m) => m.children?.some((c) => c.path))) {
+    await userStore.loadMenus()
+  }
+  if (MES_LIVE_MODE) {
+    const mesStore = useMesStore()
+    if (!mesStore.hydrated) {
+      try {
+        await mesStore.hydrateFromApi()
+      } catch {
+        /* 不阻断页面进入 */
+      }
+    } else if (to.path !== from.path && !to.meta.public && to.path !== BOARD_PATH) {
+      mesStore.hydrateFromApi().catch(() => {})
+    }
+  }
+  if (to.path === BOARD_PATH && userStore.roleKey !== 'manager') {
+    next(home())
+    return
+  }
   if (to.meta.roleKey && to.meta.roleKey !== userStore.roleKey) {
-    next(userStore.dashboardPath)
+    next(home())
     return
   }
   next()

@@ -9,34 +9,39 @@ export function createInitialMesData() {
     sysUsers: [
       { id: 1, username: 'admin', realName: '系统管理员', roleKey: 'admin', roleName: '系统管理员', phone: '13800000001', status: '启用', createdAt: ts },
       { id: 2, username: 'sales', realName: '张销售', roleKey: 'order', roleName: '订单管理员', phone: '13800000002', status: '启用', createdAt: ts },
-      { id: 3, username: 'manager', realName: '李主管', roleKey: 'manager', roleName: '生产主管', phone: '13800000003', status: '启用', createdAt: ts },
-      { id: 4, username: 'operator', realName: '王操作', roleKey: 'operator', roleName: '生产操作员', phone: '13800000004', status: '启用', createdAt: ts },
-      { id: 5, username: 'qc', realName: '赵质检', roleKey: 'quality', roleName: '质检员', phone: '13800000005', status: '启用', createdAt: ts },
-      { id: 6, username: 'buyer', realName: '刘采购', roleKey: 'purchase', roleName: '采购员', phone: '13800000006', status: '启用', createdAt: ts },
-      { id: 7, username: 'warehouse', realName: '陈仓管', roleKey: 'warehouse', roleName: '仓库管理员', phone: '13800000007', status: '启用', createdAt: ts },
-      { id: 8, username: 'device', realName: '周设备', roleKey: 'device', roleName: '设备维护', phone: '13800000008', status: '启用', createdAt: ts },
-      { id: 9, username: 'aftersale', realName: '吴售后', roleKey: 'aftersale', roleName: '售后人员', phone: '13800000009', status: '启用', createdAt: ts },
-      { id: 10, username: 'cost', realName: '郑财务', roleKey: 'cost', roleName: '财务/成本', phone: '13800000010', status: '启用', createdAt: ts }
+      { id: 3, username: 'planner', realName: '孙计划', roleKey: 'planner', roleName: '计划员', phone: '13800000011', status: '启用', createdAt: ts },
+      { id: 4, username: 'manager', realName: '李主管', roleKey: 'manager', roleName: '生产主管', phone: '13800000003', status: '启用', createdAt: ts },
+      { id: 5, username: 'operator', realName: '王操作', roleKey: 'operator', roleName: '生产操作员', phone: '13800000004', status: '启用', createdAt: ts },
+      { id: 6, username: 'qc', realName: '赵质检', roleKey: 'quality', roleName: '质检员', phone: '13800000005', status: '启用', createdAt: ts },
+      { id: 7, username: 'buyer', realName: '刘采购', roleKey: 'purchase', roleName: '采购员', phone: '13800000006', status: '启用', createdAt: ts },
+      { id: 8, username: 'warehouse', realName: '陈仓管', roleKey: 'warehouse', roleName: '仓库管理员', phone: '13800000007', status: '启用', createdAt: ts },
+      { id: 9, username: 'device', realName: '周设备', roleKey: 'device', roleName: '设备维护', phone: '13800000008', status: '启用', createdAt: ts },
+      { id: 10, username: 'aftersale', realName: '吴售后', roleKey: 'aftersale', roleName: '售后人员', phone: '13800000009', status: '启用', createdAt: ts },
+      { id: 11, username: 'cost', realName: '郑财务', roleKey: 'cost', roleName: '财务/成本', phone: '13800000010', status: '启用', createdAt: ts }
     ],
     sysRoles: [
       { id: 1, roleKey: 'admin', roleName: '系统管理员', permCount: 48, userCount: 1, status: '启用' },
       { id: 2, roleKey: 'order', roleName: '订单管理员', permCount: 12, userCount: 1, status: '启用' },
-      { id: 3, roleKey: 'manager', roleName: '生产主管', permCount: 24, userCount: 1, status: '启用' },
-      { id: 4, roleKey: 'operator', roleName: '生产操作员', permCount: 10, userCount: 1, status: '启用' },
-      { id: 5, roleKey: 'quality', roleName: '质检员', permCount: 14, userCount: 1, status: '启用' },
-      { id: 6, roleKey: 'purchase', roleName: '采购员', permCount: 12, userCount: 1, status: '启用' },
-      { id: 7, roleKey: 'warehouse', roleName: '仓库管理员', permCount: 16, userCount: 1, status: '启用' },
-      { id: 8, roleKey: 'device', roleName: '设备维护', permCount: 10, userCount: 1, status: '启用' },
-      { id: 9, roleKey: 'aftersale', roleName: '售后人员', permCount: 10, userCount: 1, status: '启用' },
-      { id: 10, roleKey: 'cost', roleName: '财务/成本', permCount: 12, userCount: 1, status: '启用' }
+      { id: 3, roleKey: 'planner', roleName: '计划员', permCount: 10, userCount: 1, status: '启用' },
+      { id: 4, roleKey: 'manager', roleName: '生产主管', permCount: 18, userCount: 1, status: '启用' },
+      { id: 5, roleKey: 'operator', roleName: '生产操作员', permCount: 10, userCount: 1, status: '启用' },
+      { id: 6, roleKey: 'quality', roleName: '质检员', permCount: 14, userCount: 1, status: '启用' },
+      { id: 7, roleKey: 'purchase', roleName: '采购员', permCount: 12, userCount: 1, status: '启用' },
+      { id: 8, roleKey: 'warehouse', roleName: '仓库管理员', permCount: 16, userCount: 1, status: '启用' },
+      { id: 9, roleKey: 'device', roleName: '设备维护', permCount: 10, userCount: 1, status: '启用' },
+      { id: 10, roleKey: 'aftersale', roleName: '售后人员', permCount: 10, userCount: 1, status: '启用' },
+      { id: 11, roleKey: 'cost', roleName: '财务/成本', permCount: 12, userCount: 1, status: '启用' }
     ],
     sysPermissions: [
       { id: 1, code: 'order:create', name: '创建订单', module: '订单管理' },
       { id: 2, code: 'order:audit', name: '审核订单', module: '订单管理' },
-      { id: 3, code: 'plan:publish', name: '发布计划', module: '生产管理' },
-      { id: 4, code: 'wo:dispatch', name: '工单派工', module: '生产管理' },
-      { id: 5, code: 'qc:inspect', name: '质检录入', module: '质量管理' },
-      { id: 6, code: 'wh:inbound', name: '入库操作', module: '仓储管理' }
+      { id: 3, code: 'order:submit', name: '提交计划员', module: '订单管理' },
+      { id: 4, code: 'plan:create', name: '编制计划', module: '计划管理' },
+      { id: 5, code: 'plan:publish', name: '发布计划', module: '计划管理' },
+      { id: 6, code: 'plan:submit', name: '提交主管', module: '计划管理' },
+      { id: 7, code: 'wo:dispatch', name: '工单派工', module: '生产管理' },
+      { id: 8, code: 'qc:inspect', name: '质检录入', module: '质量管理' },
+      { id: 9, code: 'wh:inbound', name: '入库操作', module: '仓储管理' }
     ],
     sysMenus: [
       { id: 1, menuName: '系统管理', parentId: 0, path: '', sort: 1 },
@@ -72,7 +77,7 @@ export function createInitialMesData() {
       {
         id: 'PLAN-2026-001', orderId: 'ORD-2026-003', orderNo: 'ORD-2026-003',
         productModel: 'DM-24-LCD-FHD', quantity: 1000, planStart: '2026-03-01', planEnd: '2026-03-28',
-        status: '执行中', manager: '李主管', remark: '三班倒生产',
+        status: '执行中', planner: '孙计划', remark: '三班倒生产',
         createdAt: ts, updatedAt: ts
       }
     ],

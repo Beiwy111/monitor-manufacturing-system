@@ -1,6 +1,15 @@
 <template>
   <section id="hero" class="hero-section">
-    <div class="hero-bg" :style="{ backgroundImage: `url(${homeImages.heroBg})` }"></div>
+    <video
+      class="hero-bg"
+      :src="homeImages.heroVideo"
+      :poster="homeImages.heroBg"
+      autoplay
+      loop
+      muted
+      playsinline
+      disablePictureInPicture
+    />
     <div class="hero-overlay"></div>
     <div class="hero-inner">
       <div class="hero-breadcrumb">首页 &gt; 产品 &gt; 制造执行系统</div>
@@ -24,7 +33,7 @@ defineEmits(['enter'])
 <style scoped>
 .hero-section {
   position: relative;
-  min-height: 440px;
+  min-height: 400px;
   margin-top: var(--nav-height);
   display: flex;
   align-items: flex-end;
@@ -33,17 +42,22 @@ defineEmits(['enter'])
 .hero-bg {
   position: absolute;
   inset: 0;
-  background-size: cover;
-  background-position: center;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* 人物在视频右上方：靠右对齐，垂直略偏上才能露出头部 */
+  object-position: 84% 32%;
+  pointer-events: none;
 }
 .hero-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     90deg,
-    rgba(0, 27, 63, 0.82) 0%,
-    rgba(0, 27, 63, 0.55) 55%,
-    rgba(0, 27, 63, 0.35) 100%
+    rgba(0, 27, 63, 0.88) 0%,
+    rgba(0, 27, 63, 0.62) 42%,
+    rgba(0, 27, 63, 0.28) 72%,
+    rgba(0, 27, 63, 0.12) 100%
   );
 }
 .hero-inner {
@@ -52,7 +66,7 @@ defineEmits(['enter'])
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
-  padding: 64px 32px 72px;
+  padding: 48px 32px 52px;
 }
 .hero-breadcrumb {
   font-size: var(--fs-hero-breadcrumb);
@@ -102,7 +116,8 @@ defineEmits(['enter'])
   background: var(--accent-hover);
 }
 @media (max-width: 768px) {
-  .hero-section { min-height: 380px; }
-  .hero-inner { padding: 48px 20px 56px; }
+  .hero-section { min-height: 340px; }
+  .hero-bg { object-position: 72% 30%; }
+  .hero-inner { padding: 36px 20px 44px; }
 }
 </style>

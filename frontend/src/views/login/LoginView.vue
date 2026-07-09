@@ -1,73 +1,67 @@
 <template>
-  <div class="login-page">
-    <div class="login-bg" :style="{ backgroundImage: `url(${loginBg})` }"></div>
-    <div class="login-scrim"></div>
+  <div class="auth-page">
+    <video
+      class="auth-bg"
+      :src="heroVideo"
+      :poster="heroBg"
+      autoplay
+      loop
+      muted
+      playsinline
+      disablePictureInPicture
+    />
+    <div class="auth-overlay"></div>
 
-    <div class="login-container">
-      <!-- 品牌区 -->
-      <div class="brand-block">
-        <div class="brand-icon">
-          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="24" cy="24" r="20" stroke="currentColor" stroke-width="2" />
-            <path d="M16 24h16M24 16v16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          </svg>
+    <div class="auth-shell">
+      <aside class="auth-brand">
+        <div class="auth-brand__kicker">DISPLAY MES PLATFORM</div>
+        <h1 class="auth-brand__title">
+          <span class="auth-brand__title-cn">电脑显示器</span>
+          <span class="auth-brand__title-en">MES</span>
+        </h1>
+        <p class="auth-brand__slogan">智造每一块屏幕 · 连接订单到交付的全流程</p>
+        <div class="auth-brand__tags">
+          <span v-for="tag in tags" :key="tag">{{ tag }}</span>
         </div>
-        <div class="brand-text">
-          <div class="brand-name">电脑显示器制造 MES</div>
-          <div class="brand-tag">display manufacturing execution system</div>
-        </div>
-      </div>
+      </aside>
 
-      <!-- 登录卡片 -->
-      <div class="login-card">
-        <div class="card-header">登 录</div>
-        <div class="card-divider"></div>
+      <div class="auth-panel">
+        <div class="auth-panel__label">OPERATOR LOGIN</div>
+        <h2 class="auth-panel__heading">登录</h2>
 
-        <form class="login-form" @submit.prevent="handleLogin">
-          <div class="field-row">
-            <el-icon class="field-icon"><User /></el-icon>
+        <form class="auth-form" @submit.prevent="handleLogin">
+          <div class="auth-field">
+            <el-icon class="auth-field__icon"><User /></el-icon>
             <input
               v-model="form.username"
               type="text"
-              class="field-input"
+              class="auth-field__input"
               placeholder="用户名"
               autocomplete="username"
             />
           </div>
-          <div class="field-row">
-            <el-icon class="field-icon"><Lock /></el-icon>
+          <div class="auth-field">
+            <el-icon class="auth-field__icon"><Lock /></el-icon>
             <input
               v-model="form.password"
               type="password"
-              class="field-input"
+              class="auth-field__input"
               placeholder="密码"
               autocomplete="current-password"
             />
           </div>
-          <button type="submit" class="submit-btn" :disabled="loading">
-            {{ loading ? '登录中...' : '登 录' }}
+          <button type="submit" class="auth-submit" :disabled="loading">
+            {{ loading ? '登录中...' : '登录' }}
           </button>
         </form>
 
-        <div class="card-welcome">欢迎使用电脑显示器制造 MES 平台</div>
-        <div class="card-links">
+        <p class="auth-panel__welcome">欢迎使用电脑显示器制造 MES 平台</p>
+        <div class="auth-panel__links">
           <a @click.prevent="$router.push('/')">返回首页</a>
-          <span class="link-sep">|</span>
-          <a @click.prevent="showHint = !showHint">演示账号</a>
-        </div>
-
-        <div v-if="showHint" class="demo-accounts">
-          <p class="demo-tip">密码均为 123456，点击账号可快速填入</p>
-          <div class="demo-list">
-            <a
-              v-for="item in accountHints"
-              :key="item.username"
-              class="demo-item"
-              @click.prevent="fillAccount(item.username)"
-            >
-              {{ item.username }} · {{ item.roleName }}
-            </a>
-          </div>
+          <span class="auth-panel__sep">|</span>
+          <a @click.prevent="$router.push('/register')">注册账号</a>
+          <span class="auth-panel__sep">|</span>
+          <a @click.prevent="fillDemo">演示账号</a>
         </div>
       </div>
     </div>
@@ -75,36 +69,29 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { mockUsers } from '@/mock/users'
-import loginBg from '@picture/login-bg.png'
+import { homeImages } from '@/config/homeImages'
 
-const route = useRoute()
+const heroVideo = homeImages.heroVideo
+const heroBg = homeImages.heroBg
+const tags = ['生产管理', '质量追溯', '设备监控', '库存仓储']
+
 const router = useRouter()
 const userStore = useUserStore()
 const loading = ref(false)
-const showHint = ref(false)
 const form = reactive({
   username: '',
-  password: '123456'
+  password: ''
 })
 
-const accountHints = mockUsers.map(({ username, roleName }) => ({ username, roleName }))
-
-onMounted(() => {
-  if (route.query.username) {
-    form.username = route.query.username
-    showHint.value = true
-  }
-})
-
-function fillAccount(username) {
-  form.username = username
-  form.password = '123456'
+function fillDemo() {
+  form.username = 'li_manager'
+  form.password = 'Mes@2026'
+  ElMessage.info('已填入演示账号 li_manager，点击登录即可')
 }
 
 async function handleLogin() {
@@ -114,11 +101,16 @@ async function handleLogin() {
   }
   loading.value = true
   try {
-    const data = await userStore.login(form)
+    await userStore.login(form)
     ElMessage.success('登录成功')
-    router.push(data.dashboardPath || userStore.dashboardPath)
+    router.push(userStore.dashboardPath || '/system/board')
   } catch (e) {
-    ElMessage.error(e.message || '登录失败')
+    const msg = e.response?.data?.message || e.message || '登录失败'
+    if (msg.includes('Network Error') || msg.includes('ECONNREFUSED')) {
+      ElMessage.error('无法连接后端，请先启动 backend（8088）和 Redis')
+    } else {
+      ElMessage.error(msg)
+    }
   } finally {
     loading.value = false
   }
@@ -126,219 +118,231 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-.login-page {
+.auth-page {
   position: relative;
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
 }
 
-.login-bg {
+.auth-bg {
   position: absolute;
   inset: 0;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.login-scrim {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 20, 40, 0.35);
-}
-
-.login-container {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 440px;
-  padding: 24px;
-}
-
-/* 品牌 */
-.brand-block {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 28px;
-}
-.brand-icon {
-  width: 52px;
-  height: 52px;
-  color: #fff;
-  flex-shrink: 0;
-}
-.brand-icon svg {
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  object-position: 84% 32%;
+  pointer-events: none;
 }
-.brand-name {
-  font-size: var(--fs-page-title);
-  font-weight: var(--heading-weight);
+
+.auth-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    rgba(0, 18, 42, 0.92) 0%,
+    rgba(0, 24, 52, 0.78) 38%,
+    rgba(0, 32, 64, 0.45) 62%,
+    rgba(0, 32, 64, 0.28) 100%
+  );
+}
+
+.auth-shell {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 48px 40px;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 420px);
+  align-items: center;
+  gap: 48px;
+}
+
+.auth-brand {
   color: #fff;
-  line-height: var(--lh-heading);
+  padding-right: 24px;
 }
-.brand-tag {
-  font-size: var(--fs-caption);
-  font-weight: var(--body-weight-medium);
+
+.auth-brand__kicker {
+  font-size: 13px;
+  letter-spacing: 0.28em;
+  color: #5eead4;
+  margin-bottom: 18px;
+}
+
+.auth-brand__title {
+  margin: 0;
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+.auth-brand__title-cn {
+  display: block;
+  font-size: clamp(36px, 5vw, 56px);
+  color: #fff;
+}
+
+.auth-brand__title-en {
+  display: block;
+  font-size: clamp(42px, 6vw, 64px);
+  color: #2dd4bf;
+  letter-spacing: 0.06em;
+}
+
+.auth-brand__slogan {
+  margin: 20px 0 28px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.82);
-  margin-top: 4px;
-  letter-spacing: var(--ls-card-label);
-  text-transform: lowercase;
+  line-height: 1.6;
 }
 
-.login-card {
+.auth-brand__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.auth-brand__tags span {
+  padding: 8px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(4px);
+}
+
+.auth-panel {
+  justify-self: end;
   width: 100%;
-  background: rgba(45, 106, 159, 0.88);
-  border-radius: 4px;
-  padding: 0 0 24px;
-  box-shadow: 0 4px 24px rgba(0, 40, 80, 0.25);
+  max-width: 420px;
+  padding: 36px 36px 28px;
+  background: rgba(8, 36, 72, 0.72);
+  border: 1px solid rgba(94, 234, 212, 0.18);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
 }
 
-.card-header {
-  padding: 18px 32px 14px;
+.auth-panel__label {
+  text-align: right;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: #5eead4;
+  margin-bottom: 8px;
+}
+
+.auth-panel__heading {
+  margin: 0 0 28px;
   text-align: center;
-  font-size: var(--fs-body-sm);
-  font-weight: var(--body-weight-medium);
+  font-size: 28px;
+  font-weight: 600;
   color: #fff;
-  letter-spacing: var(--ls-login-header);
 }
 
-.card-divider {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.35);
-  margin: 0 24px 28px;
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
 }
 
-.login-form {
-  padding: 0 32px;
-}
-
-.field-row {
+.auth-field {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 22px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.45);
-  padding-bottom: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
 }
 
-.field-icon {
+.auth-field__icon {
   font-size: 18px;
   color: rgba(255, 255, 255, 0.85);
-  flex-shrink: 0;
 }
 
-.field-input {
+.auth-field__input {
   flex: 1;
-  background: transparent;
   border: none;
   outline: none;
-  font-size: var(--fs-base);
-  font-weight: var(--body-weight);
-  font-family: var(--font-sans);
+  background: transparent;
   color: #fff;
+  font-size: 15px;
   padding: 6px 0;
 }
-.field-input::placeholder {
-  color: rgba(255, 255, 255, 0.55);
+
+.auth-field__input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
 }
 
-.submit-btn {
-  display: block;
-  width: 100%;
+.auth-submit {
   margin-top: 8px;
+  width: 100%;
   padding: 14px 24px;
-  background: #fff;
-  color: #2d6a9f;
   border: none;
-  border-radius: 999px;
-  font-size: var(--fs-btn);
-  font-weight: var(--btn-weight);
-  font-family: var(--font-sans);
-  letter-spacing: var(--ls-btn-en);
+  border-radius: 2px;
+  background: #fff;
+  color: #0f4c75;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, opacity 0.2s;
+  transition: opacity 0.2s, transform 0.2s;
 }
-.submit-btn:hover:not(:disabled) {
-  background: #f0f4f8;
+
+.auth-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
-.submit-btn:disabled {
+
+.auth-submit:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
 
-.card-welcome {
-  margin-top: 24px;
+.auth-panel__welcome {
+  margin: 24px 0 12px;
   text-align: center;
-  font-size: var(--fs-caption);
-  font-weight: var(--body-weight);
-  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
 }
 
-.card-links {
-  margin-top: 10px;
-  text-align: center;
-  font-size: var(--fs-caption);
-  font-weight: var(--body-weight-medium);
-}
-.card-links a {
-  color: rgba(255, 255, 255, 0.85);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.card-links a:hover {
-  color: #fff;
-}
-.link-sep {
-  margin: 0 10px;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.demo-accounts {
-  margin: 16px 24px 0;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-}
-.demo-list {
+.auth-panel__links {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
   justify-content: center;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
 }
-.demo-tip {
-  margin: 0 0 10px;
-  font-size: var(--fs-caption);
-  font-weight: var(--body-weight);
-  color: rgba(255, 255, 255, 0.6);
-  text-align: center;
-}
-.demo-item {
-  font-size: var(--fs-caption);
-  font-weight: var(--body-weight);
-  color: rgba(255, 255, 255, 0.9);
+
+.auth-panel__links a {
+  color: #5eead4;
   cursor: pointer;
-  padding: 3px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 3px;
   text-decoration: none;
 }
-.demo-item:hover {
-  background: rgba(255, 255, 255, 0.12);
+
+.auth-panel__links a:hover {
+  text-decoration: underline;
 }
 
-@media (max-width: 480px) {
-  .login-form {
-    padding: 0 24px;
+.auth-panel__sep {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+@media (max-width: 900px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
+    padding: 32px 20px 48px;
+    align-content: center;
   }
-  .card-divider {
-    margin: 0 20px 24px;
+
+  .auth-brand {
+    text-align: center;
+    padding-right: 0;
+  }
+
+  .auth-brand__tags {
+    justify-content: center;
+  }
+
+  .auth-panel {
+    justify-self: center;
   }
 }
 </style>

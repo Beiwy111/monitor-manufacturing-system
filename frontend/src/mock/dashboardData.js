@@ -22,25 +22,43 @@ export const dashboardConfigs = {
       { title: '操作日志', path: '/system/log' }
     ]
   },
+  planner: {
+    title: '计划员工作台',
+    subtitle: '接收订单、编制生产计划并提交生产主管',
+    kpis: [
+      { label: '待计划订单', value: '2', status: 'warning' },
+      { label: '草稿计划', value: '1', status: 'processing' },
+      { label: '待提交主管', value: '1', status: 'warning' },
+      { label: '执行中计划', value: '3', status: 'success' }
+    ],
+    todos: [
+      { id: 1, title: 'ORD-2026-002 待编制计划', module: '生产计划', priority: '高', status: '待处理' },
+      { id: 2, title: 'PLAN-2026-003 待提交主管', module: '生产计划', priority: '中', status: '进行中' }
+    ],
+    quickLinks: [
+      { title: '生产计划', path: '/production/plan' },
+      { title: '订单跟踪', path: '/order/track' }
+    ]
+  },
   manager: {
     title: '生产主管工作台',
-    subtitle: '生产计划下达、工单派工与进度监控',
+    subtitle: '接收计划、生成工单、派工与进度监控',
     kpis: [
       { label: '在制工单', value: '24', status: 'processing' },
-      { label: '计划达成率', value: '92.6%', status: 'success' },
+      { label: '待生成工单', value: '2', status: 'warning' },
       { label: '待派工', value: '5', status: 'warning' },
       { label: '生产异常', value: '2', status: 'danger' },
       { label: '安灯报警', value: '1', status: 'warning' }
     ],
     todos: [
       { id: 1, title: 'WO202607003 工序派工', module: '派工管理', priority: '高', status: '待处理' },
-      { id: 2, title: 'PP202607002 计划调整', module: '生产计划', priority: '中', status: '进行中' },
+      { id: 2, title: 'PLAN-2026-004 待生成工单', module: '生产工单', priority: '高', status: '待处理' },
       { id: 3, title: '产线2 安灯异常确认', module: '安灯报警', priority: '高', status: '待处理' }
     ],
     quickLinks: [
-      { title: '生产计划', path: '/production/plan' },
       { title: '生产工单', path: '/production/work-order' },
-      { title: '派工管理', path: '/production/dispatch' }
+      { title: '派工管理', path: '/production/dispatch' },
+      { title: '生产进度', path: '/production/progress' }
     ]
   },
   operator: {

@@ -1,7 +1,7 @@
 <template>
   <MesPageShell toolbar-title="订单跟踪" :status-options="ORDER_STATUS" :detail-rows="rows" :logs="mes.operationLogs.slice(0,8)">
     <template #table>
-      <el-table :data="mes.orders" highlight-current-row @current-change="sel = $event">
+      <el-table :data="mes.orders" border stripe highlight-current-row @current-change="sel = $event">
         <el-table-column prop="id" label="订单号" width="140" />
         <el-table-column prop="customerName" label="客户" min-width="120" />
         <el-table-column prop="productModel" label="型号" width="130" />
