@@ -9,6 +9,7 @@
     :status-options="PLAN_STATUS"
 
     :toolbar-actions="[
+      { label: '智能生成生产计划', key: 'smart', type: 'warning' },
       { label: '智能排产（库存分析）', key: 'agent', type: 'success' },
       { label: '创建计划', key: 'create', type: 'primary' }
     ]"
@@ -121,6 +122,10 @@
 
             <el-button v-if="row.status === '已发布'" link type="primary" @click="selectAndSubmit(row)">提交主管</el-button>
 
+            <el-button v-if="['草稿', '已发布'].includes(row.status)" link type="warning" @click="openEdit(row)">修改</el-button>
+
+            <el-button link type="danger" @click="removePlan(row)">删除</el-button>
+
           </template>
 
         </el-table-column>
@@ -134,6 +139,10 @@
       <el-button v-if="selected?.status === '草稿'" type="primary" size="small" @click="publish">发布计划</el-button>
 
       <el-button v-if="selected?.status === '已发布'" type="primary" size="small" @click="submitToManager(selected.id)">提交生产主管</el-button>
+
+      <el-button v-if="selected && ['草稿', '已发布'].includes(selected.status)" type="warning" size="small" @click="openEdit(selected)">修改计划</el-button>
+
+      <el-button v-if="selected" type="danger" size="small" plain @click="removePlan(selected)">删除计划</el-button>
 
     </template>
 
@@ -187,6 +196,36 @@
 
   <PlannerAgentDialog v-model="agentVisible" :default-order-id="agentOrderId" @success="onAgentSuccess" />
 
+  <SmartPlanDialog v-model="smartVisible" @success="onSmartSuccess" />
+
+  <el-dialog v-model="editVisible" title="修改生产计划" width="440px">
+    <el-form label-width="100px">
+      <el-form-item label="计划数量">
+        <el-input-number v-model="editForm.plannedQty" :min="1" style="width:100%" />
+      </el-form-item>
+      <el-form-item label="计划开始">
+        <el-date-picker v-model="editForm.planStart" type="date" value-format="YYYY-MM-DD" style="width:100%" />
+      </el-form-item>
+      <el-form-item label="计划结束">
+        <el-date-picker v-model="editForm.planEnd" type="date" value-format="YYYY-MM-DD" style="width:100%" />
+      </el-form-item>
+      <el-form-item label="优先级">
+        <el-select v-model="editForm.priority" style="width:100%">
+          <el-option label="高" value="HIGH" />
+          <el-option label="中" value="NORMAL" />
+          <el-option label="低" value="LOW" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="备注">
+        <el-input v-model="editForm.remark" type="textarea" rows="2" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="editVisible = false">取消</el-button>
+      <el-button type="primary" @click="saveEdit">保存</el-button>
+    </template>
+  </el-dialog>
+
 </template>
 
 
@@ -206,12 +245,14 @@ import { useUserStore } from '@/stores/user'
 import { PLAN_STATUS } from '@/mock/constants'
 
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
 
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 
 import PlannerAgentDialog from '@/components/mes/PlannerAgentDialog.vue'
+import SmartPlanDialog from '@/components/mes/SmartPlanDialog.vue'
 
 
 
@@ -220,14 +261,22 @@ const route = useRoute()
 const mes = useMesStore()
 
 const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
 
 const dialogVisible = ref(false)
 
 const agentVisible = ref(false)
 
+const smartVisible = ref(false)
+const editVisible = ref(false)
+
 const agentOrderId = ref('')
 
-const form = reactive({ orderId: '', planStart: '2026-03-01', planEnd: '2026-03-28' })
+const today = new Date().toISOString().slice(0, 10)
+const defaultEnd = new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10)
+
+const form = reactive({ orderId: '', planStart: today, planEnd: defaultEnd })
+const editForm = reactive({ planId: '', plannedQty: 1, planStart: today, planEnd: defaultEnd, priority: 'NORMAL', remark: '' })
 
 
 
@@ -273,6 +322,14 @@ onMounted(() => {
 
 function onAction(k) {
 
+  if (k === 'smart') {
+
+    smartVisible.value = true
+
+    return
+
+  }
+
   if (k === 'agent') {
 
     agentOrderId.value = pendingOrders.value[0]?.id || ''
@@ -288,6 +345,12 @@ function onAction(k) {
 }
 
 function onAgentSuccess() {
+
+  mes.hydrateFromApi?.()
+
+}
+
+function onSmartSuccess() {
 
   mes.hydrateFromApi?.()
 
@@ -379,6 +442,46 @@ function selectAndSubmit(row) {
 
   submitToManager(row.id)
 
+}
+
+function openEdit(row) {
+  if (!row) return
+  editForm.planId = row.id
+  editForm.plannedQty = row.quantity || 1
+  editForm.planStart = row.planStart || today
+  editForm.planEnd = row.planEnd || defaultEnd
+  editForm.priority = row.priority || 'NORMAL'
+  editForm.remark = row.remark || ''
+  editVisible.value = true
+}
+
+async function saveEdit() {
+  try {
+    await mes.updatePlan(editForm.planId, {
+      plannedQty: editForm.plannedQty,
+      planStart: editForm.planStart,
+      planEnd: editForm.planEnd,
+      priority: editForm.priority,
+      remark: editForm.remark
+    }, userStore.username, userStore.roleKey)
+    ElMessage.success('计划已更新')
+    editVisible.value = false
+    await mes.hydrateFromApi()
+  } catch (e) {
+    ElMessage.error(e?.message || '修改计划失败')
+  }
+}
+
+function removePlan(row) {
+  if (!row) return
+  runDelete({
+    action: 'deletePlan',
+    payload: { planId: row.id },
+    message: `确定删除计划 ${row.id}？关联工单将一并删除。`,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  }).catch(() => {})
 }
 
 </script>

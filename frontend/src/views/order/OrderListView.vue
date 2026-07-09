@@ -72,6 +72,12 @@
 
         </el-table-column>
 
+        <el-table-column label="操作" width="72" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removeOrder(row)">删除</el-button>
+          </template>
+        </el-table-column>
+
       </el-table>
 
     </template>
@@ -81,6 +87,8 @@
       <el-button v-if="selected?.status==='待审核'" size="small" @click="submitAudit">提交审核</el-button>
 
       <el-button v-if="selected?.status==='已审核'" type="primary" size="small" @click="submitToPlanner(selected.id)">提交计划员</el-button>
+
+      <el-button v-if="selected" type="danger" size="small" plain @click="removeOrder(selected)">删除订单</el-button>
 
     </template>
 
@@ -104,7 +112,7 @@
 
         <el-select v-model="form.productModel" style="width:100%">
 
-          <el-option v-for="m in PRODUCT_MODELS" :key="m" :label="m" :value="m" />
+          <el-option v-for="m in productOptions" :key="m.code" :label="`${m.name}（${m.code}）`" :value="m.name" />
 
         </el-select>
 
@@ -144,9 +152,10 @@ import { useMesStore } from '@/stores/mes'
 
 import { useUserStore } from '@/stores/user'
 
-import { ORDER_STATUS, PRODUCT_MODELS } from '@/mock/constants'
+import { ORDER_STATUS } from '@/mock/constants'
 
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
 
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 
@@ -157,10 +166,32 @@ import StatusBadge from '@/components/mes/StatusBadge.vue'
 const mes = useMesStore()
 
 const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
 
 const dialogVisible = ref(false)
 
-const form = reactive({ customerId: 1, productModel: PRODUCT_MODELS[0], panelType: 'LCD', quantity: 100, deliveryDate: '2026-05-01', remark: '' })
+const productOptions = computed(() => mes.productModels || [])
+const defaultDelivery = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+
+const form = reactive({
+  customerId: null,
+  productModel: '',
+  panelType: 'LCD',
+  quantity: 100,
+  deliveryDate: defaultDelivery,
+  remark: ''
+})
+
+function resetForm() {
+  const firstCustomer = mes.customers[0]
+  const firstProduct = productOptions.value[0]
+  form.customerId = firstCustomer?.id ?? null
+  form.productModel = firstProduct?.name || firstProduct?.code || ''
+  form.panelType = firstProduct?.panelType || 'LCD'
+  form.quantity = 100
+  form.deliveryDate = defaultDelivery
+  form.remark = ''
+}
 
 
 
@@ -202,7 +233,12 @@ const rows = computed(() => detailRows(selected.value, [
 
 
 
-function onAction(key) { if (key === 'create') dialogVisible.value = true }
+function onAction(key) {
+  if (key === 'create') {
+    resetForm()
+    dialogVisible.value = true
+  }
+}
 
 async function create() {
   try {
@@ -241,6 +277,18 @@ async function submitToPlanner(orderId) {
 
   }
 
+}
+
+function removeOrder(row) {
+  if (!row) return
+  runDelete({
+    action: 'deleteOrder',
+    payload: { orderId: row.id },
+    message: `确定删除订单 ${row.id}？关联计划、工单、发货等记录将一并删除。`,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  }).catch(() => {})
 }
 
 </script>

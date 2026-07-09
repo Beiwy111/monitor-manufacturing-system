@@ -12,7 +12,7 @@ import {
   fetchOperationLogList
 } from '@/api/business'
 
-/** 是否优先请求后端；失败时自动回退 Pinia / mock 数据 */
+/** 是否优先请求后端；数据以 mes store 实时快照为准 */
 const PREFER_API = true
 
 function formatNow() {
@@ -35,7 +35,7 @@ function latestTime(items, field = 'updatedAt') {
 }
 
 /**
- * 从 mes store 计算看板数据（当前 mock 主数据源，后续可替换为 API 返回值）
+ * 从 mes store 计算看板数据（数据来自 /mes/snapshot 实时快照）
  */
 function computeDashboardSnapshot(mes) {
   const orders = mes.orders || []
@@ -396,6 +396,7 @@ export function useDashboardMonitor() {
   async function refreshDashboardData() {
     loading.value = true
     try {
+      await mes.hydrateFromApi?.()
       if (PREFER_API) {
         await tryFetchApi().catch(() => {})
       }

@@ -16,11 +16,17 @@
         <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }"><StatusBadge :status="row.status" /></template>
         </el-table-column>
+        <el-table-column label="操作" width="72" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removeCase(row)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
     </template>
     <template #detail-actions>
       <el-button size="small" @click="trace">质量追溯</el-button>
       <el-button v-if="selected?.status!=='已关闭'" type="primary" size="small" @click="process">处理完成</el-button>
+      <el-button v-if="selected" type="danger" size="small" plain @click="removeCase(selected)">删除</el-button>
     </template>
     <template #detail-extra>
       <ProcessTimeline v-if="chain" :items="traceItems" />
@@ -44,12 +50,14 @@ import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { AFTERSALE_STATUS } from '@/mock/constants'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 import ProcessTimeline from '@/components/mes/ProcessTimeline.vue'
 
 const mes = useMesStore()
 const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
 const dialogVisible = ref(false)
 const form = reactive({ orderId: '', batchNo: '', customerName: '', productModel: 'DM-24-LCD-FHD', feedback: '' })
 const { selected, onRowClick } = useMesFilter(computed(() => mes.aftersaleCases), ['id'])
@@ -79,5 +87,16 @@ function trace() {
 function process() {
   mes.processAftersale(selected.value.id, { status: '已关闭', result: '已处理完毕' }, userStore.displayName, userStore.roleKey)
   ElMessage.success('售后已关闭')
+}
+function removeCase(row) {
+  if (!row) return
+  runDelete({
+    action: 'deleteAftersale',
+    payload: { caseId: row.id },
+    message: `确定删除售后案例 ${row.id}？`,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  }).catch(() => {})
 }
 </script>

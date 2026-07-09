@@ -1,5 +1,12 @@
 <template>
-  <MesDataPage title="售后处理" data-key="aftersaleCases" :columns="cols" :filter-fn="f => f.filter(c => c.status === '处理中' || c.status === '追溯中')" />
+  <MesDataPage
+    title="售后处理"
+    data-key="aftersaleCases"
+    :columns="cols"
+    :filter-fn="f => f.filter(c => c.status === '处理中' || c.status === '追溯中')"
+    delete-action="deleteAftersale"
+    delete-payload-key="caseId"
+  />
 </template>
 <script setup>
 import MesDataPage from '@/components/mes/MesDataPage.vue'

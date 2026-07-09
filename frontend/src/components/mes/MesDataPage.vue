@@ -40,6 +40,11 @@
           :min-width="col.minWidth"
           show-overflow-tooltip
         />
+        <el-table-column v-if="deleteAction" label="操作" width="72" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removeRow(row)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
     </div>
 
@@ -57,6 +62,15 @@
     <div v-if="selected" class="ruoyi-detail">
       <div class="ruoyi-detail__head">
         <span class="ruoyi-detail__title">详情</span>
+        <el-button
+          v-if="deleteAction"
+          type="danger"
+          size="small"
+          plain
+          @click="removeSelected"
+        >
+          删除
+        </el-button>
       </div>
       <div class="ruoyi-detail__body">
         <el-descriptions :column="3" border size="small">
@@ -77,17 +91,26 @@
 import { computed, ref } from 'vue'
 import { Search, Refresh } from '@element-plus/icons-vue'
 import { useMesStore } from '@/stores/mes'
+import { useUserStore } from '@/stores/user'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
 
 const props = defineProps({
   title: { type: String, required: true },
   dataKey: { type: String, required: true },
   columns: { type: Array, required: true },
   detailFields: { type: Array, default: () => [] },
-  filterFn: { type: Function, default: null }
+  filterFn: { type: Function, default: null },
+  /** 如 deleteOrder、deleteWorkOrder */
+  deleteAction: { type: String, default: '' },
+  /** payload 中的字段名，如 orderId、workOrderId */
+  deletePayloadKey: { type: String, default: 'id' },
+  deleteMessage: { type: String, default: '删除后不可恢复，是否继续？' }
 })
 
 const mes = useMesStore()
+const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
 const pageNum = ref(1)
 const pageSize = ref(10)
 
@@ -122,11 +145,38 @@ function resetQuery() {
   keyword.value = ''
   pageNum.value = 1
 }
+
+function buildPayload(row) {
+  const id = row?.id ?? row?.[props.deletePayloadKey]
+  return { [props.deletePayloadKey]: id }
+}
+
+async function removeRow(row) {
+  if (!props.deleteAction || !row) return
+  await runDelete({
+    action: props.deleteAction,
+    payload: buildPayload(row),
+    message: props.deleteMessage,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  })
+}
+
+function removeSelected() {
+  if (selected.value) removeRow(selected.value)
+}
 </script>
 
 <style scoped>
 .ruoyi-page--data {
   min-height: calc(100vh - 130px);
+}
+.ruoyi-detail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
 .ruoyi-toolbar__meta {
   margin-left: auto;

@@ -8,6 +8,33 @@ export function postMesAction(body) {
   return request.post('/mes/action', body)
 }
 
+/** 智能生成生产计划 - 批量预览 */
+export function fetchSmartPlanPreview() {
+  return request.get('/mes/planner/smart-plans/preview')
+}
+
+/** 智能生成生产计划 - 批量创建 */
+export function postGenerateSmartPlans(body) {
+  return request.post('/mes/planner/smart-plans/generate', body)
+}
+
+/** 智能派工推荐 - 预览 */
+export function fetchSmartDispatchPreview(planId) {
+  return request.get('/mes/manager/smart-dispatch/preview', {
+    params: planId ? { planId } : {}
+  })
+}
+
+/** 智能派工推荐 - 确认 */
+export function postConfirmSmartDispatch(body) {
+  return request.post('/mes/manager/smart-dispatch/confirm', body)
+}
+
+/** 质检报告 - 刷新/重新生成（千问 AI） */
+export function postRefreshQualityReport(body) {
+  return request.post('/mes/quality/reports/refresh', body)
+}
+
 /** 生产主管大屏完整快照 */
 export function fetchDashboardSnapshot() {
   return request.get('/mes/dashboard/snapshot')

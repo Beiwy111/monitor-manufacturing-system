@@ -29,14 +29,11 @@
 
           <el-table-column prop="quantity" label="数量" width="80" />
 
-          <el-table-column label="操作" width="120">
-
+          <el-table-column label="操作" width="200">
             <template #default="{ row }">
-
+              <el-button link type="warning" @click="openSmartDispatch(row.id)">智能派工</el-button>
               <el-button link type="primary" @click="createWoFromPlan(row.id)">生成工单</el-button>
-
             </template>
-
           </el-table-column>
 
         </el-table>
@@ -72,6 +69,8 @@
             <el-button v-if="isManager && row.status === '草稿'" link type="primary" @click="selectAndRelease(row)">下达工单</el-button>
 
             <el-button v-if="isManager && row.status === '已下达'" link type="primary" @click="$router.push(`/production/dispatch?workOrderId=${row.id}`)">去派工</el-button>
+
+            <el-button v-if="isManager" link type="danger" @click="removeWorkOrder(row)">删除</el-button>
           </template>
 
         </el-table-column>
@@ -85,17 +84,20 @@
       <el-button v-if="isManager && selected?.status === '草稿'" type="primary" size="small" @click="release">下达工单</el-button>
 
       <el-button v-if="isManager && selected?.status === '已下达'" type="primary" size="small" @click="$router.push(`/production/dispatch?workOrderId=${selected.id}`)">前往派工</el-button>
+
+      <el-button v-if="isManager && selected" type="danger" size="small" plain @click="removeWorkOrder(selected)">删除工单</el-button>
     </template>
 
   </MesPageShell>
 
+  <SmartDispatchDialog v-model="smartVisible" :default-plan-id="smartPlanId" @success="onSmartSuccess" />
 </template>
 
 
 
 <script setup>
 
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import { useRoute } from 'vue-router'
 
@@ -108,10 +110,12 @@ import { useUserStore } from '@/stores/user'
 import { WORK_ORDER_STATUS } from '@/mock/constants'
 
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
 
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 
 import StatusBadge from '@/components/mes/StatusBadge.vue'
+import SmartDispatchDialog from '@/components/mes/SmartDispatchDialog.vue'
 
 
 
@@ -120,6 +124,10 @@ const route = useRoute()
 const mes = useMesStore()
 
 const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
+
+const smartVisible = ref(false)
+const smartPlanId = ref('')
 
 const isManager = computed(() => userStore.roleKey === 'manager')
 const isOperator = computed(() => userStore.roleKey === 'operator')
@@ -191,6 +199,15 @@ async function createWoFromPlan(planId) {
   }
 }
 
+function openSmartDispatch(planId) {
+  smartPlanId.value = planId
+  smartVisible.value = true
+}
+
+function onSmartSuccess() {
+  mes.hydrateFromApi?.()
+}
+
 async function release() {
   if (!selected.value) return
   try {
@@ -209,6 +226,18 @@ function selectAndRelease(row) {
 
   release()
 
+}
+
+function removeWorkOrder(row) {
+  if (!row) return
+  runDelete({
+    action: 'deleteWorkOrder',
+    payload: { workOrderId: row.id },
+    message: `确定删除工单 ${row.id}？关联派工、报工、质检记录将一并删除。`,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  }).catch(() => {})
 }
 
 </script>

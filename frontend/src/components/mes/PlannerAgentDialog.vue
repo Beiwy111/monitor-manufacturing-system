@@ -63,7 +63,15 @@
           </div>
           <div class="kpi-item kpi-item--highlight">
             <span class="kpi-label">建议排产</span>
-            <span class="kpi-value">{{ inventory.recommendedPlanQty ?? analysis.recommendedPlanQty ?? 0 }} 台</span>
+            <el-input-number
+              v-model="form.plannedQty"
+              :min="0"
+              :max="99999"
+              size="small"
+              controls-position="right"
+              style="width: 120px"
+            />
+            <span class="kpi-unit">台</span>
           </div>
         </div>
 
@@ -192,7 +200,8 @@ const pendingOrders = computed(() => mes.pendingPlanOrders)
 const form = reactive({
   orderId: '',
   planStart: new Date().toISOString().slice(0, 10),
-  planEnd: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
+  planEnd: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+  plannedQty: 0
 })
 
 const inventory = computed(() => analysis.value?.inventoryCheck || {})
@@ -218,7 +227,7 @@ const decisionAlertType = computed(() => {
 
 const canSubmit = computed(() => {
   if (!analysis.value) return false
-  const qty = analysis.value.recommendedPlanQty ?? inventory.value.recommendedPlanQty ?? 0
+  const qty = form.plannedQty || (analysis.value.recommendedPlanQty ?? inventory.value.recommendedPlanQty ?? 0)
   return qty > 0 && !['FULL_STOCK', 'CAPACITY_SHORTAGE'].includes(decision.value)
 })
 
@@ -256,6 +265,9 @@ async function runPreview() {
   previewLoading.value = true
   try {
     analysis.value = await mes.previewPlanAgent(form, userStore.username, userStore.roleKey)
+    form.plannedQty = analysis.value?.recommendedPlanQty
+      ?? inventory.value?.recommendedPlanQty
+      ?? 0
   } catch (e) {
     analysis.value = null
     ElMessage.error(e?.message || 'Agent 分析失败')
@@ -328,6 +340,11 @@ async function runCreate() {
 .kpi-item--highlight {
   background: #ecf5ff;
   border: 1px solid #b3d8ff;
+}
+.kpi-unit {
+  margin-left: 6px;
+  font-size: 12px;
+  color: #909399;
 }
 .kpi-label {
   display: block;

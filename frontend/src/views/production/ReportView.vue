@@ -69,6 +69,7 @@ import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { DISPATCH_REPORTABLE, DISPATCH_ACTIVE } from '@/mock/constants'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 
@@ -76,7 +77,7 @@ const mes = useMesStore()
 const userStore = useUserStore()
 const username = computed(() => userStore.userInfo?.username)
 const activeDispatches = computed(() =>
-  mes.myDispatches(username.value).filter((d) => ['已接收', '生产中', '待质检'].includes(d.status))
+  mes.myDispatches(username.value).filter((d) => DISPATCH_ACTIVE.includes(d.status))
 )
 const { selected, onRowClick } = useMesFilter(activeDispatches, ['id'])
 const form = reactive({ reportQty: 10, qualifiedQty: 10, unqualifiedQty: 0, workHours: 2, remark: '' })
@@ -89,11 +90,11 @@ const rows = computed(() => detailRows(selected.value, [
 ]))
 
 const canReport = computed(() =>
-  selected.value && ['已接收', '生产中'].includes(selected.value.status) && selected.value.completedQty < selected.value.planQty
+  selected.value && DISPATCH_REPORTABLE.includes(selected.value.status) && selected.value.completedQty < selected.value.planQty
 )
 
 function canSubmitQc(row) {
-  return row.status === '生产中' && row.completedQty >= row.planQty
+  return DISPATCH_REPORTABLE.includes(row.status) && row.completedQty >= row.planQty
 }
 
 async function submit() {

@@ -16,11 +16,17 @@
         <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }"><StatusBadge :status="row.status" /></template>
         </el-table-column>
+        <el-table-column label="操作" width="72" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removeSettlement(row)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
     </template>
     <template #detail-actions>
       <el-button v-if="selected?.status==='草稿'" type="primary" size="small" @click="confirm">确认结算</el-button>
       <el-button v-if="selected?.status==='已确认'" size="small" @click="exportCs">导出</el-button>
+      <el-button v-if="selected" type="danger" size="small" plain @click="removeSettlement(selected)">删除</el-button>
     </template>
   </MesPageShell>
 </template>
@@ -32,11 +38,13 @@ import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { COST_STATUS } from '@/mock/constants'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 
 const mes = useMesStore()
 const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
 const { selected, onRowClick } = useMesFilter(computed(() => mes.costSettlements), ['id'])
 const rows = computed(() => detailRows(selected.value, [
   { key: 'workOrderId', label: '工单' }, { key: 'materialCost', label: '材料成本' },
@@ -50,5 +58,16 @@ function confirm() {
 function exportCs() {
   mes.exportCostSettlement(selected.value.id, userStore.displayName, userStore.roleKey)
   ElMessage.success('已导出')
+}
+function removeSettlement(row) {
+  if (!row) return
+  runDelete({
+    action: 'deleteCostSettlement',
+    payload: { settlementId: row.id },
+    message: `确定删除结算单 ${row.id}？`,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  }).catch(() => {})
 }
 </script>

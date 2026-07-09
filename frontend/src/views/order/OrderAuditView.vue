@@ -48,6 +48,8 @@
 
             </template>
 
+            <el-button link type="danger" @click="removeOrder(row)">删除</el-button>
+
           </template>
 
         </el-table-column>
@@ -61,6 +63,8 @@
       <el-button v-if="selected?.status==='待审核'" type="primary" size="small" @click="audit(true)">审核通过</el-button>
 
       <el-button v-if="selected?.status==='待审核'" size="small" @click="audit(false)">驳回作废</el-button>
+
+      <el-button v-if="selected" type="danger" size="small" plain @click="removeOrder(selected)">删除订单</el-button>
 
     </template>
 
@@ -81,6 +85,7 @@ import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
 
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 
@@ -91,6 +96,7 @@ import StatusBadge from '@/components/mes/StatusBadge.vue'
 const mes = useMesStore()
 
 const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
 
 const { keyword, selected, filtered, onRowClick } = useMesFilter(
 
@@ -141,6 +147,18 @@ function selectAndAudit(row, pass) {
 }
 
 function onAction() {}
+
+function removeOrder(row) {
+  if (!row) return
+  runDelete({
+    action: 'deleteOrder',
+    payload: { orderId: row.id },
+    message: `确定删除订单 ${row.id}？关联计划、工单等记录将一并删除。`,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  }).catch(() => {})
+}
 
 </script>
 

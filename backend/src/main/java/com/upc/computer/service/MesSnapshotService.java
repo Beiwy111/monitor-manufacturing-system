@@ -47,6 +47,8 @@ public class MesSnapshotService {
     @Autowired
     private MaterialMapper materialMapper;
     @Autowired
+    private BomMapper bomMapper;
+    @Autowired
     private InventoryMapper inventoryMapper;
     @Autowired
     private InventoryTransactionMapper inventoryTransactionMapper;
@@ -140,10 +142,13 @@ public class MesSnapshotService {
         snapshot.put("aftersaleCases", mapAftersaleCases(aftersaleCases, orderById, itemsByOrderId, userById));
         snapshot.put("costSettlements", mapCostSettlements(settlements, woById, itemsByOrderId, orderById));
         snapshot.put("operationLogs", mapDbLogs(dbLogs, userById));
-        snapshot.put("customers", buildCustomers(orders));
+        snapshot.put("customers", CustomerCatalog.buildList(orders, deliveries, aftersaleCases));
         snapshot.put("suppliers", buildSuppliers(purchaseOrders));
         snapshot.put("purchaseDemands", buildPurchaseDemands(inventories, materialById));
-        snapshot.put("processGuide", buildProcessGuide());
+        snapshot.put("processGuide", buildProcessGuide(materials, materialById));
+        snapshot.put("bomGuide", buildBomGuide(materials, materialById));
+        snapshot.put("productModels", buildProductModels(materials));
+        snapshot.put("processSteps", buildProcessStepNames());
 
         mesRuntimeStore.mergeIntoSnapshot(snapshot, runtime);
         return snapshot;
@@ -292,6 +297,7 @@ public class MesSnapshotService {
             m.put("planStart", p.getPlannedStartDate() != null ? p.getPlannedStartDate().format(DATE_FMT) : "");
             m.put("planEnd", p.getPlannedEndDate() != null ? p.getPlannedEndDate().format(DATE_FMT) : "");
             m.put("status", MesStatusMapper.toPlanCn(p.getPlanStatus()));
+            m.put("priority", p.getPriority());
             m.put("planner", planner != null ? planner.getRealName() : "");
             m.put("remark", p.getRemark());
             if (p.getApprovedAt() != null) {
@@ -560,6 +566,8 @@ public class MesSnapshotService {
             m.put("id", "INV-" + (mat != null ? mat.getMaterialCode() : inv.getInventoryId()));
             m.put("materialCode", mat != null ? mat.getMaterialCode() : "");
             m.put("materialName", mat != null ? mat.getMaterialName() : "");
+            m.put("assemblyGroup", resolveAssemblyGroup(mat));
+            m.put("specification", mat != null ? mat.getSpecification() : "");
             m.put("unit", mat != null ? mat.getUnit() : "个");
             m.put("quantity", qty.intValue());
             m.put("safeQty", safe.intValue());
@@ -763,23 +771,6 @@ public class MesSnapshotService {
         return list;
     }
 
-    private List<Map<String, Object>> buildCustomers(List<CustomerOrder> orders) {
-        Map<String, Map<String, Object>> map = new LinkedHashMap<>();
-        int id = 1;
-        for (CustomerOrder o : orders) {
-            if (o.getCustomerName() == null || map.containsKey(o.getCustomerName())) {
-                continue;
-            }
-            Map<String, Object> c = new LinkedHashMap<>();
-            c.put("id", id++);
-            c.put("name", o.getCustomerName());
-            c.put("contact", o.getCustomerContact());
-            c.put("phone", o.getCustomerPhone());
-            map.put(o.getCustomerName(), c);
-        }
-        return new ArrayList<>(map.values());
-    }
-
     private List<Map<String, Object>> buildSuppliers(List<PurchaseOrder> purchaseOrders) {
         Map<String, Map<String, Object>> map = new LinkedHashMap<>();
         int id = 1;
@@ -828,16 +819,51 @@ public class MesSnapshotService {
         return list;
     }
 
-    private Map<String, Object> buildProcessGuide() {
+    private Map<String, Object> buildProcessGuide(List<Material> materials, Map<Long, Material> materialById) {
+        List<String> stepNames = processStepMapper.stepList().stream()
+                .filter(s -> s.getStatus() == null || s.getStatus() == 1)
+                .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
+                .map(ProcessStep::getStepName)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
         Map<String, Object> guide = new LinkedHashMap<>();
-        List<String> steps = List.of("背光组装", "主板装配", "点亮测试", "老化测试", "包装");
-        for (String model : List.of("DM-24-LCD-FHD", "DM-27-LCD-FHD", "DM-32-OLED-4K")) {
+        for (Material mat : materials) {
+            if (!"FINISHED".equals(mat.getMaterialType())) {
+                continue;
+            }
             Map<String, Object> g = new LinkedHashMap<>();
-            g.put("steps", steps);
-            g.put("keyPoints", model + " 生产要点：防静电、扭矩标准、点亮测试");
-            guide.put(model, g);
+            g.put("steps", stepNames);
+            g.put("keyPoints", mat.getMaterialName() + "：" + (mat.getSpecification() != null ? mat.getSpecification() : "按工艺路线执行"));
+            guide.put(mat.getMaterialCode(), g);
+            guide.put(mat.getMaterialName(), g);
         }
         return guide;
+    }
+
+    private List<Map<String, Object>> buildProductModels(List<Material> materials) {
+        return materials.stream()
+                .filter(m -> "FINISHED".equals(m.getMaterialType()))
+                .map(m -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("code", m.getMaterialCode());
+                    row.put("name", m.getMaterialName());
+                    row.put("specification", m.getSpecification());
+                    row.put("panelType", m.getSpecification() != null && m.getSpecification().toUpperCase().contains("OLED")
+                            ? "OLED" : "LCD");
+                    return row;
+                })
+                .toList();
+    }
+
+    private List<String> buildProcessStepNames() {
+        return processStepMapper.stepList().stream()
+                .filter(s -> s.getStatus() == null || s.getStatus() == 1)
+                .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
+                .map(ProcessStep::getStepName)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
     }
 
     private CustomerOrderItem firstItem(List<CustomerOrderItem> items) {
@@ -903,5 +929,102 @@ public class MesSnapshotService {
 
     private String fmt(LocalDateTime dt) {
         return dt != null ? dt.format(DT_FMT) : LocalDateTime.now().format(DT_FMT);
+    }
+
+    private String resolveAssemblyGroup(Material mat) {
+        if (mat == null) {
+            return "其他";
+        }
+        if ("FINISHED".equals(mat.getMaterialType())) {
+            return "成品";
+        }
+        String code = mat.getMaterialCode() != null ? mat.getMaterialCode() : "";
+        if (code.startsWith("MAT-P")) {
+            return "显示面板";
+        }
+        if (code.startsWith("MAT-B")) {
+            return "背光模组";
+        }
+        if (code.startsWith("MAT-M")) {
+            return "主控电路";
+        }
+        if (code.startsWith("MAT-S")) {
+            return "结构附件";
+        }
+        return "其他";
+    }
+
+    private Map<String, Object> buildBomGuide(List<Material> materials, Map<Long, Material> materialById) {
+        List<Map<String, Object>> groups = List.of(
+                assemblyGroupDef("panel", "① 显示面板", "MAT-P"),
+                assemblyGroupDef("backlight", "② 背光模组", "MAT-B"),
+                assemblyGroupDef("mainboard", "③ 主控电路", "MAT-M"),
+                assemblyGroupDef("structure", "④ 结构附件", "MAT-S")
+        );
+
+        Map<Long, List<Bom>> bomByParent = bomMapper.bomList().stream()
+                .filter(b -> b.getStatus() == null || b.getStatus() == 1)
+                .collect(Collectors.groupingBy(Bom::getParentMaterialId, LinkedHashMap::new, Collectors.toList()));
+
+        List<Map<String, Object>> groupOptions = new ArrayList<>();
+        for (Material mat : materials) {
+            if (!"RAW".equals(mat.getMaterialType())) {
+                continue;
+            }
+            Map<String, Object> opt = new LinkedHashMap<>();
+            opt.put("materialId", mat.getMaterialId());
+            opt.put("materialCode", mat.getMaterialCode());
+            opt.put("materialName", mat.getMaterialName());
+            opt.put("specification", mat.getSpecification());
+            opt.put("assemblyGroup", resolveAssemblyGroup(mat));
+            opt.put("unit", mat.getUnit());
+            groupOptions.add(opt);
+        }
+
+        List<Map<String, Object>> products = new ArrayList<>();
+        for (Material mat : materials) {
+            if (!"FINISHED".equals(mat.getMaterialType())) {
+                continue;
+            }
+            List<Bom> lines = bomByParent.getOrDefault(mat.getMaterialId(), List.of());
+            List<Map<String, Object>> components = new ArrayList<>();
+            for (Bom bom : lines) {
+                Material child = materialById.get(bom.getChildMaterialId());
+                if (child == null) {
+                    continue;
+                }
+                Map<String, Object> comp = new LinkedHashMap<>();
+                comp.put("materialCode", child.getMaterialCode());
+                comp.put("materialName", child.getMaterialName());
+                comp.put("assemblyGroup", bom.getRemark() != null && !bom.getRemark().isBlank()
+                        ? bom.getRemark().replace("主控电路-驱动芯片", "主控电路")
+                        : resolveAssemblyGroup(child));
+                comp.put("quantity", bom.getQuantity() != null ? bom.getQuantity().doubleValue() : 1.0);
+                comp.put("unit", child.getUnit());
+                comp.put("specification", child.getSpecification());
+                components.add(comp);
+            }
+            Map<String, Object> product = new LinkedHashMap<>();
+            product.put("productCode", mat.getMaterialCode());
+            product.put("productName", mat.getMaterialName());
+            product.put("specification", mat.getSpecification());
+            product.put("components", components);
+            products.add(product);
+        }
+
+        Map<String, Object> guide = new LinkedHashMap<>();
+        guide.put("groups", groups);
+        guide.put("options", groupOptions);
+        guide.put("products", products);
+        guide.put("summary", "每台显示器由 4 类组装部件构成，每类有 2~3 种规格可选，不同型号选用不同组合");
+        return guide;
+    }
+
+    private Map<String, Object> assemblyGroupDef(String key, String name, String codePrefix) {
+        Map<String, Object> g = new LinkedHashMap<>();
+        g.put("key", key);
+        g.put("name", name);
+        g.put("codePrefix", codePrefix);
+        return g;
     }
 }

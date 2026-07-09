@@ -25,7 +25,6 @@ import java.util.concurrent.ThreadLocalRandom;
 public class MesDashboardLiveTask {
 
     private static final int STEP_SECONDS = 5;
-    private static final BigDecimal SIMULATION_BATCH_QTY = BigDecimal.valueOf(20);
     private static final String[] ALARM_TYPES = {"EQUIPMENT", "QUALITY", "MATERIAL"};
     private static final String[] ALARM_LEVELS = {"GENERAL", "URGENT"};
     private static final String[] ALARM_DESC = {
@@ -79,50 +78,9 @@ public class MesDashboardLiveTask {
         for (WorkOrder wo : activeOrders) {
             activeOrderIds.add(wo.getWorkOrderId());
         }
-
-        boolean progressed = false;
-        for (DispatchTask dispatch : dispatchTaskMapper.dispatchList()) {
-            if (!activeOrderIds.contains(dispatch.getWorkOrderId()) || dispatch.getEquipmentId() == null) {
-                continue;
-            }
-            if (!List.of("ASSIGNED", "ACCEPTED", "RUNNING").contains(dispatch.getStatus())) {
-                continue;
-            }
-            BigDecimal assigned = dispatch.getAssignedQuantity() == null ? SIMULATION_BATCH_QTY : dispatch.getAssignedQuantity();
-            BigDecimal target = assigned.min(SIMULATION_BATCH_QTY);
-            BigDecimal completed = dispatch.getCompletedQuantity() == null ? BigDecimal.ZERO : dispatch.getCompletedQuantity();
-            if (completed.compareTo(target) >= 0) {
-                dispatch.setStatus("COMPLETED");
-                dispatchTaskMapper.updateDispatch(dispatch);
-                continue;
-            }
-            dispatch.setStatus("RUNNING");
-            dispatch.setCompletedQuantity(completed.add(BigDecimal.ONE).min(target));
-            dispatchTaskMapper.updateDispatch(dispatch);
-            progressed = true;
-        }
-
-        for (WorkOrder wo : activeOrders) {
-            BigDecimal completed = dispatchTaskMapper.dispatchList().stream()
-                    .filter(d -> wo.getWorkOrderId().equals(d.getWorkOrderId()))
-                    .map(d -> d.getCompletedQuantity() == null ? BigDecimal.ZERO : d.getCompletedQuantity())
-                    .reduce(BigDecimal.ZERO, BigDecimal::add)
-                    .min(wo.getPlannedQuantity() == null ? SIMULATION_BATCH_QTY : wo.getPlannedQuantity());
-            wo.setCompletedQuantity(completed);
-            wo.setQualifiedQuantity(completed);
-            wo.setUnqualifiedQuantity(BigDecimal.ZERO);
-            if (completed.compareTo(wo.getPlannedQuantity() == null ? SIMULATION_BATCH_QTY : wo.getPlannedQuantity()) >= 0) {
-                wo.setStatus("COMPLETED");
-                wo.setActualEndTime(LocalDateTime.now());
-            } else {
-                wo.setStatus("RUNNING");
-                if (wo.getActualStartTime() == null) {
-                    wo.setActualStartTime(LocalDateTime.now());
-                }
-            }
-            workOrderMapper.updateProductionProgress(wo);
-        }
-        return progressed;
+        return dispatchTaskMapper.dispatchList().stream()
+                .anyMatch(d -> activeOrderIds.contains(d.getWorkOrderId())
+                        && List.of("ASSIGNED", "ACCEPTED", "PRODUCING", "RUNNING").contains(d.getStatus()));
     }
 
     private void tickHourlyMetric(LocalDate today, int hour) {

@@ -14,6 +14,12 @@
     </template>
     <template #detail-extra>
       <ProcessTimeline v-if="sel" :items="timeline" />
+      <el-descriptions v-if="chain" :column="2" border size="small" style="margin-top:12px">
+        <el-descriptions-item label="领料任务">{{ chain.issueTasks?.length || 0 }} 条</el-descriptions-item>
+        <el-descriptions-item label="入库任务">{{ chain.inboundTasks?.length || 0 }} 条</el-descriptions-item>
+        <el-descriptions-item label="派工记录">{{ chain.dispatches?.length || 0 }} 条</el-descriptions-item>
+        <el-descriptions-item label="质检记录">{{ chain.inspections?.length || 0 }} 条</el-descriptions-item>
+      </el-descriptions>
     </template>
   </MesPageShell>
 </template>
@@ -33,15 +39,31 @@ const rows = computed(() => detailRows(sel.value, [
   { key: 'id', label: '订单号' }, { key: 'status', label: '状态' },
   { key: 'planId', label: '计划' }, { key: 'workOrderId', label: '工单' }
 ]))
+const chain = computed(() => (sel.value ? mes.traceChain(sel.value.id) : null))
+
+function stepDesc(value, fallback = '未开始') {
+  return value || fallback
+}
+
 const timeline = computed(() => {
-  if (!sel.value) return []
-  const chain = mes.traceChain(sel.value.id)
+  if (!chain.value) return []
+  const c = chain.value
+  const issueDone = c.issueTasks?.length
+    ? c.issueTasks.every((t) => t.status === '已完成')
+    : false
+  const inboundDone = c.inboundTasks?.length
+    ? c.inboundTasks.every((t) => t.status === '已入库')
+    : false
+  const deliveryStatus = c.deliveries?.[0]?.status || '未发货'
   return [
-    { title: '客户订单', desc: chain.order?.status },
-    { title: '生产计划', desc: chain.plan?.status || '未创建' },
-    { title: '生产工单', desc: chain.wo?.status || '未创建' },
-    { title: '质检记录', desc: `${chain.inspections?.length || 0} 条` },
-    { title: '发货', desc: chain.deliveries?.[0]?.status || '未发货' }
+    { title: '客户订单', desc: stepDesc(c.order?.status), status: c.order ? 'done' : 'pending' },
+    { title: '生产计划', desc: stepDesc(c.plan?.status, '未创建'), status: c.plan ? 'done' : 'pending' },
+    { title: '生产工单', desc: stepDesc(c.wo?.status, '未创建'), status: c.wo ? 'done' : 'pending' },
+    { title: '生产领料', desc: c.issueTasks?.length ? `${c.issueTasks.length} 项 / ${issueDone ? '已完成' : '进行中'}` : '待下达工单', status: issueDone ? 'done' : (c.issueTasks?.length ? 'active' : 'pending') },
+    { title: '派工报工', desc: c.dispatches?.length ? `${c.dispatches.length} 条派工` : '未派工', status: c.dispatches?.length ? 'done' : 'pending' },
+    { title: '质量检验', desc: c.inspections?.length ? `${c.inspections.length} 条记录` : '未送检', status: c.inspections?.length ? 'done' : 'pending' },
+    { title: '成品入库', desc: c.inboundTasks?.length ? `${c.inboundTasks.length} 项 / ${inboundDone ? '已入库' : '待入库'}` : '待质检合格', status: inboundDone ? 'done' : (c.inboundTasks?.length ? 'active' : 'pending') },
+    { title: '发货出库', desc: deliveryStatus, status: deliveryStatus === '已出库' ? 'done' : (deliveryStatus === '待出库' ? 'active' : 'pending') }
   ]
 })
 </script>

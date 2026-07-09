@@ -17,11 +17,14 @@ const LIST_KEYS = [
 ]
 
 function emptyLiveState() {
-  const base = createInitialMesData()
-  LIST_KEYS.forEach((key) => {
-    base[key] = []
-  })
-  return base
+  return {
+    sysUsers: [], sysRoles: [], sysPermissions: [], sysMenus: [], customers: [], orders: [], plans: [],
+    workOrders: [], dispatches: [], workReports: [], inspections: [], defects: [], purchaseDemands: [],
+    purchaseOrders: [], suppliers: [], inventory: [], stockFlows: [], inboundTasks: [], issueTasks: [],
+    deliveries: [], equipment: [], alarms: [], maintenanceRecords: [], qualityReports: [], aftersaleCases: [],
+    costSettlements: [], operationLogs: [],
+    productModels: [], processSteps: [], processGuide: [], bomGuide: []
+  }
 }
 
 function loadMesState() {
@@ -50,7 +53,7 @@ function resolveOperator(store, payload) {
     if (user) return { operator: user.username, operatorName: user.realName }
   }
   const fallback = store.sysUsers.find((u) => u.roleKey === 'operator')
-  return { operator: fallback?.username || 'operator', operatorName: fallback?.realName || '王操作' }
+  return { operator: fallback?.username || '', operatorName: fallback?.realName || '' }
 }
 
 function log(store, module, action, target, operator, roleKey) {
@@ -190,7 +193,9 @@ export const useMesStore = defineStore('mes', {
       const defects = s.defects.filter((d) => d.workOrderId === wo?.id)
       const deliveries = s.deliveries.filter((d) => d.orderId === orderId)
       const aftersale = s.aftersaleCases.filter((c) => c.orderId === orderId)
-      return { order, plan, wo, dispatches, reports, inspections, defects, deliveries, aftersale }
+      const issueTasks = s.issueTasks.filter((t) => t.workOrderId === wo?.id)
+      const inboundTasks = s.inboundTasks.filter((t) => t.orderId === orderId || t.workOrderId === wo?.id)
+      return { order, plan, wo, dispatches, reports, inspections, defects, deliveries, aftersale, issueTasks, inboundTasks }
     }
   },
 
@@ -335,12 +340,53 @@ export const useMesStore = defineStore('mes', {
       if (MES_LIVE_MODE) return this._live('agentCreatePlan', payload, operator, roleKey)
       return null
     },
+    async previewSmartPlans(operator, roleKey) {
+      if (MES_LIVE_MODE) {
+        const { fetchSmartPlanPreview } = await import('@/api/mes')
+        return fetchSmartPlanPreview()
+      }
+      return { proposals: [], total: 0, feasibleCount: 0 }
+    },
+    async generateSmartPlans(orderIds, operator, roleKey, autoPublish = true, proposals = null) {
+      if (MES_LIVE_MODE) {
+        const { postGenerateSmartPlans } = await import('@/api/mes')
+        const result = await postGenerateSmartPlans({ orderIds, operator, roleKey, autoPublish, proposals })
+        await this.hydrateFromApi()
+        return result
+      }
+      return { created: [], createdCount: 0 }
+    },
+    async updatePlan(planId, payload, operator, roleKey) {
+      if (MES_LIVE_MODE) return this._live('updatePlan', { planId, ...payload }, operator, roleKey)
+      return false
+    },
+    async previewSmartDispatch(planId, operator, roleKey) {
+      if (MES_LIVE_MODE) {
+        const { fetchSmartDispatchPreview } = await import('@/api/mes')
+        return fetchSmartDispatchPreview(planId)
+      }
+      return { recommendations: [], plans: [] }
+    },
+    async confirmSmartDispatch(planId, operator, roleKey) {
+      if (MES_LIVE_MODE) {
+        const { postConfirmSmartDispatch } = await import('@/api/mes')
+        const result = await postConfirmSmartDispatch({ planId, operator, roleKey })
+        await this.hydrateFromApi()
+        return result
+      }
+      return { count: 0 }
+    },
     async agentBatchDispatch(planId, operator, roleKey, extra = {}) {
       if (MES_LIVE_MODE) return this._live('agentBatchDispatch', { planId, ...extra }, operator, roleKey)
       return null
     },
     async generateQualityReport(qcId, operator, roleKey) {
-      if (MES_LIVE_MODE) return this._live('generateQualityReport', { qcId }, operator, roleKey)
+      if (MES_LIVE_MODE) {
+        const { postRefreshQualityReport } = await import('@/api/mes')
+        const result = await postRefreshQualityReport({ qcId, operator, roleKey })
+        await this.hydrateFromApi()
+        return result
+      }
       return this.qualityReports?.find((r) => r.qcId === qcId) || null
     },
     async qualityReportDetail(reportId, operator, roleKey) {
@@ -627,7 +673,7 @@ export const useMesStore = defineStore('mes', {
         ? this.dispatches.find((d) => d.id === defect.dispatchId)
         : null
       const opUser = defect.operator || origDispatch?.operator || 'operator'
-      const opName = defect.operatorName || origDispatch?.operatorName || '王操作'
+      const opName = defect.operatorName || origDispatch?.operatorName || opUser
       const id = nextId('DIS-2026')
       this.dispatches.unshift({
         id,
@@ -876,6 +922,37 @@ export const useMesStore = defineStore('mes', {
     },
     resetUserPassword(userId, password, operator, roleKey) {
       if (MES_LIVE_MODE) return this._live('resetUserPassword', { userId, password }, operator, roleKey)
+      return true
+    },
+
+    // —— 删除归档 ——
+    async deleteRecord(action, payload, operator, roleKey) {
+      if (MES_LIVE_MODE) return this._live(action, payload, operator, roleKey)
+      const idKeyMap = {
+        deleteOrder: ['orders', 'orderId'],
+        deletePlan: ['plans', 'planId'],
+        deleteWorkOrder: ['workOrders', 'workOrderId'],
+        deleteDispatch: ['dispatches', 'dispatchId'],
+        deleteReport: ['workReports', 'reportId'],
+        deleteInspection: ['inspections', 'qcId'],
+        deleteDefect: ['defects', 'defectId'],
+        deletePurchaseOrder: ['purchaseOrders', 'purchaseOrderId'],
+        deleteDelivery: ['deliveries', 'dlvId'],
+        deleteAlarm: ['alarms', 'alarmId'],
+        deleteAftersale: ['aftersaleCases', 'caseId'],
+        deleteCostSettlement: ['costSettlements', 'settlementId'],
+        deleteInboundTask: ['inboundTasks', 'taskId'],
+        deleteIssueTask: ['issueTasks', 'taskId']
+      }
+      const cfg = idKeyMap[action]
+      if (!cfg) return false
+      const [listKey, idField] = cfg
+      const id = payload[idField]
+      const list = this[listKey]
+      if (!Array.isArray(list)) return false
+      const idx = list.findIndex((x) => x.id === id)
+      if (idx >= 0) list.splice(idx, 1)
+      log(this, '归档清理', '删除记录', String(id), operator, roleKey)
       return true
     }
   }

@@ -1,5 +1,11 @@
 <template>
-  <MesDataPage title="工单成本" data-key="costSettlements" :columns="cols" />
+  <MesDataPage
+    title="工单成本"
+    data-key="costSettlements"
+    :columns="cols"
+    delete-action="deleteCostSettlement"
+    delete-payload-key="settlementId"
+  />
 </template>
 <script setup>
 import MesDataPage from '@/components/mes/MesDataPage.vue'

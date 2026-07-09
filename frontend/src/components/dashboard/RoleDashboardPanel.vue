@@ -40,7 +40,7 @@
           </router-link>
         </div>
         <div class="block-title" style="margin-top: 24px">系统提示</div>
-        <p class="hint-text">当前为角色工作台骨架页面，业务数据来自 Mock 配置。后续可对接后端动态菜单与实时看板接口。</p>
+        <p class="hint-text">业务数据来自后端数据库实时快照，登录后自动加载。待办与 KPI 随订单、计划、工单状态变化而更新。</p>
       </section>
     </div>
   </div>

@@ -18,7 +18,7 @@ import { useMesStore } from '@/stores/mes'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import ProcessTimeline from '@/components/mes/ProcessTimeline.vue'
 const mes = useMesStore()
-const orderId = ref('ORD-2026-003')
+const orderId = ref('')
 const chain = computed(() => orderId.value ? mes.traceChain(orderId.value) : null)
 const items = computed(() => {
   if (!chain.value?.order) return []

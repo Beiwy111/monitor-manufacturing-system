@@ -4,6 +4,9 @@ export const ORDER_STATUS = ['待审核', '已审核', '待计划', '已计划',
 export const PLAN_STATUS = ['草稿', '已发布', '已提交', '执行中', '已完成', '已取消']
 export const WORK_ORDER_STATUS = ['草稿', '已下达', '已派工', '生产中', '待质检', '已完成', '已取消']
 export const DISPATCH_STATUS = ['已分配', '已接收', '生产中', '待质检', '已完成']
+/** 操作员可报工 / 可继续生产的派工状态 */
+export const DISPATCH_REPORTABLE = ['已接收', '生产中']
+export const DISPATCH_ACTIVE = ['已分配', '已接收', '生产中', '待质检']
 export const DEFECT_STATUS = ['待处理', '返修中', '已返修', '已报废']
 export const DEFECT_SEVERITY = ['轻微', '严重']
 export const DEFECT_LOCATIONS = [
@@ -23,14 +26,18 @@ export const PRODUCT_MODELS = [
 ]
 
 export const DISPLAY_MATERIALS = [
-  { code: 'LCD-PANEL', name: 'LCD 面板', unit: '片' },
-  { code: 'OLED-PANEL', name: 'OLED 面板', unit: '片' },
-  { code: 'BL-MODULE', name: '背光模组', unit: '套' },
-  { code: 'MAIN-BOARD', name: '主控板', unit: '块' },
-  { code: 'PWR-BOARD', name: '电源板', unit: '块' },
-  { code: 'HOUSING', name: '外壳', unit: '套' },
-  { code: 'STAND', name: '支架', unit: '套' },
-  { code: 'PACK-BOX', name: '包装箱', unit: '个' }
+  { code: 'MAT-P01', name: '15.6寸 IPS面板', unit: '片', group: '显示面板' },
+  { code: 'MAT-P02', name: '23.8寸 IPS面板', unit: '片', group: '显示面板' },
+  { code: 'MAT-P03', name: '27寸 OLED面板', unit: '片', group: '显示面板' },
+  { code: 'MAT-B01', name: '15.6寸 LED背光', unit: '套', group: '背光模组' },
+  { code: 'MAT-B02', name: '23.8寸 LED背光', unit: '套', group: '背光模组' },
+  { code: 'MAT-B03', name: '27寸 Mini-LED背光', unit: '套', group: '背光模组' },
+  { code: 'MAT-M01', name: '商用主控板', unit: '块', group: '主控电路' },
+  { code: 'MAT-M02', name: '电竞主控板', unit: '块', group: '主控电路' },
+  { code: 'MAT-M04', name: '4K主控板', unit: '块', group: '主控电路' },
+  { code: 'MAT-S01', name: '商用铝合金边框', unit: '套', group: '结构附件' },
+  { code: 'MAT-S03', name: '电竞轻量化边框', unit: '套', group: '结构附件' },
+  { code: 'MAT-S02', name: '19V电源适配器', unit: '个', group: '结构附件' }
 ]
 
 export const QC_ITEMS = [
@@ -40,8 +47,7 @@ export const QC_ITEMS = [
 export const QC_TYPES = ['首件检验', '过程检验', '终检', '复检']
 
 export const PROCESS_STEPS = [
-  '面板贴合', '背光组装', '主控安装', '电源安装', '外壳装配',
-  '点亮测试', '亮度检测', '色彩检测', '坏点检测', '老化测试', '外观检查', '成品包装'
+  '面板贴附', '背光组装', '整机老化测试', '电竞调校', '外观检验包装'
 ]
 
 export const EQUIPMENT_TYPES = [

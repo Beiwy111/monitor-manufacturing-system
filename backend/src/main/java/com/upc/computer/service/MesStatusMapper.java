@@ -38,6 +38,7 @@ public final class MesStatusMapper {
             "ASSIGNED", "已分配",
             "ACCEPTED", "已接收",
             "PRODUCING", "生产中",
+            "RUNNING", "生产中",
             "QC_PENDING", "待质检",
             "COMPLETED", "已完成"
     );
@@ -77,6 +78,7 @@ public final class MesStatusMapper {
     );
 
     private static final Map<String, String> DELIVERY_TO_CN = Map.of(
+            "PREPARED", "待出库",
             "PENDING", "待出库",
             "SHIPPED", "已出库"
     );

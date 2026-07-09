@@ -42,7 +42,22 @@ public class MesRuntimeStore {
         if (state.extras == null) {
             state.extras = new HashMap<>();
         }
+        normalizeLegacyIssueTasks(state);
         return state;
+    }
+
+    private void normalizeLegacyIssueTasks(MesRuntimeState state) {
+        boolean changed = false;
+        for (Map<String, Object> task : state.issueTasks) {
+            String code = String.valueOf(task.getOrDefault("materialCode", ""));
+            if ("BL-MODULE".equals(code)) {
+                task.put("materialCode", "MAT-002");
+                changed = true;
+            }
+        }
+        if (changed) {
+            save(state);
+        }
     }
 
     public void save(MesRuntimeState state) {

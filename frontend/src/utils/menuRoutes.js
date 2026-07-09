@@ -25,6 +25,42 @@ export const MENU_PATH_MAP = {
   'purchase:purchaseOrderItem': '/purchase/order',
   'quality:inspection': '/quality/inspection',
   'quality:nonconforming': '/quality/defect',
+  'quality:defect': '/quality/defect',
+  'quality:reinspect': '/quality/reinspect',
+  'quality:records': '/quality/records',
+  'quality:trace': '/quality/trace',
+  'warehouse:purchaseIn': '/warehouse/purchase-in',
+  'warehouse:issue': '/warehouse/issue',
+  'warehouse:inbound': '/warehouse/inbound',
+  'warehouse:inventory': '/warehouse/inventory',
+  'warehouse:flow': '/warehouse/flow',
+  'warehouse:alert': '/warehouse/alert',
+  'order:list': '/order/list',
+  'order:audit': '/order/audit',
+  'order:track': '/order/track',
+  'plan:plan': '/production/plan',
+  'production:myDispatch': '/production/my-dispatch',
+  'production:exception': '/production/exception',
+  'production:processGuide': '/production/process-guide',
+  'device:equipment': '/device/equipment',
+  'device:status': '/device/status',
+  'device:alarm': '/device/alarm',
+  'device:maintenance': '/device/maintenance',
+  'device:records': '/device/records',
+  'purchase:demand': '/purchase/demand',
+  'purchase:order': '/purchase/order',
+  'purchase:supplier': '/purchase/supplier',
+  'purchase:arrival': '/purchase/arrival',
+  'aftersale:case': '/aftersale/case',
+  'aftersale:feedback': '/aftersale/feedback',
+  'aftersale:process': '/aftersale/process',
+  'aftersale:trace': '/aftersale/trace',
+  'cost:workOrder': '/cost/work-order',
+  'cost:material': '/cost/material',
+  'cost:labor': '/cost/labor',
+  'cost:equipment': '/cost/equipment',
+  'cost:settlement': '/cost/settlement',
+  'cost:report': '/cost/report',
   'equipment:equipment': '/device/equipment',
   'equipment:alarm': '/device/alarm',
   'equipment:maintenance': '/device/maintenance',
@@ -62,6 +98,22 @@ const ROLE_MENU_EXTRAS = {
       { menuId: 9054, menuName: '工艺说明', path: '/production/process-guide' }
     ],
     equipment: [{ menuId: 9055, menuName: '安灯报警', path: '/device/alarm' }]
+  },
+  quality: {
+    quality: [
+      { menuId: 9061, menuName: '复检处理', path: '/quality/reinspect' },
+      { menuId: 9062, menuName: '质检记录', path: '/quality/records' },
+      { menuId: 9063, menuName: '质量追溯', path: '/quality/trace' }
+    ]
+  },
+  warehouse: {
+    warehouse: [
+      { menuId: 9071, menuName: '采购入库', path: '/warehouse/purchase-in' },
+      { menuId: 9072, menuName: '生产领料', path: '/warehouse/issue' },
+      { menuId: 9073, menuName: '成品入库', path: '/warehouse/inbound' },
+      { menuId: 9074, menuName: '库存流水', path: '/warehouse/flow' },
+      { menuId: 9075, menuName: '库存预警', path: '/warehouse/alert' }
+    ]
   }
 }
 
@@ -73,6 +125,7 @@ const MODULE_NAME_MAP = {
   production: '生产管理',
   purchase: '采购管理',
   quality: '质量管理',
+  warehouse: '仓储管理',
   equipment: '设备管理',
   afterSales: '售后成本'
 }
@@ -81,6 +134,10 @@ export function resolveMenuPath(menu) {
   if (menu?.path) return menu.path
   if (menu?.menuCode && MENU_PATH_MAP[menu.menuCode]) {
     return MENU_PATH_MAP[menu.menuCode]
+  }
+  const businessPath = menu?.businessTable || menu?.business_table
+  if (typeof businessPath === 'string' && businessPath.startsWith('/')) {
+    return businessPath
   }
   return ''
 }

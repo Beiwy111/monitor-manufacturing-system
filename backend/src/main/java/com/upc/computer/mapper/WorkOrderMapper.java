@@ -30,7 +30,7 @@ public interface WorkOrderMapper {
     @Delete("DELETE FROM work_order WHERE work_order_id = #{workOrderId}")
     public void deleteWorkOrder(Long workOrderId);
 
-    @Select("SELECT work_order_id, work_order_no, plan_id, plan_item_id, material_id, route_id, planned_quantity, completed_quantity, qualified_quantity, unqualified_quantity, planned_start_time, planned_end_time, actual_start_time, actual_end_time, status, created_by, released_by, released_at, remark, created_at, updated_at FROM work_order WHERE status IN ('RUNNING','RELEASED')")
+    @Select("SELECT work_order_id, work_order_no, plan_id, plan_item_id, material_id, route_id, planned_quantity, completed_quantity, qualified_quantity, unqualified_quantity, planned_start_time, planned_end_time, actual_start_time, actual_end_time, status, created_by, released_by, released_at, remark, created_at, updated_at FROM work_order WHERE status IN ('RUNNING','RELEASED','DISPATCHED','PRODUCING')")
     ArrayList<WorkOrder> listActiveWorkOrders();
 
     @Update("UPDATE work_order SET completed_quantity=#{completedQuantity}, qualified_quantity=#{qualifiedQuantity}, unqualified_quantity=#{unqualifiedQuantity}, status=#{status}, updated_at=NOW() WHERE work_order_id=#{workOrderId}")

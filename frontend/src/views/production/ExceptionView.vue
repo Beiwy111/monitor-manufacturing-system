@@ -1,5 +1,12 @@
 <template>
-  <MesDataPage title="生产异常" data-key="alarms" :columns="cols" :filter-fn="f => f.filter(a => a.status !== '已关闭')" />
+  <MesDataPage
+    title="生产异常"
+    data-key="alarms"
+    :columns="cols"
+    :filter-fn="f => f.filter(a => a.status !== '已关闭')"
+    delete-action="deleteAlarm"
+    delete-payload-key="alarmId"
+  />
 </template>
 <script setup>
 import MesDataPage from '@/components/mes/MesDataPage.vue'

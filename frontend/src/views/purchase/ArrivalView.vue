@@ -1,5 +1,11 @@
 <template>
-  <MesDataPage title="到货进度" data-key="purchaseOrders" :columns="cols" />
+  <MesDataPage
+    title="到货进度"
+    data-key="purchaseOrders"
+    :columns="cols"
+    delete-action="deletePurchaseOrder"
+    delete-payload-key="purchaseOrderId"
+  />
 </template>
 <script setup>
 import MesDataPage from '@/components/mes/MesDataPage.vue'

@@ -16,6 +16,11 @@
         <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }"><StatusBadge :status="row.status" /></template>
         </el-table-column>
+        <el-table-column label="操作" width="72" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removeDefect(row)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
     </template>
     <template #detail-extra>
@@ -33,6 +38,7 @@
       <el-tag v-else-if="selected?.status === '返修中'" type="warning">返修中，操作员完成后需再次提交质检</el-tag>
       <el-tag v-else-if="selected?.status === '已返修'" type="success">返修完成</el-tag>
       <el-tag v-else-if="selected?.status === '已报废'" type="info">已报废</el-tag>
+      <el-button v-if="selected" type="danger" size="small" plain @click="removeDefect(selected)">删除记录</el-button>
     </template>
   </MesPageShell>
 
@@ -52,11 +58,13 @@ import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 
 const mes = useMesStore()
 const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
 const defectList = computed(() => mes.defects)
 const { selected, onRowClick } = useMesFilter(defectList, ['id'])
 const scrapDialog = ref(false)
@@ -95,6 +103,17 @@ function rework() {
   } else {
     ElMessage.error('派返修失败')
   }
+}
+function removeDefect(row) {
+  if (!row) return
+  runDelete({
+    action: 'deleteDefect',
+    payload: { defectId: row.id },
+    message: `确定删除不合格品记录 ${row.id}？`,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  }).catch(() => {})
 }
 </script>
 

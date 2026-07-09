@@ -17,8 +17,8 @@
       </p>
       <div class="ruoyi-operator-bar__actions">
         <el-button v-if="currentDispatch.status==='已分配'" type="primary" size="small" :loading="acting" @click="accept">接收工单</el-button>
-        <el-button v-if="['已接收','生产中'].includes(currentDispatch.status)" type="success" size="small" :loading="acting" @click="start">开始生产</el-button>
-        <el-button v-if="currentDispatch.status==='生产中'" size="small" @click="$router.push('/production/report')">提交报工</el-button>
+        <el-button v-if="currentDispatch.status==='已接收'" type="success" size="small" :loading="acting" @click="start">开始生产</el-button>
+        <el-button v-if="DISPATCH_REPORTABLE.includes(currentDispatch.status)" size="small" @click="$router.push('/production/report')">提交报工</el-button>
         <el-button type="danger" size="small" @click="showAlarm=true">触发安灯</el-button>
       </div>
     </div>
@@ -40,6 +40,7 @@ import { computed, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useMesStore } from '@/stores/mes'
+import { DISPATCH_REPORTABLE, DISPATCH_ACTIVE } from '@/mock/constants'
 import RoleWorkbench from '@/components/workbench/RoleWorkbench.vue'
 
 const userStore = useUserStore()
@@ -50,9 +51,9 @@ const acting = ref(false)
 
 const username = computed(() => userStore.userInfo?.username)
 const myDispatches = computed(() => mes.myDispatches(username.value))
-const activeCount = computed(() => myDispatches.value.filter(d => ['已接收','生产中'].includes(d.status)).length)
+const activeCount = computed(() => myDispatches.value.filter(d => DISPATCH_REPORTABLE.includes(d.status)).length)
 const pendingAccept = computed(() => myDispatches.value.filter(d => d.status === '已分配').length)
-const currentDispatch = computed(() => myDispatches.value.find(d => ['已分配','已接收','生产中'].includes(d.status)))
+const currentDispatch = computed(() => myDispatches.value.find(d => DISPATCH_ACTIVE.slice(0, 3).includes(d.status)))
 
 const shortcuts = [
   { label: '我的派工', path: '/production/my-dispatch' },

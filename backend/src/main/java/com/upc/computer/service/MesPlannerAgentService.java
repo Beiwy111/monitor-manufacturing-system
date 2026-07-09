@@ -592,6 +592,242 @@ public class MesPlannerAgentService {
         }
     }
 
+    /**
+     * 批量智能生成生产计划预览：对待计划订单按交期、库存、设备可用性评分并排优先级。
+     */
+    public Map<String, Object> generateSmartPlanProposals() {
+        List<CustomerOrder> pendingOrders = customerOrderMapper.customerOrderList().stream()
+                .filter(o -> List.of("PLAN_PENDING", "APPROVED").contains(o.getAuditStatus()))
+                .sorted(Comparator.comparing(CustomerOrder::getRequiredDeliveryDate,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+
+        List<Map<String, Object>> proposals = new ArrayList<>();
+        for (CustomerOrder order : pendingOrders) {
+            proposals.add(buildSmartPlanProposal(order));
+        }
+        proposals.sort((a, b) -> Double.compare(
+                doubleVal(b.get("priorityScore")),
+                doubleVal(a.get("priorityScore"))));
+
+        long feasibleCount = proposals.stream().filter(p -> Boolean.TRUE.equals(p.get("feasible"))).count();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("proposals", proposals);
+        result.put("total", proposals.size());
+        result.put("feasibleCount", feasibleCount);
+        result.put("generatedAt", java.time.LocalDateTime.now().toString().replace('T', ' '));
+        result.put("summary", String.format("共 %d 笔待计划订单，%d 笔可智能生成生产计划",
+                proposals.size(), feasibleCount));
+        return result;
+    }
+
+    /**
+     * 单笔订单智能计划提案（含优先级评分与风险提示）。
+     */
+    public Map<String, Object> buildSmartPlanProposal(CustomerOrder order) {
+        CustomerOrderItem item = firstOrderItem(order.getOrderId());
+        int orderQuantity = item != null ? item.getQuantity().intValue() : 0;
+        String productModel = item != null ? item.getProductName() : "";
+
+        LocalDate deliveryDate = order.getRequiredDeliveryDate() != null
+                ? order.getRequiredDeliveryDate()
+                : LocalDate.now().plusDays(14);
+        long daysToDelivery = Math.max(0, ChronoUnit.DAYS.between(LocalDate.now(), deliveryDate));
+
+        Map<String, Object> inventoryCheck = buildInventoryAnalysis(item, orderQuantity);
+        int needToProduce = intVal(inventoryCheck.get("needToProduce"));
+        int recommendedPlanQty = intVal(inventoryCheck.get("recommendedPlanQty"));
+        String decision = String.valueOf(inventoryCheck.getOrDefault("decision", ""));
+
+        List<ProcessStep> steps = resolveRouteSteps(item);
+        List<Equipment> allEquipment = equipmentMapper.equipmentList();
+        List<User> operatorPool = activeOperators();
+        int availableEquipCount = availableEquipment(allEquipment).size();
+        int requiredEquipEstimate = Math.max(1, (int) Math.ceil(Math.max(needToProduce, 1) / 20.0));
+
+        long workDays = Math.max(1, Math.min(daysToDelivery > 2 ? daysToDelivery - 2 : 7, 21));
+        CapacityPlan capacityPlan = buildCapacityPlan(steps, allEquipment, operatorPool,
+                Math.max(recommendedPlanQty, needToProduce), workDays);
+        int feasibleQty = capacityPlan.feasibleQty();
+        if (recommendedPlanQty > 0 && feasibleQty > 0 && feasibleQty < recommendedPlanQty) {
+            recommendedPlanQty = feasibleQty;
+            inventoryCheck.put("recommendedPlanQty", feasibleQty);
+            applyCapacityDecision(inventoryCheck, intVal(inventoryCheck.get("recommendedPlanQty")), feasibleQty, capacityPlan);
+            decision = String.valueOf(inventoryCheck.get("decision"));
+        }
+
+        int planQuantity = recommendedPlanQty;
+        if (planQuantity <= 0 && needToProduce > 0) {
+            planQuantity = 0;
+        }
+
+        if (planQuantity > 0) {
+            workDays = Math.max(1, Math.min(workDays, Math.max(1, daysToDelivery > 2 ? daysToDelivery - 2 : 7)));
+        }
+        LocalDate planEnd = deliveryDate.minusDays(2);
+        if (planEnd.isBefore(LocalDate.now())) {
+            planEnd = LocalDate.now().plusDays(workDays);
+        }
+        LocalDate planStart = planEnd.minusDays(workDays - 1);
+        if (planStart.isBefore(LocalDate.now())) {
+            planStart = LocalDate.now();
+        }
+
+        Map<String, Object> scoreBreakdown = computePriorityScore(
+                daysToDelivery, orderQuantity, inventoryCheck, availableEquipCount, requiredEquipEstimate);
+        double priorityScore = doubleVal(scoreBreakdown.get("totalScore"));
+
+        List<String> requiredEquipment = steps.stream()
+                .map(ProcessStep::getStandardEquipmentType)
+                .filter(t -> t != null && !t.isBlank())
+                .distinct()
+                .toList();
+        int requiredPersonnel = capacityPlan.allocations().stream()
+                .mapToInt(a -> intVal(a.get("operators")))
+                .sum();
+        if (requiredPersonnel <= 0 && planQuantity > 0) {
+            requiredPersonnel = Math.max(2, (int) Math.ceil(planQuantity / (double) workDays));
+        }
+
+        List<String> riskWarnings = buildRiskWarnings(inventoryCheck, capacityPlan, daysToDelivery,
+                planStart, planEnd, operatorPool.size());
+
+        String planStatus;
+        boolean feasible;
+        if ("FULL_STOCK".equals(decision)) {
+            planStatus = "库存满足";
+            feasible = false;
+        } else if (planQuantity <= 0) {
+            planStatus = "不可生成";
+            feasible = false;
+        } else if ("CAPACITY_SHORTAGE".equals(decision)) {
+            planStatus = "产能不足";
+            feasible = false;
+        } else {
+            planStatus = "可生成";
+            feasible = true;
+        }
+
+        Map<String, Object> proposal = new LinkedHashMap<>();
+        proposal.put("orderId", order.getOrderNo());
+        proposal.put("orderNo", order.getOrderNo());
+        proposal.put("customerName", order.getCustomerName());
+        proposal.put("productModel", productModel);
+        proposal.put("orderQuantity", orderQuantity);
+        proposal.put("planQuantity", planQuantity);
+        proposal.put("planStart", planStart.toString());
+        proposal.put("planEnd", planEnd.toString());
+        proposal.put("requiredDeliveryDate", deliveryDate.toString());
+        proposal.put("requiredEquipment", requiredEquipment);
+        proposal.put("requiredPersonnel", requiredPersonnel);
+        proposal.put("availableOperators", operatorPool.size());
+        proposal.put("availableEquipment", availableEquipCount);
+        proposal.put("planStatus", planStatus);
+        proposal.put("riskWarnings", riskWarnings);
+        proposal.put("priorityScore", round1(priorityScore));
+        proposal.put("priorityLevel", priorityLevel(priorityScore));
+        proposal.put("scoreBreakdown", scoreBreakdown);
+        proposal.put("feasible", feasible);
+        proposal.put("decision", decision);
+        proposal.put("inventoryCheck", inventoryCheck);
+        proposal.put("capacityAnalysis", capacityPlan.toMap());
+        proposal.put("recommendation", inventoryCheck.get("recommendation"));
+        return proposal;
+    }
+
+    private Map<String, Object> computePriorityScore(long daysToDelivery, int orderQuantity,
+                                                     Map<String, Object> inventoryCheck,
+                                                     int availableEquip, int requiredEquip) {
+        double deliveryScore = daysToDelivery <= 3 ? 100
+                : daysToDelivery <= 7 ? 85
+                : daysToDelivery <= 14 ? 70
+                : daysToDelivery <= 30 ? 50
+                : 30;
+
+        int shipFromStock = intVal(inventoryCheck.get("shipFromStock"));
+        int recommendedPlanQty = intVal(inventoryCheck.get("recommendedPlanQty"));
+        int needToProduce = intVal(inventoryCheck.get("needToProduce"));
+        double inventoryScore;
+        if (needToProduce <= 0) {
+            inventoryScore = 100;
+        } else if (orderQuantity > 0) {
+            double coverage = (shipFromStock + recommendedPlanQty) / (double) orderQuantity;
+            inventoryScore = Math.min(100, coverage * 100);
+        } else {
+            inventoryScore = 50;
+        }
+
+        double equipmentScore = requiredEquip <= 0 ? 100
+                : Math.min(100, availableEquip * 100.0 / requiredEquip);
+
+        double totalScore = deliveryScore * 0.4 + inventoryScore * 0.3 + equipmentScore * 0.3;
+
+        Map<String, Object> breakdown = new LinkedHashMap<>();
+        breakdown.put("deliveryScore", round1(deliveryScore));
+        breakdown.put("inventoryScore", round1(inventoryScore));
+        breakdown.put("equipmentScore", round1(equipmentScore));
+        breakdown.put("totalScore", round1(totalScore));
+        breakdown.put("daysToDelivery", daysToDelivery);
+        return breakdown;
+    }
+
+    private List<String> buildRiskWarnings(Map<String, Object> inventoryCheck, CapacityPlan capacityPlan,
+                                             long daysToDelivery, LocalDate planStart, LocalDate planEnd,
+                                             int availableOperators) {
+        List<String> warnings = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        List<String> bottlenecks = (List<String>) inventoryCheck.getOrDefault("bottlenecks", List.of());
+        for (String b : bottlenecks) {
+            warnings.add("物料瓶颈：" + b);
+        }
+        if (daysToDelivery <= 5) {
+            warnings.add("交期紧迫（剩余 " + daysToDelivery + " 天）");
+        }
+        if (ChronoUnit.DAYS.between(planStart, planEnd) < 3) {
+            warnings.add("计划周期偏短，建议关注产能");
+        }
+        if (capacityPlan.feasibleQty() < intVal(inventoryCheck.get("needToProduce"))) {
+            warnings.add("设备/人员产能不足，建议分批排产");
+        }
+        if (availableOperators <= 2) {
+            warnings.add("操作员数量偏紧（可用 " + availableOperators + " 人）");
+        }
+        long faultCount = equipmentMapper.equipmentList().stream()
+                .filter(e -> "FAULT".equals(e.getStatus()) || "MAINTENANCE".equals(e.getStatus()))
+                .count();
+        if (faultCount > 0) {
+            warnings.add("有 " + faultCount + " 台设备故障或保养中");
+        }
+        if (warnings.isEmpty()) {
+            warnings.add("无明显风险");
+        }
+        return warnings;
+    }
+
+    private String priorityLevel(double score) {
+        if (score >= 80) {
+            return "高";
+        }
+        if (score >= 60) {
+            return "中";
+        }
+        return "低";
+    }
+
+    private double doubleVal(Object v) {
+        if (v == null) {
+            return 0;
+        }
+        if (v instanceof Number n) {
+            return n.doubleValue();
+        }
+        try {
+            return Double.parseDouble(String.valueOf(v));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     public Map<String, Object> buildWorkshops3dSnapshot() {
         List<Equipment> allEquipment = equipmentMapper.equipmentList();
         List<DispatchTask> dispatches = dispatchTaskMapper.dispatchList();
@@ -811,6 +1047,7 @@ public class MesPlannerAgentService {
         String workOrderNo = "";
         String currentStep = "";
         boolean isRunning = false;
+        boolean assignedOnly = false;
 
         for (DispatchTask d : dispatches) {
             if (!dispatchBelongsToWorkshop(d, ws, stepById, equipmentById, runtime)) {
@@ -822,10 +1059,15 @@ public class MesPlannerAgentService {
             completed = completed.add(done);
 
             WorkOrder wo = woById.get(d.getWorkOrderId());
-            boolean activeWorkOrder = wo != null && List.of("RUNNING", "RELEASED").contains(wo.getStatus());
-            boolean activeDispatch = activeWorkOrder && List.of("ASSIGNED", "ACCEPTED", "RUNNING").contains(d.getStatus());
+            boolean activeWorkOrder = wo != null
+                    && List.of("RUNNING", "RELEASED", "DISPATCHED", "PRODUCING").contains(wo.getStatus());
+            boolean activeDispatch = activeWorkOrder
+                    && List.of("ASSIGNED", "ACCEPTED", "RUNNING").contains(d.getStatus());
             if (activeDispatch) {
                 isRunning = true;
+                if ("ASSIGNED".equals(d.getStatus()) && done.compareTo(BigDecimal.ZERO) == 0) {
+                    assignedOnly = true;
+                }
                 BigDecimal target = assigned.compareTo(BigDecimal.ZERO) > 0
                         ? assigned.min(BigDecimal.valueOf(LIVE_BATCH_TARGET))
                         : BigDecimal.valueOf(LIVE_BATCH_TARGET);
@@ -850,7 +1092,11 @@ public class MesPlannerAgentService {
         int batchTarget = LIVE_BATCH_TARGET;
         String progressLabel;
 
-        if (isRunning && activePlanned.compareTo(BigDecimal.ZERO) > 0) {
+        if (isRunning && assignedOnly && completedInt == 0) {
+            progressLabel = workOrderNo.isBlank()
+                    ? "已派工，待操作员接收"
+                    : String.format("工单 %s 已派工，待操作员接收", workOrderNo);
+        } else if (isRunning && activePlanned.compareTo(BigDecimal.ZERO) > 0) {
             plannedInt = activePlanned.intValue();
             completedInt = activeCompleted.intValue();
             progress = Math.min(100, (int) Math.round(activeCompleted.doubleValue() * 100.0 / activePlanned.doubleValue()));

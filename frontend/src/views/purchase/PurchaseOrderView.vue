@@ -17,7 +17,15 @@
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }"><StatusBadge :status="row.status" /></template>
         </el-table-column>
+        <el-table-column label="操作" width="72" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removePurchase(row)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
+    </template>
+    <template #detail-actions>
+      <el-button v-if="selected" type="danger" size="small" plain @click="removePurchase(selected)">删除采购单</el-button>
     </template>
     <template #detail-extra>
       <el-form v-if="selected" inline style="margin-top:12px">
@@ -31,7 +39,7 @@
       <el-form-item label="供应商"><el-input v-model="form.supplier" /></el-form-item>
       <el-form-item label="物料">
         <el-select v-model="form.materialCode" style="width:100%">
-          <el-option v-for="m in DISPLAY_MATERIALS" :key="m.code" :label="m.name" :value="m.code" />
+          <el-option v-for="m in materialOptions" :key="m.code" :label="`${m.name}（${m.code}）`" :value="m.code" />
         </el-select>
       </el-form-item>
       <el-form-item label="数量"><el-input-number v-model="form.quantity" :min="1" style="width:100%" /></el-form-item>
@@ -42,27 +50,37 @@
 </template>
 
 <script setup>
-import { computed, ref, reactive } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
-import { PURCHASE_STATUS, DISPLAY_MATERIALS } from '@/mock/constants'
+import { PURCHASE_STATUS } from '@/mock/constants'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 
 const mes = useMesStore()
 const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
 const dialogVisible = ref(false)
 const arriveQty = ref(50)
-const form = reactive({ supplier: '深面板科技', materialCode: 'LCD-PANEL', materialName: 'LCD 面板', quantity: 200, unitPrice: 280, expectedDate: '2026-04-01' })
+const materialOptions = computed(() =>
+  (mes.inventory || []).map((i) => ({ code: i.materialCode, name: i.materialName }))
+)
+const defaultExpected = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
+const form = reactive({ supplier: '', materialCode: '', materialName: '', quantity: 100, unitPrice: 0, expectedDate: defaultExpected })
 const { selected, onRowClick } = useMesFilter(computed(() => mes.purchaseOrders), ['id'])
 const rows = computed(() => detailRows(selected.value, [
   { key: 'supplier', label: '供应商' }, { key: 'materialName', label: '物料' }, { key: 'totalAmount', label: '金额' }, { key: 'status', label: '状态' }
 ]))
 function create() {
-  const m = DISPLAY_MATERIALS.find(x => x.code === form.materialCode)
-  form.materialName = m?.name
+  const m = materialOptions.value.find((x) => x.code === form.materialCode)
+  if (!m) {
+    ElMessage.warning('请选择物料')
+    return
+  }
+  form.materialName = m.name
   mes.createPurchaseOrder(form, userStore.displayName, userStore.roleKey)
   ElMessage.success('采购订单已创建')
   dialogVisible.value = false
@@ -71,5 +89,16 @@ function receive() {
   if (mes.receivePurchase(selected.value.id, arriveQty.value, userStore.displayName, userStore.roleKey)) {
     ElMessage.success('到货登记成功，库存已更新')
   }
+}
+function removePurchase(row) {
+  if (!row) return
+  runDelete({
+    action: 'deletePurchaseOrder',
+    payload: { purchaseOrderId: row.id },
+    message: `确定删除采购单 ${row.id}？`,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  }).catch(() => {})
 }
 </script>

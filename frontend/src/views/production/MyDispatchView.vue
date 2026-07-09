@@ -5,7 +5,7 @@
         v-if="!myList.length"
         type="info"
         :closable="false"
-        title="暂无派工任务。请生产主管在「工单派工」中选择您（operator / 王操作）并派工。"
+        title="暂无派工任务。请生产主管在「工单派工」页将任务派给您。"
         style="margin-bottom: 12px"
       />
       <el-table v-else :data="myList" border stripe highlight-current-row @current-change="onRowClick">
@@ -21,7 +21,7 @@
           <template #default="{ row }">
             <el-button v-if="row.status === '已分配'" link type="primary" @click="selectAndAccept(row)">接收</el-button>
             <el-button v-if="row.status === '已接收'" link type="success" @click="selectAndStart(row)">开始生产</el-button>
-            <el-button v-if="row.status === '生产中'" link type="primary" @click="$router.push('/production/report')">去报工</el-button>
+            <el-button v-if="DISPATCH_REPORTABLE.includes(row.status)" link type="primary" @click="$router.push('/production/report')">去报工</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -29,7 +29,7 @@
     <template #detail-actions>
       <el-button v-if="selected?.status === '已分配'" type="primary" size="small" @click="accept">接收派工</el-button>
       <el-button v-if="selected?.status === '已接收'" type="success" size="small" @click="start">开始生产</el-button>
-      <el-button v-if="selected?.status === '生产中'" type="primary" size="small" @click="$router.push('/production/report')">提交报工</el-button>
+      <el-button v-if="selected && DISPATCH_REPORTABLE.includes(selected.status)" type="primary" size="small" @click="$router.push('/production/report')">提交报工</el-button>
     </template>
   </MesPageShell>
 </template>
@@ -39,7 +39,7 @@ import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
-import { DISPATCH_STATUS } from '@/mock/constants'
+import { DISPATCH_STATUS, DISPATCH_REPORTABLE } from '@/mock/constants'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'

@@ -22,6 +22,12 @@
 
         </el-table-column>
 
+        <el-table-column label="操作" width="72" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removeAlarm(row)">删除</el-button>
+          </template>
+        </el-table-column>
+
       </el-table>
 
     </template>
@@ -33,6 +39,8 @@
       <el-button v-if="selected?.status==='已接收'" size="small" :loading="acting" @click="handle('processing')">处理中</el-button>
 
       <el-button v-if="selected?.status!=='已关闭'" size="small" type="primary" :loading="acting" @click="handle('close')">关闭</el-button>
+
+      <el-button v-if="selected" size="small" type="danger" plain :loading="acting" @click="removeAlarm(selected)">删除</el-button>
 
     </template>
 
@@ -63,6 +71,7 @@ import { useUserStore } from '@/stores/user'
 import { ALARM_STATUS } from '@/mock/constants'
 
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
 
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 
@@ -73,6 +82,7 @@ import StatusBadge from '@/components/mes/StatusBadge.vue'
 const mes = useMesStore()
 
 const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
 
 const showDialog = ref(false)
 
@@ -168,6 +178,18 @@ async function report() {
 
   }
 
+}
+
+function removeAlarm(row) {
+  if (!row) return
+  runDelete({
+    action: 'deleteAlarm',
+    payload: { alarmId: row.id },
+    message: `确定删除报警 ${row.id}？`,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  }).catch(() => {})
 }
 
 </script>

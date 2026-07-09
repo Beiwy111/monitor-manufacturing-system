@@ -3,10 +3,13 @@
     :status-items="statusItems"
     toolbar-title="工单派工"
     :status-options="DISPATCH_STATUS"
-    :toolbar-actions="[{ label: '新建派工', key: 'create', type: 'primary' }]"
+    :toolbar-actions="[
+      { label: '智能派工推荐', key: 'smart', type: 'warning' },
+      { label: '新建派工', key: 'create', type: 'primary' }
+    ]"
     :detail-rows="rows"
     :logs="mes.operationLogs.slice(0, 10)"
-    @toolbar-action="openDialog()"
+    @toolbar-action="onToolbarAction"
   >
     <template #table>
       <div v-if="agentPlans.length" class="pending-block">
@@ -55,10 +58,16 @@
         <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }"><StatusBadge :status="row.status" /></template>
         </el-table-column>
+        <el-table-column label="操作" width="72" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removeDispatch(row)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
     </template>
     <template #detail-actions>
       <p v-if="selected" class="dispatch-hint">已派给 {{ selected.operatorName }}（账号 {{ selected.operator }}），操作员登录后可接收</p>
+      <el-button v-if="selected" type="danger" size="small" plain @click="removeDispatch(selected)">删除派工</el-button>
     </template>
   </MesPageShell>
 
@@ -74,7 +83,7 @@
       </el-form-item>
       <el-form-item label="工序">
         <el-select v-model="form.processStep" style="width:100%">
-          <el-option v-for="s in PROCESS_STEPS" :key="s" :label="s" :value="s" />
+          <el-option v-for="s in processStepOptions" :key="s" :label="s" :value="s" />
         </el-select>
       </el-form-item>
       <el-form-item label="设备"><el-input v-model="form.equipment" /></el-form-item>
@@ -97,6 +106,8 @@
       <el-button type="primary" :disabled="!form.workOrderId || !form.operator" @click="save">确认派工</el-button>
     </template>
   </el-dialog>
+
+  <SmartDispatchDialog v-model="smartVisible" :default-plan-id="smartPlanId" @success="onSmartSuccess" />
 </template>
 
 <script setup>
@@ -105,24 +116,34 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
-import { DISPATCH_STATUS, PROCESS_STEPS } from '@/mock/constants'
+import { DISPATCH_STATUS } from '@/mock/constants'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
+import SmartDispatchDialog from '@/components/mes/SmartDispatchDialog.vue'
 
 const route = useRoute()
 const mes = useMesStore()
 const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
 const dialogVisible = ref(false)
+const smartVisible = ref(false)
+const smartPlanId = ref('')
+const processStepOptions = computed(() => mes.processSteps?.length ? mes.processSteps : [])
+const todaySlot = () => {
+  const d = new Date().toISOString().slice(0, 10)
+  return { start: `${d} 08:00`, end: `${d} 18:00` }
+}
 const form = reactive({
   workOrderId: '',
-  processStep: PROCESS_STEPS[0],
-  equipment: '装配线 A',
+  processStep: '',
+  equipment: '',
   operator: '',
   operatorName: '',
   planQty: 100,
-  planStart: '2026-03-06 08:00',
-  planEnd: '2026-03-06 18:00'
+  planStart: todaySlot().start,
+  planEnd: todaySlot().end
 })
 
 const pendingWo = computed(() => mes.pendingDispatchWorkOrders)
@@ -151,6 +172,19 @@ watch(() => route.query.workOrderId, (id) => {
   if (id) openDialog(String(id))
 })
 
+function onToolbarAction(key) {
+  if (key === 'smart') {
+    smartPlanId.value = mes.pendingManagerPlans[0]?.id || ''
+    smartVisible.value = true
+    return
+  }
+  if (key === 'create') openDialog()
+}
+
+function onSmartSuccess() {
+  mes.hydrateFromApi?.()
+}
+
 function onOperatorChange(username) {
   const user = mes.operatorUsers.find((u) => u.username === username)
   form.operatorName = user?.realName || username
@@ -158,12 +192,16 @@ function onOperatorChange(username) {
 
 function openDialog(workOrderId) {
   form.workOrderId = workOrderId || pendingWo.value[0]?.id || dispatchableWo.value[0]?.id || ''
-  form.operator = mes.operatorUsers[0]?.username || 'operator'
+  form.processStep = processStepOptions.value[0] || ''
+  form.operator = mes.operatorUsers[0]?.username || ''
   onOperatorChange(form.operator)
   if (form.workOrderId) {
     const wo = mes.workOrders.find((w) => w.id === form.workOrderId)
     if (wo) form.planQty = Math.min(100, wo.quantity)
   }
+  const slot = todaySlot()
+  form.planStart = slot.start
+  form.planEnd = slot.end
   dialogVisible.value = true
 }
 
@@ -182,6 +220,11 @@ async function save() {
 }
 
 async function agentDispatch(plan) {
+  const op = mes.operatorUsers[0]
+  if (!op) {
+    ElMessage.warning('系统中暂无可用操作员，请先在用户管理中添加操作员')
+    return
+  }
   try {
     await ElMessageBox.confirm(
       `将按 Agent 建议为计划 ${plan.id} 自动生成工单并批量派工，是否继续？`,
@@ -189,13 +232,25 @@ async function agentDispatch(plan) {
       { type: 'info' }
     )
     const res = await mes.agentBatchDispatch(plan.id, userStore.username, userStore.roleKey, {
-      operator: mes.operatorUsers[0]?.username || 'wang_operator',
-      operatorName: mes.operatorUsers[0]?.realName || '王操作'
+      operator: op.username,
+      operatorName: op.realName
     })
     ElMessage.success(`已创建 ${res?.count || 0} 条派工，请操作员接收`)
   } catch (e) {
     if (e !== 'cancel') ElMessage.error(e?.message || 'Agent 派工失败')
   }
+}
+
+function removeDispatch(row) {
+  if (!row) return
+  runDelete({
+    action: 'deleteDispatch',
+    payload: { dispatchId: row.id },
+    message: `确定删除派工 ${row.id}？关联报工、质检记录将一并删除。`,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  }).catch(() => {})
 }
 </script>
 

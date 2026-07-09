@@ -1,5 +1,11 @@
 <template>
-  <MesDataPage title="客户反馈" data-key="aftersaleCases" :columns="cols" />
+  <MesDataPage
+    title="客户反馈"
+    data-key="aftersaleCases"
+    :columns="cols"
+    delete-action="deleteAftersale"
+    delete-payload-key="caseId"
+  />
 </template>
 <script setup>
 import MesDataPage from '@/components/mes/MesDataPage.vue'

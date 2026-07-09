@@ -25,7 +25,7 @@
         <span>{{ chip.label }}</span>
       </div>
       <div class="kanban__hint">
-        {{ activeCount > 0 ? `当前 ${activeCount} 个车间正在按 ${stepSeconds}s/件节拍生产` : '当前没有已下发/生产中的工单，五个车间均处于待机状态' }}
+        {{ activeCount > 0 ? `当前 ${activeCount} 个车间有派工任务（含待接收/生产中）` : '当前没有已派工或生产中的工单，五个车间均处于待机状态' }}
       </div>
     </section>
 
@@ -94,7 +94,7 @@
             @click="selectedKey = ws.key"
           >
             <span>{{ ws.name }}</span>
-            <em>{{ ws.isRunning ? '生产中' : '待机' }}</em>
+            <em>{{ ws.isRunning ? (ws.batchCompletedQty > 0 ? '生产中' : '已派工') : '待机' }}</em>
             <strong>{{ ws.batchCompletedQty || 0 }}/{{ ws.batchTargetQty || batchTarget }}</strong>
             <span>{{ ws.running || 0 }}/{{ ws.total || 0 }}</span>
           </button>

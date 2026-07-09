@@ -6,6 +6,16 @@ deepseek:
   temperature: 0.2  # 健康咨询需要严谨，数值越低回答越准确，建议0.1-0.3
   max-tokens: 2048  # 单次回答最大长度
 
+# 通义千问（DashScope）— 质检报告 AI 生成
+qwen:
+  enabled: true
+  api-key: sk-cb1ffd7805b544e5aa7d2e942021e47a  # 填入你的 DashScope API Key（sk- 开头）
+  api-url: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+  model: qwen-plus
+  temperature: 0.3
+  max-tokens: 1024
+  timeout-ms: 30000
+
 # 数据库的驱动
 spring:
   datasource:

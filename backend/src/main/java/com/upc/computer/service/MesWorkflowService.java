@@ -72,11 +72,19 @@ public class MesWorkflowService {
     @Autowired
     private ProductionPlanItemMapper productionPlanItemMapper;
     @Autowired
+    private BomMapper bomMapper;
+    @Autowired
     private EquipmentMaintenanceRecordMapper equipmentMaintenanceRecordMapper;
+    @Autowired
+    private WorkProgressMapper workProgressMapper;
     @Autowired
     private MesRuntimeStore mesRuntimeStore;
     @Autowired
     private MesPlannerAgentService plannerAgentService;
+    @Autowired
+    private MesDispatchRecommendService dispatchRecommendService;
+    @Autowired
+    private QualityReportAiService qualityReportAiService;
 
     @Transactional
     public Object execute(MesActionRequest req) {
@@ -93,9 +101,14 @@ public class MesWorkflowService {
             case "submitOrder" -> submitOrder(payload, operator, roleKey);
             case "submitOrderToPlanner" -> submitOrderToPlanner(payload, operator, roleKey);
             case "createPlan" -> createPlan(payload, operator, roleKey);
+            case "updatePlan" -> updatePlan(payload, operator, roleKey);
             case "previewPlanAgent" -> previewPlanAgent(payload, operator, roleKey);
             case "agentCreatePlan" -> agentCreatePlan(payload, operator, roleKey);
+            case "previewSmartPlans" -> previewSmartPlans(payload, operator, roleKey);
+            case "generateSmartPlans" -> generateSmartPlans(payload, operator, roleKey);
             case "agentBatchDispatch" -> agentBatchDispatch(payload, operator, roleKey);
+            case "previewSmartDispatch" -> previewSmartDispatch(payload, operator, roleKey);
+            case "confirmSmartDispatch" -> confirmSmartDispatch(payload, operator, roleKey);
             case "publishPlan" -> publishPlan(payload, operator, roleKey);
             case "submitPlanToManager" -> submitPlanToManager(payload, operator, roleKey);
             case "createWorkOrder" -> createWorkOrder(payload, operator, roleKey);
@@ -126,6 +139,20 @@ public class MesWorkflowService {
             case "saveUser" -> saveUser(payload, operator, roleKey);
             case "toggleUserStatus" -> toggleUserStatus(payload, operator, roleKey);
             case "resetUserPassword" -> resetUserPassword(payload, operator, roleKey);
+            case "deleteOrder" -> deleteOrder(payload, operator, roleKey);
+            case "deletePlan" -> deletePlanRecord(payload, operator, roleKey);
+            case "deleteWorkOrder" -> deleteWorkOrderRecord(payload, operator, roleKey);
+            case "deleteDispatch" -> deleteDispatchRecord(payload, operator, roleKey);
+            case "deleteReport" -> deleteReportRecord(payload, operator, roleKey);
+            case "deleteInspection" -> deleteInspectionRecord(payload, operator, roleKey);
+            case "deleteDefect" -> deleteDefectRecord(payload, operator, roleKey);
+            case "deletePurchaseOrder" -> deletePurchaseOrderRecord(payload, operator, roleKey);
+            case "deleteDelivery" -> deleteDeliveryRecord(payload, operator, roleKey);
+            case "deleteAlarm" -> deleteAlarmRecord(payload, operator, roleKey);
+            case "deleteAftersale" -> deleteAftersaleRecord(payload, operator, roleKey);
+            case "deleteCostSettlement" -> deleteCostSettlementRecord(payload, operator, roleKey);
+            case "deleteInboundTask" -> deleteInboundTask(payload, operator, roleKey);
+            case "deleteIssueTask" -> deleteIssueTask(payload, operator, roleKey);
             default -> throw new BusinessException("未知动作: " + req.getAction());
         };
     }
@@ -329,6 +356,12 @@ public class MesWorkflowService {
 
         Map<String, Object> analysis = plannerAgentService.analyze(orderNo, planStart, planEnd);
         int recommendedPlanQty = analysis.get("recommendedPlanQty") instanceof Number n ? n.intValue() : 0;
+        if (p.containsKey("plannedQty")) {
+            int overrideQty = intVal(p.get("plannedQty"));
+            if (overrideQty > 0) {
+                recommendedPlanQty = overrideQty;
+            }
+        }
         if (recommendedPlanQty <= 0) {
             throw new BusinessException(String.valueOf(analysis.getOrDefault("recommendation",
                     "库存充足，无需排产，请安排成品仓直接发货")));
@@ -363,6 +396,179 @@ public class MesWorkflowService {
                 ? "Agent 已创建生产计划并提交生产主管，主管可直接按建议派工"
                 : "Agent 已创建并发布生产计划");
         return result;
+    }
+
+    private Map<String, Object> previewSmartPlans(Map<String, Object> p, String operator, String roleKey) {
+        Map<String, Object> result = plannerAgentService.generateSmartPlanProposals();
+        result.put("agentRole", "planner");
+        result.put("operator", operator);
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> generateSmartPlans(Map<String, Object> p, String operator, String roleKey) {
+        List<String> orderIds = p.get("orderIds") instanceof List<?> list
+                ? list.stream().map(String::valueOf).toList()
+                : List.of();
+        boolean autoPublish = !"false".equalsIgnoreCase(str(p, "autoPublish", "true"));
+
+        Map<String, Map<String, Object>> overrideByOrder = new LinkedHashMap<>();
+        if (p.get("proposals") instanceof List<?> overrideList) {
+            for (Object item : overrideList) {
+                if (item instanceof Map<?, ?> raw) {
+                    Map<String, Object> ov = (Map<String, Object>) raw;
+                    String orderNo = String.valueOf(ov.get("orderId"));
+                    if (!orderNo.isBlank() && !"null".equals(orderNo)) {
+                        overrideByOrder.put(orderNo, ov);
+                    }
+                }
+            }
+        }
+
+        Map<String, Object> preview = plannerAgentService.generateSmartPlanProposals();
+        List<Map<String, Object>> proposals = (List<Map<String, Object>>) preview.get("proposals");
+
+        List<Map<String, Object>> created = new ArrayList<>();
+        List<String> skipped = new ArrayList<>();
+
+        for (Map<String, Object> proposal : proposals) {
+            String orderNo = String.valueOf(proposal.get("orderId"));
+            if (!orderIds.isEmpty() && !orderIds.contains(orderNo)) {
+                continue;
+            }
+            Map<String, Object> override = overrideByOrder.get(orderNo);
+            if (override != null) {
+                mergeProposalOverride(proposal, override);
+            }
+            if (!Boolean.TRUE.equals(proposal.get("feasible"))) {
+                skipped.add(orderNo + "（" + proposal.get("planStatus") + "）");
+                continue;
+            }
+            int planQty = intVal(proposal.get("planQuantity"));
+            if (planQty <= 0) {
+                skipped.add(orderNo + "（计划数量为0）");
+                continue;
+            }
+
+            Map<String, Object> createPayload = new LinkedHashMap<>();
+            createPayload.put("orderId", orderNo);
+            createPayload.put("planStart", proposal.get("planStart"));
+            createPayload.put("planEnd", proposal.get("planEnd"));
+            createPayload.put("plannedQty", planQty);
+            createPayload.put("priority", priorityToDb(String.valueOf(proposal.get("priorityLevel"))));
+            createPayload.put("remark", truncateRemark("智能生成：" + proposal.get("recommendation"), 500));
+
+            Map<String, Object> planCreated = createPlan(createPayload, operator, roleKey);
+            String planNo = String.valueOf(planCreated.get("id"));
+
+            if (autoPublish) {
+                publishPlan(Map.of("planId", planNo), operator, roleKey);
+            }
+
+            MesRuntimeState runtime = mesRuntimeStore.load();
+            Map<String, Object> extra = mesRuntimeStore.getExtra(runtime, "plan:" + planNo);
+            extra.put("smartPlanProposal", proposal);
+            extra.put("agentGenerated", true);
+            extra.put("priorityScore", proposal.get("priorityScore"));
+            extra.put("riskWarnings", proposal.get("riskWarnings"));
+            appendLog(runtime, "计划管理", "智能生成生产计划", planNo, operator, roleKey);
+            mesRuntimeStore.save(runtime);
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("planId", planNo);
+            row.put("orderId", orderNo);
+            row.put("productModel", proposal.get("productModel"));
+            row.put("planQuantity", planQty);
+            row.put("planStatus", autoPublish ? "已发布" : "草稿");
+            created.add(row);
+        }
+
+        if (created.isEmpty() && skipped.isEmpty()) {
+            throw new BusinessException("没有可生成的生产计划，请先执行智能预览");
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("created", created);
+        result.put("skipped", skipped);
+        result.put("createdCount", created.size());
+        result.put("message", String.format("已智能生成 %d 份生产计划", created.size()));
+        return result;
+    }
+
+    private String priorityToDb(String level) {
+        return switch (level) {
+            case "高" -> "HIGH";
+            case "低" -> "LOW";
+            default -> "NORMAL";
+        };
+    }
+
+    private void mergeProposalOverride(Map<String, Object> proposal, Map<String, Object> override) {
+        if (override.containsKey("planQuantity")) {
+            proposal.put("planQuantity", intVal(override.get("planQuantity")));
+        }
+        if (override.containsKey("planStart")) {
+            proposal.put("planStart", String.valueOf(override.get("planStart")));
+        }
+        if (override.containsKey("planEnd")) {
+            proposal.put("planEnd", String.valueOf(override.get("planEnd")));
+        }
+        if (override.containsKey("priorityLevel")) {
+            proposal.put("priorityLevel", String.valueOf(override.get("priorityLevel")));
+        }
+        if (override.containsKey("remark")) {
+            proposal.put("recommendation", String.valueOf(override.get("remark")));
+        }
+        if (override.containsKey("feasible")) {
+            proposal.put("feasible", Boolean.TRUE.equals(override.get("feasible")));
+            if (Boolean.TRUE.equals(override.get("feasible"))) {
+                proposal.put("planStatus", "可生成");
+            }
+        }
+    }
+
+    private boolean updatePlan(Map<String, Object> p, String operator, String roleKey) {
+        String planNo = str(p, "planId");
+        ProductionPlan plan = findPlanByNo(planNo);
+        if (plan == null || !List.of("DRAFT", "PUBLISHED").contains(plan.getPlanStatus())) {
+            throw new BusinessException("仅草稿或已发布状态的计划可修改");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (p.containsKey("planStart")) {
+            plan.setPlannedStartDate(parseDate(str(p, "planStart")));
+        }
+        if (p.containsKey("planEnd")) {
+            plan.setPlannedEndDate(parseDate(str(p, "planEnd")));
+        }
+        if (p.containsKey("priority")) {
+            plan.setPriority(str(p, "priority"));
+        }
+        if (p.containsKey("remark")) {
+            plan.setRemark(str(p, "remark"));
+        }
+        plan.setUpdatedAt(now);
+        productionPlanMapper.updatePlan(plan);
+
+        if (p.containsKey("plannedQty")) {
+            int qty = intVal(p.get("plannedQty"));
+            if (qty > 0) {
+                ProductionPlanItem item = productionPlanItemMapper.planItemList().stream()
+                        .filter(i -> plan.getPlanId().equals(i.getPlanId()))
+                        .findFirst().orElse(null);
+                if (item != null) {
+                    item.setPlannedQuantity(BigDecimal.valueOf(qty));
+                    item.setPlannedStartDate(plan.getPlannedStartDate());
+                    item.setPlannedEndDate(plan.getPlannedEndDate());
+                    item.setUpdatedAt(now);
+                    productionPlanItemMapper.updatePlanItem(item);
+                }
+            }
+        }
+
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        appendLog(runtime, "计划管理", "修改生产计划", planNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
     }
 
     private Map<String, Object> agentBatchDispatch(Map<String, Object> p, String operator, String roleKey) {
@@ -414,6 +620,78 @@ public class MesWorkflowService {
         appendLog(runtime, "生产Agent", "按 Agent 建议批量派工", planNo, operator, roleKey);
         mesRuntimeStore.save(runtime);
         return Map.of("planId", planNo, "workOrderId", wo.getWorkOrderNo(), "dispatches", created, "count", created.size());
+    }
+
+    private Map<String, Object> previewSmartDispatch(Map<String, Object> p, String operator, String roleKey) {
+        String planNo = str(p, "planId");
+        Map<String, Object> result;
+        if (planNo == null || planNo.isBlank()) {
+            result = dispatchRecommendService.generateAllRecommendations();
+        } else {
+            result = dispatchRecommendService.generateRecommendations(planNo);
+        }
+        result.put("operator", operator);
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> confirmSmartDispatch(Map<String, Object> p, String operator, String roleKey) {
+        String planNo = str(p, "planId");
+        if (planNo == null || planNo.isBlank()) {
+            throw new BusinessException("请指定计划编号");
+        }
+
+        Map<String, Object> preview = dispatchRecommendService.generateRecommendations(planNo);
+        List<Map<String, Object>> recommendations = (List<Map<String, Object>>) preview.get("recommendations");
+        if (recommendations == null || recommendations.isEmpty()) {
+            throw new BusinessException("没有可确认的派工推荐");
+        }
+
+        WorkOrder wo = workOrderMapper.workOrderList().stream()
+                .filter(w -> {
+                    ProductionPlan plan = findPlanByNo(planNo);
+                    return plan != null && plan.getPlanId().equals(w.getPlanId());
+                })
+                .findFirst().orElse(null);
+
+        String workOrderNo;
+        if (wo == null) {
+            Map<String, Object> woCreated = createWorkOrder(Map.of("planId", planNo), operator, roleKey);
+            workOrderNo = String.valueOf(woCreated.get("id"));
+            wo = findWorkOrderByNo(workOrderNo);
+        } else {
+            workOrderNo = wo.getWorkOrderNo();
+        }
+        if (wo == null) {
+            throw new BusinessException("无法生成正式工单");
+        }
+
+        List<Map<String, Object>> created = new ArrayList<>();
+        for (Map<String, Object> rec : recommendations) {
+            Map<String, Object> dispatchPayload = new LinkedHashMap<>();
+            dispatchPayload.put("workOrderId", workOrderNo);
+            dispatchPayload.put("processStep", rec.get("processStep"));
+            dispatchPayload.put("equipment", rec.get("equipmentName"));
+            dispatchPayload.put("planQty", rec.getOrDefault("planQty", wo.getPlannedQuantity()));
+            dispatchPayload.put("operator", rec.get("recommendedOperator"));
+            dispatchPayload.put("operatorName", rec.get("recommendedOperatorName"));
+            created.add(createDispatch(dispatchPayload, operator, roleKey));
+        }
+
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        Map<String, Object> extra = mesRuntimeStore.getExtra(runtime, "plan:" + planNo);
+        extra.put("smartDispatchRecommendations", recommendations);
+        extra.put("smartDispatchConfirmed", true);
+        appendLog(runtime, "生产管理", "智能派工确认并生成工单", workOrderNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("planId", planNo);
+        result.put("workOrderId", workOrderNo);
+        result.put("dispatches", created);
+        result.put("count", created.size());
+        result.put("message", String.format("已生成工单 %s 并确认 %d 条派工", workOrderNo, created.size()));
+        return result;
     }
 
     private boolean publishPlan(Map<String, Object> p, String operator, String roleKey) {
@@ -539,19 +817,7 @@ public class MesWorkflowService {
         wo.setUpdatedAt(now);
         workOrderMapper.updateWorkOrder(wo);
 
-        boolean exists = runtime.getIssueTasks().stream().anyMatch(t -> woNo.equals(t.get("workOrderId")));
-        if (!exists) {
-            Map<String, Object> task = new LinkedHashMap<>();
-            task.put("id", nextRuntimeId("IS", runtime.getIssueTasks()));
-            task.put("workOrderId", woNo);
-            task.put("materialCode", "BL-MODULE");
-            task.put("materialName", "背光模组");
-            task.put("requiredQty", intVal(wo.getPlannedQuantity()));
-            task.put("issuedQty", 0);
-            task.put("status", "待领料");
-            task.put("createdAt", fmt(now));
-            runtime.getIssueTasks().add(0, task);
-        }
+        createIssueTasksFromBom(wo, runtime, woNo, now);
     }
 
     private void ensureWorkOrderReadyForDispatch(WorkOrder wo, String woNo, String operator, String roleKey) {
@@ -680,7 +946,7 @@ public class MesWorkflowService {
     private Map<String, Object> submitReport(Map<String, Object> p, String operator, String roleKey) {
         String dispatchNo = str(p, "dispatchId");
         DispatchTask d = findDispatchByNo(dispatchNo);
-        if (d == null || !List.of("ACCEPTED", "PRODUCING").contains(d.getStatus())) {
+        if (d == null || !List.of("ACCEPTED", "PRODUCING", "RUNNING").contains(d.getStatus())) {
             throw new BusinessException("派工状态不允许报工");
         }
         LocalDateTime now = LocalDateTime.now();
@@ -707,7 +973,7 @@ public class MesWorkflowService {
 
         BigDecimal reportQty = decimal(p.get("reportQty"));
         d.setCompletedQuantity(d.getCompletedQuantity().add(reportQty));
-        if ("ACCEPTED".equals(d.getStatus())) {
+        if ("ACCEPTED".equals(d.getStatus()) || "RUNNING".equals(d.getStatus())) {
             d.setStatus("PRODUCING");
         }
         d.setUpdatedAt(now);
@@ -732,7 +998,7 @@ public class MesWorkflowService {
     private String submitToInspection(Map<String, Object> p, String operator, String roleKey) {
         String dispatchNo = str(p, "dispatchId");
         DispatchTask d = findDispatchByNo(dispatchNo);
-        if (d == null || !"PRODUCING".equals(d.getStatus())) {
+        if (d == null || !List.of("PRODUCING", "RUNNING").contains(d.getStatus())) {
             throw new BusinessException("派工状态不允许提交质检");
         }
         if (d.getCompletedQuantity().compareTo(d.getAssignedQuantity()) < 0) {
@@ -852,7 +1118,8 @@ public class MesWorkflowService {
         DispatchTask dispatch = findDispatchByNo(dispatchNo);
 
         if ("合格".equals(result) || "让步接收".equals(result)) {
-            addInboundTask(runtime, result, qcNo, wo, qi, intVal(payload.get("qualifiedQty")));
+            int qualQty = intVal(payload.get("qualifiedQty"));
+            addInboundTask(runtime, result, qcNo, wo, qi, qualQty);
             if (dispatch != null) {
                 dispatch.setStatus("COMPLETED");
                 dispatch.setUpdatedAt(now);
@@ -861,6 +1128,7 @@ public class MesWorkflowService {
             if (wo != null) {
                 wo.setQualifiedQuantity(wo.getQualifiedQuantity().add(decimal(payload.get("qualifiedQty"))));
                 syncWorkOrderStatus(wo);
+                syncPlanProgress(wo, qualQty);
                 workOrderMapper.updateWorkOrder(wo);
             }
             String defectId = String.valueOf(inspExtra.getOrDefault("defectId", ""));
@@ -879,6 +1147,7 @@ public class MesWorkflowService {
                 addInboundTask(runtime, "质检合格", qcNo, wo, qi, qualQty);
                 if (wo != null) {
                     wo.setQualifiedQuantity(wo.getQualifiedQuantity().add(BigDecimal.valueOf(qualQty)));
+                    syncPlanProgress(wo, qualQty);
                 }
             }
             int defectQty = intVal(payload.get("unqualifiedQty"));
@@ -915,6 +1184,7 @@ public class MesWorkflowService {
             throw new BusinessException("质检单不存在或尚未完成");
         }
         Map<String, Object> report = createQualityReport(qcNo, runtime, operator, p);
+        report.put("updatedAt", fmt(LocalDateTime.now()));
         appendLog(runtime, "质量报告", "重新生成质量报告", String.valueOf(report.get("id")), operator, roleKey);
         mesRuntimeStore.save(runtime);
         return report;
@@ -1017,6 +1287,39 @@ public class MesWorkflowService {
                 inspector != null ? inspector.getRealName() : operator));
         report.put("conclusion", buildQualityConclusion(result, yieldRate, topDefect, unqualifiedQty));
         report.put("suggestions", suggestions);
+
+        Map<String, Object> batchStats = new LinkedHashMap<>();
+        batchStats.put("qcId", qcNo);
+        batchStats.put("workOrderId", wo != null ? wo.getWorkOrderNo() : "");
+        batchStats.put("productModel", item != null ? item.getProductName() : getInspectionProductModel(qi));
+        batchStats.put("batchNo", qi.getBatchNo());
+        batchStats.put("result", result);
+        batchStats.put("sampleQty", sampleQty);
+        batchStats.put("qualifiedQty", qualifiedQty);
+        batchStats.put("unqualifiedQty", unqualifiedQty);
+        batchStats.put("yieldRate", BigDecimal.valueOf(yieldRate).setScale(1, java.math.RoundingMode.HALF_UP).doubleValue());
+        batchStats.put("topDefect", topDefect);
+        batchStats.put("defectDistribution", defectDistribution);
+
+        LocalDate statDate = qi.getInspectedAt() != null
+                ? qi.getInspectedAt().toLocalDate() : LocalDate.now();
+        Map<String, Object> dailyStats = qualityReportAiService.buildDailyStats(statDate);
+        report.put("dailyStats", dailyStats);
+        report.put("dailyInspectionCount", dailyStats.get("inspectionCount"));
+        report.put("dailyTotalSample", dailyStats.get("totalSample"));
+        report.put("dailyTotalQualified", dailyStats.get("totalQualified"));
+        report.put("dailyTotalUnqualified", dailyStats.get("totalUnqualified"));
+        report.put("dailyYieldRate", dailyStats.get("yieldRate"));
+        report.put("dailyTopDefect", dailyStats.get("topDefect"));
+        report.put("relatedWorkOrders", dailyStats.get("relatedWorkOrders"));
+
+        QualityReportAiService.AiReportResult aiResult =
+                qualityReportAiService.generateAnalysis(batchStats, dailyStats);
+        report.put("aiAnalysis", aiResult.fullText());
+        report.put("analysisSections", aiResult.sections());
+        report.put("reportSource", aiResult.source());
+        report.put("aiGenerated", aiResult.aiGenerated());
+
         report.put("createdAt", fmt(LocalDateTime.now()));
         report.put("updatedAt", fmt(LocalDateTime.now()));
 
@@ -1135,26 +1438,32 @@ public class MesWorkflowService {
             throw new BusinessException("入库任务状态不允许确认");
         }
         LocalDateTime now = LocalDateTime.now();
+        User handler = findUserByUsername(operator);
         task.put("status", "已入库");
 
         int qty = intVal(task.get("quantity"));
-        String productModel = String.valueOf(task.get("productModel"));
-        Material mat = findMaterialByCode("FG-" + productModel.replace("DM-", "DM"));
-        if (mat == null) {
-            mat = findMaterialContaining("成品");
-        }
+        String woNo = String.valueOf(task.getOrDefault("workOrderId", ""));
+        WorkOrder wo = findWorkOrderByNo(woNo);
+        Material mat = resolveFinishedMaterialForTask(task, wo);
         Inventory inv = mat != null ? findInventoryByMaterial(mat.getMaterialId()) : null;
         if (inv != null) {
             inv.setQuantityOnHand(inv.getQuantityOnHand().add(BigDecimal.valueOf(qty)));
             inv.setUpdatedAt(now);
             inventoryMapper.updateInventory(inv);
+            recordInventoryTransaction(inv, mat, "PRODUCT_IN", BigDecimal.valueOf(qty),
+                    wo != null ? wo.getWorkOrderId() : null, handler, now,
+                    "成品入库 " + taskId);
         }
+
+        String productModel = mat != null ? mat.getMaterialName()
+                : String.valueOf(task.getOrDefault("productModel", ""));
+        String materialCode = mat != null ? mat.getMaterialCode() : productModel;
 
         Map<String, Object> flow = new LinkedHashMap<>();
         flow.put("id", nextRuntimeId("SF", runtime.getStockFlows()));
         flow.put("flowType", "成品入库");
         flow.put("materialName", productModel);
-        flow.put("materialCode", productModel);
+        flow.put("materialCode", materialCode);
         flow.put("quantity", qty);
         flow.put("direction", "入");
         flow.put("refNo", taskId);
@@ -1177,9 +1486,13 @@ public class MesWorkflowService {
                     DeliveryOrder dlv = new DeliveryOrder();
                     dlv.setDeliveryNo(nextNo("DO", deliveryOrderMapper.deliveryList(), DeliveryOrder::getDeliveryNo));
                     dlv.setOrderId(order.getOrderId());
+                    dlv.setWorkOrderId(wo != null ? wo.getWorkOrderId() : null);
                     dlv.setCustomerName(order.getCustomerName());
+                    dlv.setMaterialId(resolveDeliveryMaterialId(mat, wo, order.getOrderId()));
+                    dlv.setBatchNo(String.valueOf(task.getOrDefault("batchNo", "")));
                     dlv.setDeliveryQuantity(BigDecimal.valueOf(qty));
-                    dlv.setDeliveryStatus("PENDING");
+                    dlv.setDeliveryDate(LocalDate.now().plusDays(3));
+                    dlv.setDeliveryStatus("PREPARED");
                     dlv.setCreatedAt(now);
                     dlv.setUpdatedAt(now);
                     deliveryOrderMapper.insertDelivery(dlv);
@@ -1200,16 +1513,23 @@ public class MesWorkflowService {
         if (task == null) {
             throw new BusinessException("领料任务不存在");
         }
-        String materialCode = String.valueOf(task.get("materialCode"));
+        String materialCode = normalizeIssueMaterialCode(String.valueOf(task.get("materialCode")));
+        task.put("materialCode", materialCode);
         Material mat = findMaterialByCode(materialCode);
         Inventory inv = mat != null ? findInventoryByMaterial(mat.getMaterialId()) : null;
         if (inv == null || inv.getQuantityOnHand().compareTo(BigDecimal.valueOf(qty)) < 0) {
             throw new BusinessException("库存不足");
         }
         LocalDateTime now = LocalDateTime.now();
+        User handler = findUserByUsername(operator);
         inv.setQuantityOnHand(inv.getQuantityOnHand().subtract(BigDecimal.valueOf(qty)));
         inv.setUpdatedAt(now);
         inventoryMapper.updateInventory(inv);
+
+        WorkOrder wo = findWorkOrderByNo(String.valueOf(task.get("workOrderId")));
+        recordInventoryTransaction(inv, mat, "MATERIAL_OUT", BigDecimal.valueOf(qty),
+                wo != null ? wo.getWorkOrderId() : null, handler, now,
+                "工单" + task.get("workOrderId") + "领料");
 
         int issued = intVal(task.get("issuedQty")) + qty;
         int required = intVal(task.get("requiredQty"));
@@ -1236,15 +1556,31 @@ public class MesWorkflowService {
     private boolean shipDelivery(Map<String, Object> p, String operator, String roleKey) {
         String dlvNo = str(p, "dlvId");
         DeliveryOrder d = findDeliveryByNo(dlvNo);
-        if (d == null || !"PENDING".equals(d.getDeliveryStatus())) {
+        if (d == null || !List.of("PENDING", "PREPARED").contains(d.getDeliveryStatus())) {
             throw new BusinessException("发货单状态不允许出库");
         }
         LocalDateTime now = LocalDateTime.now();
+        User handler = findUserByUsername(operator);
         d.setDeliveryStatus("SHIPPED");
         d.setDeliveryDate(LocalDate.now());
         d.setLogisticsNo("SF" + System.currentTimeMillis());
         d.setUpdatedAt(now);
         deliveryOrderMapper.updateDelivery(d);
+
+        Material mat = materialMapper.materialList().stream()
+                .filter(m -> d.getMaterialId().equals(m.getMaterialId())).findFirst().orElse(null);
+        Inventory inv = d.getMaterialId() != null ? findInventoryByMaterial(d.getMaterialId()) : null;
+        if (inv != null && mat != null) {
+            int shipQty = intVal(d.getDeliveryQuantity());
+            if (inv.getQuantityOnHand().compareTo(BigDecimal.valueOf(shipQty)) < 0) {
+                throw new BusinessException("成品库存不足，无法发货");
+            }
+            inv.setQuantityOnHand(inv.getQuantityOnHand().subtract(BigDecimal.valueOf(shipQty)));
+            inv.setUpdatedAt(now);
+            inventoryMapper.updateInventory(inv);
+            recordInventoryTransaction(inv, mat, "SALE_OUT", BigDecimal.valueOf(shipQty),
+                    d.getWorkOrderId(), handler, now, "发货单" + dlvNo + "出库");
+        }
 
         CustomerOrder order = customerOrderMapper.getCustomerOrderById(d.getOrderId());
         if (order != null) {
@@ -1257,8 +1593,8 @@ public class MesWorkflowService {
         Map<String, Object> flow = new LinkedHashMap<>();
         flow.put("id", nextRuntimeId("SF", runtime.getStockFlows()));
         flow.put("flowType", "发货出库");
-        flow.put("materialName", "");
-        flow.put("materialCode", "");
+        flow.put("materialName", mat != null ? mat.getMaterialName() : "");
+        flow.put("materialCode", mat != null ? mat.getMaterialCode() : "");
         flow.put("quantity", intVal(d.getDeliveryQuantity()));
         flow.put("direction", "出");
         flow.put("refNo", dlvNo);
@@ -1773,6 +2109,351 @@ public class MesWorkflowService {
         return prefix + String.format("%03d", max + 1);
     }
 
+    // —— 删除归档（级联清理关联记录）——
+
+    private boolean deleteOrder(Map<String, Object> p, String operator, String roleKey) {
+        String orderNo = str(p, "orderId");
+        CustomerOrder order = findOrderByNo(orderNo);
+        if (order == null) {
+            throw new BusinessException("订单不存在");
+        }
+        Long orderId = order.getOrderId();
+        MesRuntimeState runtime = mesRuntimeStore.load();
+
+        new ArrayList<>(productionPlanMapper.planList()).stream()
+                .filter(pl -> orderId.equals(pl.getSourceOrderId()))
+                .forEach(pl -> removePlanTree(pl.getPlanId(), pl.getPlanNo(), runtime));
+
+        removeAfterSalesByOrderId(orderId);
+
+        new ArrayList<>(deliveryOrderMapper.deliveryList()).stream()
+                .filter(d -> orderId.equals(d.getOrderId()))
+                .forEach(d -> removeDeliveryTree(d.getDeliveryId()));
+
+        new ArrayList<>(costSettlementMapper.settlementList()).stream()
+                .filter(c -> orderId.equals(c.getOrderId()))
+                .forEach(c -> costSettlementMapper.deleteSettlement(c.getSettlementId()));
+
+        new ArrayList<>(customerOrderItemMapper.orderItemList()).stream()
+                .filter(i -> orderId.equals(i.getOrderId()))
+                .forEach(i -> customerOrderItemMapper.deleteOrderItem(i.getOrderItemId()));
+
+        runtime.getInboundTasks().removeIf(t -> orderNo.equals(String.valueOf(t.get("orderId"))));
+        customerOrderMapper.deleteCustomerOrder(orderId);
+        appendLog(runtime, "订单管理", "删除订单", orderNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deletePlanRecord(Map<String, Object> p, String operator, String roleKey) {
+        String planNo = str(p, "planId");
+        ProductionPlan plan = findPlanByNo(planNo);
+        if (plan == null) {
+            throw new BusinessException("计划不存在");
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        removePlanTree(plan.getPlanId(), planNo, runtime);
+        appendLog(runtime, "计划管理", "删除生产计划", planNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deleteWorkOrderRecord(Map<String, Object> p, String operator, String roleKey) {
+        String woNo = str(p, "workOrderId");
+        WorkOrder wo = findWorkOrderByNo(woNo);
+        if (wo == null) {
+            throw new BusinessException("工单不存在");
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        removeWorkOrderTree(wo.getWorkOrderId(), woNo, runtime);
+        appendLog(runtime, "生产管理", "删除生产工单", woNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deleteDispatchRecord(Map<String, Object> p, String operator, String roleKey) {
+        String dispatchNo = str(p, "dispatchId");
+        DispatchTask d = findDispatchByNo(dispatchNo);
+        if (d == null) {
+            throw new BusinessException("派工记录不存在");
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        removeDispatchTree(d.getDispatchId(), dispatchNo, runtime);
+        appendLog(runtime, "生产管理", "删除派工记录", dispatchNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deleteReportRecord(Map<String, Object> p, String operator, String roleKey) {
+        String reportNo = str(p, "reportId");
+        WorkReport report = findReportByNo(reportNo);
+        if (report == null) {
+            throw new BusinessException("报工记录不存在");
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        removeReportTree(report.getReportId(), reportNo, runtime);
+        appendLog(runtime, "现场作业", "删除报工记录", reportNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deleteInspectionRecord(Map<String, Object> p, String operator, String roleKey) {
+        String qcNo = str(p, "qcId");
+        QualityInspection insp = findInspectionByNo(qcNo);
+        if (insp == null) {
+            throw new BusinessException("质检记录不存在");
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        removeInspectionTree(insp.getInspectionId(), qcNo, runtime);
+        appendLog(runtime, "质量管理", "删除质检记录", qcNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deleteDefectRecord(Map<String, Object> p, String operator, String roleKey) {
+        String defectNo = str(p, "defectId");
+        NonconformingProduct defect = findDefectByNo(defectNo);
+        if (defect == null) {
+            throw new BusinessException("不合格品记录不存在");
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        nonconformingProductMapper.deleteNonconforming(defect.getNonconformingId());
+        appendLog(runtime, "质量管理", "删除不合格品记录", defectNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deletePurchaseOrderRecord(Map<String, Object> p, String operator, String roleKey) {
+        String poNo = str(p, "purchaseOrderId");
+        PurchaseOrder po = findPurchaseOrderByNo(poNo);
+        if (po == null) {
+            throw new BusinessException("采购订单不存在");
+        }
+        Long poId = po.getPurchaseOrderId();
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        new ArrayList<>(purchaseOrderItemMapper.purchaseOrderItemList()).stream()
+                .filter(i -> poId.equals(i.getPurchaseOrderId()))
+                .forEach(i -> purchaseOrderItemMapper.deletePurchaseOrderItem(i.getPurchaseOrderItemId()));
+        new ArrayList<>(inventoryTransactionMapper.transactionList()).stream()
+                .filter(t -> poId.equals(t.getRelatedPurchaseOrderId()))
+                .forEach(t -> inventoryTransactionMapper.deleteTransaction(t.getTransactionId()));
+        purchaseOrderMapper.deletePurchaseOrder(poId);
+        appendLog(runtime, "采购管理", "删除采购订单", poNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deleteDeliveryRecord(Map<String, Object> p, String operator, String roleKey) {
+        String dlvNo = str(p, "dlvId");
+        DeliveryOrder d = findDeliveryByNo(dlvNo);
+        if (d == null) {
+            throw new BusinessException("发货单不存在");
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        removeDeliveryTree(d.getDeliveryId());
+        appendLog(runtime, "发货管理", "删除发货单", dlvNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deleteAlarmRecord(Map<String, Object> p, String operator, String roleKey) {
+        String alarmNo = str(p, "alarmId");
+        AndonAlarm alarm = findAlarmByNo(alarmNo);
+        if (alarm == null) {
+            throw new BusinessException("报警记录不存在");
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        removeAlarmTree(alarm.getAlarmId(), alarmNo, runtime);
+        appendLog(runtime, "安灯报警", "删除报警记录", alarmNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deleteAftersaleRecord(Map<String, Object> p, String operator, String roleKey) {
+        String caseNo = str(p, "caseId");
+        AfterSalesCase c = afterSalesCaseMapper.getAfterSalesCaseById(caseNo);
+        if (c == null) {
+            throw new BusinessException("售后案例不存在");
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        afterSalesCaseMapper.deleteAfterSalesCase(caseNo);
+        appendLog(runtime, "售后管理", "删除售后案例", caseNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deleteCostSettlementRecord(Map<String, Object> p, String operator, String roleKey) {
+        String csNo = str(p, "settlementId");
+        CostSettlement cs = findSettlementByNo(csNo);
+        if (cs == null) {
+            throw new BusinessException("成本结算不存在");
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        costSettlementMapper.deleteSettlement(cs.getSettlementId());
+        appendLog(runtime, "成本管理", "删除成本结算", csNo, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deleteInboundTask(Map<String, Object> p, String operator, String roleKey) {
+        String taskId = str(p, "taskId");
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        boolean removed = runtime.getInboundTasks().removeIf(t -> taskId.equals(String.valueOf(t.get("id"))));
+        if (!removed) {
+            throw new BusinessException("入库任务不存在");
+        }
+        appendLog(runtime, "仓储管理", "删除入库任务", taskId, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private boolean deleteIssueTask(Map<String, Object> p, String operator, String roleKey) {
+        String taskId = str(p, "taskId");
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        boolean removed = runtime.getIssueTasks().removeIf(t -> taskId.equals(String.valueOf(t.get("id"))));
+        if (!removed) {
+            throw new BusinessException("领料任务不存在");
+        }
+        appendLog(runtime, "仓储管理", "删除领料任务", taskId, operator, roleKey);
+        mesRuntimeStore.save(runtime);
+        return true;
+    }
+
+    private void removePlanTree(Long planId, String planNo, MesRuntimeState runtime) {
+        new ArrayList<>(workOrderMapper.workOrderList()).stream()
+                .filter(w -> planId.equals(w.getPlanId()))
+                .forEach(w -> removeWorkOrderTree(w.getWorkOrderId(), w.getWorkOrderNo(), runtime));
+        new ArrayList<>(productionPlanItemMapper.planItemList()).stream()
+                .filter(i -> planId.equals(i.getPlanId()))
+                .forEach(i -> productionPlanItemMapper.deletePlanItem(i.getPlanItemId()));
+        runtime.getExtras().remove("plan:" + planNo);
+        productionPlanMapper.deletePlan(planId);
+    }
+
+    private void removeWorkOrderTree(Long woId, String woNo, MesRuntimeState runtime) {
+        new ArrayList<>(dispatchTaskMapper.dispatchList()).stream()
+                .filter(d -> woId.equals(d.getWorkOrderId()))
+                .forEach(d -> removeDispatchTree(d.getDispatchId(), d.getDispatchNo(), runtime));
+        removeOrphanReportsByWorkOrder(woId, runtime);
+        removeOrphanInspectionsByWorkOrder(woId, runtime);
+        removeOrphanDefectsByWorkOrder(woId);
+        new ArrayList<>(andonAlarmMapper.alarmList()).stream()
+                .filter(a -> woId.equals(a.getWorkOrderId()))
+                .forEach(a -> removeAlarmTree(a.getAlarmId(), a.getAlarmNo(), runtime));
+        new ArrayList<>(deliveryOrderMapper.deliveryList()).stream()
+                .filter(d -> woId.equals(d.getWorkOrderId()))
+                .forEach(d -> removeDeliveryTree(d.getDeliveryId()));
+        new ArrayList<>(costSettlementMapper.settlementList()).stream()
+                .filter(c -> woId.equals(c.getWorkOrderId()))
+                .forEach(c -> costSettlementMapper.deleteSettlement(c.getSettlementId()));
+        new ArrayList<>(inventoryTransactionMapper.transactionList()).stream()
+                .filter(t -> woId.equals(t.getRelatedWorkOrderId()))
+                .forEach(t -> inventoryTransactionMapper.deleteTransaction(t.getTransactionId()));
+        runtime.getIssueTasks().removeIf(t -> woNo.equals(String.valueOf(t.get("workOrderId"))));
+        runtime.getInboundTasks().removeIf(t -> woNo.equals(String.valueOf(t.get("workOrderId"))));
+        removeWorkProgressByWorkOrderId(woId);
+        workOrderMapper.deleteWorkOrder(woId);
+    }
+
+    private void removeDispatchTree(Long dispatchId, String dispatchNo, MesRuntimeState runtime) {
+        removeWorkProgressByDispatchId(dispatchId);
+        new ArrayList<>(andonAlarmMapper.alarmList()).stream()
+                .filter(a -> dispatchId.equals(a.getDispatchId()))
+                .forEach(a -> removeAlarmTree(a.getAlarmId(), a.getAlarmNo(), runtime));
+        new ArrayList<>(workReportMapper.reportList()).stream()
+                .filter(r -> dispatchId.equals(r.getDispatchId()))
+                .forEach(r -> removeReportTree(r.getReportId(), r.getReportNo(), runtime));
+        dispatchTaskMapper.deleteDispatch(dispatchId);
+    }
+
+    private void removeReportTree(Long reportId, String reportNo, MesRuntimeState runtime) {
+        new ArrayList<>(qualityInspectionMapper.inspectionList()).stream()
+                .filter(i -> reportId.equals(i.getWorkReportId()))
+                .forEach(i -> removeInspectionTree(i.getInspectionId(), i.getInspectionNo(), runtime));
+        new ArrayList<>(nonconformingProductMapper.nonconformingList()).stream()
+                .filter(d -> reportId.equals(d.getWorkReportId()))
+                .forEach(d -> nonconformingProductMapper.deleteNonconforming(d.getNonconformingId()));
+        workReportMapper.deleteReport(reportId);
+    }
+
+    private void removeInspectionTree(Long inspectionId, String inspectionNo, MesRuntimeState runtime) {
+        new ArrayList<>(nonconformingProductMapper.nonconformingList()).stream()
+                .filter(d -> inspectionId.equals(d.getInspectionId()))
+                .forEach(d -> nonconformingProductMapper.deleteNonconforming(d.getNonconformingId()));
+        Map<String, Object> inspExtra = runtime.getExtras().get("inspection:" + inspectionNo);
+        if (inspExtra != null) {
+            String reportId = String.valueOf(inspExtra.getOrDefault("qualityReportId", ""));
+            if (!reportId.isBlank() && !"null".equals(reportId)) {
+                runtime.getExtras().remove("qualityReport:" + reportId);
+            }
+        }
+        runtime.getExtras().remove("inspection:" + inspectionNo);
+        qualityInspectionMapper.deleteInspection(inspectionId);
+    }
+
+    private void removeOrphanReportsByWorkOrder(Long woId, MesRuntimeState runtime) {
+        new ArrayList<>(workReportMapper.reportList()).stream()
+                .filter(r -> woId.equals(r.getWorkOrderId()))
+                .forEach(r -> removeReportTree(r.getReportId(), r.getReportNo(), runtime));
+    }
+
+    private void removeOrphanInspectionsByWorkOrder(Long woId, MesRuntimeState runtime) {
+        new ArrayList<>(qualityInspectionMapper.inspectionList()).stream()
+                .filter(i -> woId.equals(i.getWorkOrderId()))
+                .forEach(i -> removeInspectionTree(i.getInspectionId(), i.getInspectionNo(), runtime));
+    }
+
+    private void removeOrphanDefectsByWorkOrder(Long woId) {
+        new ArrayList<>(nonconformingProductMapper.nonconformingList()).stream()
+                .filter(d -> woId.equals(d.getWorkOrderId()))
+                .forEach(d -> nonconformingProductMapper.deleteNonconforming(d.getNonconformingId()));
+    }
+
+    private void removeAlarmTree(Long alarmId, String alarmNo, MesRuntimeState runtime) {
+        new ArrayList<>(equipmentMaintenanceRecordMapper.maintenanceList()).stream()
+                .filter(m -> alarmId.equals(m.getAlarmId()))
+                .forEach(m -> equipmentMaintenanceRecordMapper.deleteMaintenance(m.getMaintenanceId()));
+        andonAlarmMapper.deleteAlarm(alarmId);
+    }
+
+    private void removeAfterSalesByOrderId(Long orderId) {
+        new ArrayList<>(afterSalesCaseMapper.afterSalesCaseList()).stream()
+                .filter(c -> orderId.equals(c.getOrderId()))
+                .forEach(c -> afterSalesCaseMapper.deleteAfterSalesCase(c.getCaseNo()));
+    }
+
+    private void removeAfterSalesByDeliveryId(Long deliveryId) {
+        if (deliveryId == null) {
+            return;
+        }
+        new ArrayList<>(afterSalesCaseMapper.afterSalesCaseList()).stream()
+                .filter(c -> deliveryId.equals(c.getDeliveryId()))
+                .forEach(c -> afterSalesCaseMapper.deleteAfterSalesCase(c.getCaseNo()));
+    }
+
+    private void removeDeliveryTree(Long deliveryId) {
+        if (deliveryId == null) {
+            return;
+        }
+        removeAfterSalesByDeliveryId(deliveryId);
+        deliveryOrderMapper.deleteDelivery(deliveryId);
+    }
+
+    private void removeWorkProgressByDispatchId(Long dispatchId) {
+        if (dispatchId == null) {
+            return;
+        }
+        new ArrayList<>(workProgressMapper.progressList()).stream()
+                .filter(p -> dispatchId.equals(p.getDispatchId()))
+                .forEach(p -> workProgressMapper.deleteProgress(p.getProgressId()));
+    }
+
+    private void removeWorkProgressByWorkOrderId(Long workOrderId) {
+        new ArrayList<>(workProgressMapper.progressList()).stream()
+                .filter(p -> workOrderId.equals(p.getWorkOrderId()))
+                .forEach(p -> workProgressMapper.deleteProgress(p.getProgressId()));
+    }
+
     private CustomerOrder findOrderByNo(String orderNo) {
         return customerOrderMapper.customerOrderList().stream()
                 .filter(o -> orderNo.equals(o.getOrderNo())).findFirst().orElse(null);
@@ -1856,6 +2537,145 @@ public class MesWorkflowService {
                 .filter(m -> code.equals(m.getMaterialCode())).findFirst().orElse(null);
     }
 
+    private String normalizeIssueMaterialCode(String code) {
+        if ("BL-MODULE".equals(code)) {
+            return "MAT-002";
+        }
+        return code;
+    }
+
+    private void createIssueTasksFromBom(WorkOrder wo, MesRuntimeState runtime, String woNo, LocalDateTime now) {
+        boolean exists = runtime.getIssueTasks().stream().anyMatch(t -> woNo.equals(t.get("workOrderId")));
+        if (exists) {
+            return;
+        }
+        int planQty = intVal(wo.getPlannedQuantity());
+        Long materialId = wo.getMaterialId();
+        List<Bom> bomLines = bomMapper.bomList().stream()
+                .filter(b -> materialId != null && materialId.equals(b.getParentMaterialId())
+                        && b.getStatus() != null && b.getStatus() == 1)
+                .toList();
+        if (bomLines.isEmpty()) {
+            addIssueTask(runtime, woNo, "MAT-002", "背光模组", planQty, now);
+            return;
+        }
+        for (Bom bom : bomLines) {
+            Material child = materialMapper.materialList().stream()
+                    .filter(m -> bom.getChildMaterialId().equals(m.getMaterialId()))
+                    .findFirst().orElse(null);
+            if (child == null) {
+                continue;
+            }
+            int required = (int) Math.ceil(planQty * bomQtyWithLoss(bom));
+            addIssueTask(runtime, woNo, child.getMaterialCode(), child.getMaterialName(), required, now);
+        }
+    }
+
+    private void addIssueTask(MesRuntimeState runtime, String woNo, String code, String name,
+                              int required, LocalDateTime now) {
+        Map<String, Object> task = new LinkedHashMap<>();
+        task.put("id", nextRuntimeId("IS", runtime.getIssueTasks()));
+        task.put("workOrderId", woNo);
+        task.put("materialCode", code);
+        task.put("materialName", name);
+        task.put("requiredQty", required);
+        task.put("issuedQty", 0);
+        task.put("status", "待领料");
+        task.put("createdAt", fmt(now));
+        runtime.getIssueTasks().add(0, task);
+    }
+
+    private double bomQtyWithLoss(Bom bom) {
+        double qty = bom.getQuantity() != null ? bom.getQuantity().doubleValue() : 1.0;
+        double loss = bom.getLossRate() != null ? bom.getLossRate().doubleValue() : 0.0;
+        return qty * (1.0 + loss);
+    }
+
+    private void recordInventoryTransaction(Inventory inv, Material mat, String type, BigDecimal qty,
+                                            Long workOrderId, User user, LocalDateTime now, String remark) {
+        InventoryTransaction tx = new InventoryTransaction();
+        tx.setTransactionNo(nextNo("IT", inventoryTransactionMapper.transactionList(),
+                InventoryTransaction::getTransactionNo));
+        tx.setInventoryId(inv.getInventoryId());
+        tx.setMaterialId(mat.getMaterialId());
+        tx.setTransactionType(type);
+        tx.setQuantity(qty);
+        tx.setWarehouseCode(inv.getWarehouseCode());
+        tx.setLocationCode(inv.getLocationCode());
+        tx.setBatchNo(inv.getBatchNo());
+        tx.setRelatedWorkOrderId(workOrderId);
+        tx.setHandledBy(user != null ? user.getUserId() : null);
+        tx.setHandledAt(now);
+        tx.setRemark(remark);
+        tx.setCreatedAt(now);
+        inventoryTransactionMapper.insertTransaction(tx);
+    }
+
+    private Material resolveFinishedMaterialForTask(Map<String, Object> task, WorkOrder wo) {
+        if (wo != null && wo.getMaterialId() != null) {
+            Material mat = materialMapper.materialList().stream()
+                    .filter(m -> wo.getMaterialId().equals(m.getMaterialId()))
+                    .findFirst().orElse(null);
+            if (mat != null) {
+                return mat;
+            }
+        }
+        String productModel = String.valueOf(task.getOrDefault("productModel", ""));
+        Material byName = materialMapper.materialList().stream()
+                .filter(m -> productModel.equals(m.getMaterialName()) || productModel.equals(m.getMaterialCode()))
+                .findFirst().orElse(null);
+        if (byName != null) {
+            return byName;
+        }
+        return findMaterialContaining("成品");
+    }
+
+    private Long resolveDeliveryMaterialId(Material mat, WorkOrder wo, Long orderId) {
+        if (mat != null) {
+            return mat.getMaterialId();
+        }
+        if (wo != null && wo.getMaterialId() != null) {
+            return wo.getMaterialId();
+        }
+        CustomerOrderItem item = firstOrderItem(orderId);
+        if (item != null && item.getMaterialId() != null) {
+            return item.getMaterialId();
+        }
+        return 7L;
+    }
+
+    private void syncPlanProgress(WorkOrder wo, int qualifiedQty) {
+        if (wo == null || wo.getPlanItemId() == null || qualifiedQty <= 0) {
+            return;
+        }
+        ProductionPlanItem item = productionPlanItemMapper.getPlanItemById(wo.getPlanItemId());
+        if (item == null) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        item.setCompletedQuantity(item.getCompletedQuantity().add(BigDecimal.valueOf(qualifiedQty)));
+        item.setUpdatedAt(now);
+        if (item.getCompletedQuantity().compareTo(item.getPlannedQuantity()) >= 0) {
+            item.setItemStatus("COMPLETED");
+        } else if (!"COMPLETED".equals(item.getItemStatus())) {
+            item.setItemStatus("RUNNING");
+        }
+        productionPlanItemMapper.updatePlanItem(item);
+
+        ProductionPlan plan = productionPlanMapper.getPlanById(wo.getPlanId());
+        if (plan == null) {
+            return;
+        }
+        boolean allDone = productionPlanItemMapper.planItemList().stream()
+                .filter(i -> plan.getPlanId().equals(i.getPlanId()))
+                .allMatch(i -> "COMPLETED".equals(i.getItemStatus()));
+        if (allDone) {
+            plan.setPlanStatus("COMPLETED");
+            plan.setUpdatedAt(now);
+            productionPlanMapper.updatePlan(plan);
+        }
+    }
+
     private Material resolveFinishedMaterial(String productModel) {
         if (productModel == null || productModel.isBlank()) {
             return materialMapper.materialList().stream()
@@ -1900,30 +2720,11 @@ public class MesWorkflowService {
             return "";
         }
         int customerId = intVal(customerIdObj);
-        if (customerId <= 0) {
-            return "";
-        }
-        List<Map<String, Object>> customers = new ArrayList<>();
-        int id = 1;
-        for (CustomerOrder o : customerOrderMapper.customerOrderList()) {
-            if (o.getCustomerName() == null) {
-                continue;
-            }
-            boolean exists = customers.stream().anyMatch(c -> o.getCustomerName().equals(c.get("name")));
-            if (exists) {
-                continue;
-            }
-            Map<String, Object> c = new LinkedHashMap<>();
-            c.put("id", id++);
-            c.put("name", o.getCustomerName());
-            customers.add(c);
-        }
-        for (Map<String, Object> c : customers) {
-            if (customerId == intVal(c.get("id"))) {
-                return String.valueOf(c.get("name"));
-            }
-        }
-        return "";
+        return CustomerCatalog.resolveName(
+                customerId,
+                customerOrderMapper.customerOrderList(),
+                deliveryOrderMapper.deliveryList(),
+                afterSalesCaseMapper.afterSalesCaseList());
     }
 
     private Material findMaterialContaining(String keyword) {
