@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { createInitialMesData, now } from '@/mock/mesData'
 import { MES_LIVE_MODE } from '@/config/mes'
 import { fetchMesSnapshot, postMesAction } from '@/api/mes'
+import { finishedGoodsQty, isProductionStep } from '@/utils/productionProgress'
 
 export const MES_STORAGE_KEY = 'mes-store-data'
 
@@ -75,15 +76,18 @@ function reportQualifiedQty(store, dispatchId) {
     .reduce((sum, r) => sum + (r.qualifiedQty || 0), 0)
 }
 
-function syncWorkOrderStatus(store, workOrderId) {
+function syncWorkOrderProgress(store, workOrderId) {
   const wo = store.workOrders.find((w) => w.id === workOrderId)
   if (!wo) return
   const related = store.dispatches.filter((d) => d.workOrderId === workOrderId)
   if (!related.length) return
-  const allDone = related.every((d) => d.status === '已完成')
+  wo.completedQty = finishedGoodsQty(store.dispatches, workOrderId)
+  const productionDispatches = related.filter((d) => isProductionStep(d.processStep))
+  const checkList = productionDispatches.length ? productionDispatches : related
+  const allDone = checkList.every((d) => d.status === '已完成')
   const anyPendingQc = related.some((d) => d.status === '待质检')
   const anyActive = related.some((d) => ['已分配', '已接收', '生产中'].includes(d.status))
-  if (allDone) {
+  if (allDone && checkList.length > 0) {
     wo.status = '已完成'
   } else if (anyPendingQc) {
     wo.status = '待质检'
@@ -153,7 +157,10 @@ export const useMesStore = defineStore('mes', {
       }
       if (roleKey === 'operator') {
         s.dispatches.filter((d) => d.operator === username && d.status === '已分配').forEach((d) => todos.push({ type: '派工', title: `${d.processStep} 待接收`, ref: d.id, path: '/production/my-dispatch' }))
-        s.dispatches.filter((d) => d.operator === username && d.status === '生产中' && d.completedQty >= d.planQty).forEach((d) => todos.push({ type: '质检', title: `${d.processStep} 待提交质检`, ref: d.id, path: '/production/report' }))
+        s.dispatches
+          .filter((d) => d.operator === username && d.status === '生产中' && d.completedQty >= d.planQty)
+          .filter((d) => d.finalProductionStep || d.processStep === '返修' || d.processStep?.includes('组装'))
+          .forEach((d) => todos.push({ type: '质检', title: `${d.processStep} 待提交质检`, ref: d.id, path: '/production/report' }))
         s.dispatches.filter((d) => d.operator === username && ['已接收', '生产中'].includes(d.status) && d.completedQty < d.planQty).forEach((d) => todos.push({ type: '派工', title: `${d.processStep} 进行中`, ref: d.id, path: '/production/report' }))
         s.dispatches.filter((d) => d.operator === username && d.processStep === '返修' && d.status === '已分配').forEach((d) => todos.push({ type: '返修', title: `返修任务 ${d.planQty} 台`, ref: d.id, path: '/production/my-dispatch' }))
       }
@@ -496,9 +503,7 @@ export const useMesStore = defineStore('mes', {
       d.updatedAt = now()
       const wo = this.workOrders.find((w) => w.id === d.workOrderId)
       if (wo) {
-        wo.completedQty += payload.reportQty
-        wo.updatedAt = now()
-        if (wo.status !== '待质检') wo.status = '生产中'
+        syncWorkOrderProgress(this, d.workOrderId)
       }
       log(this, '现场作业', '提交报工', id, operator, roleKey)
       return rpt
@@ -592,7 +597,7 @@ export const useMesStore = defineStore('mes', {
         }
         if (wo) {
           wo.qualifiedQty += payload.qualifiedQty
-          syncWorkOrderStatus(this, wo.id)
+          syncWorkOrderProgress(this, wo.id)
         }
         if (qc.defectId) {
           const defect = this.defects.find((d) => d.id === qc.defectId)
@@ -646,7 +651,7 @@ export const useMesStore = defineStore('mes', {
           dispatch.status = '已完成'
           dispatch.updatedAt = now()
         }
-        if (wo) syncWorkOrderStatus(this, wo.id)
+        if (wo) syncWorkOrderProgress(this, wo.id)
       }
       log(this, '质量管理', `质检${payload.result}`, qcId, operator, roleKey)
       return true
@@ -661,7 +666,7 @@ export const useMesStore = defineStore('mes', {
       defect.remark = remark || defect.description
       defect.updatedAt = now()
       log(this, '质量管理', `报废不合格品 ${defect.quantity} 台`, defectId, operator, roleKey)
-      syncWorkOrderStatus(this, defect.workOrderId)
+      syncWorkOrderProgress(this, defect.workOrderId)
       return true
     },
     reworkDefect(defectId, operator, roleKey) {
@@ -738,8 +743,8 @@ export const useMesStore = defineStore('mes', {
       }
       return true
     },
-    issueMaterial(taskId, qty, operator, roleKey) {
-      if (MES_LIVE_MODE) return this._live('issueMaterial', { taskId, qty }, operator, roleKey)
+    issueMaterial(taskId, qty, operator, roleKey, barcodeNo = '') {
+      if (MES_LIVE_MODE) return this._live('issueMaterial', { taskId, qty, barcodeNo }, operator, roleKey)
       const task = this.issueTasks.find((t) => t.id === taskId)
       if (!task) return false
       const inv = this.inventory.find((i) => i.materialCode === task.materialCode)

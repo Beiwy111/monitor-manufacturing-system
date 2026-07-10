@@ -42,22 +42,13 @@ import java.util.stream.Collectors;
 @Service
 public class MesPlannerAgentService {
 
-    private static final double SHIFT_HOURS = 8.0;
+    private static final double SHIFT_HOURS = 16.0;
     private static final int LIVE_STEP_SECONDS = 5;
     private static final int LIVE_BATCH_TARGET = 20;
 
-    private static final List<WorkshopDef> WORKSHOPS = List.of(
-            new WorkshopDef("attach", "贴附车间", "生产一部", List.of("贴附机"), List.of("面板贴附"),
-                    1, "面板贴附", "液晶面板与背光模组高精度贴附，完成显示器前段贴合"),
-            new WorkshopDef("assembly", "组装车间", "生产一部", List.of("组装线"), List.of("背光组装"),
-                    2, "背光组装", "背光模组、边框与主控板组装，形成显示器半成品"),
-            new WorkshopDef("aging", "老化测试车间", "生产二部", List.of("老化架"), List.of("整机老化测试", "老化测试"),
-                    1, "整机老化测试", "通电老化与亮度均匀性测试，筛除早期失效品"),
-            new WorkshopDef("tuning", "调校质检车间", "生产二部", List.of("调校台"), List.of("电竞调校", "亮度检测"),
-                    1, "电竞调校质检", "刷新率、色域、亮度等参数调校与过程质检"),
-            new WorkshopDef("packing", "包装发货车间", "生产二部", List.of("包装线"), List.of("外观检验包装", "包装"),
-                    2, "外观检验包装", "终检、附件装配、装箱贴标，等待成品入库发货")
-    );
+    private static List<ProductionWorkshopCatalog.WorkshopDef> workshops() {
+        return ProductionWorkshopCatalog.allWorkshops();
+    }
 
     @Autowired
     private CustomerOrderMapper customerOrderMapper;
@@ -114,104 +105,150 @@ public class MesPlannerAgentService {
         List<ProcessStep> steps = resolveRouteSteps(item);
         List<Equipment> allEquipment = equipmentMapper.equipmentList();
         List<User> operatorPool = activeOperators();
-        CapacityPlan capacityPlan = buildCapacityPlan(steps, allEquipment, operatorPool, materialRecommendedQty, workDays);
+        int needToProduce = intVal(inventoryCheck.get("needToProduce"));
+        int capacityTarget = needToProduce > 0 ? needToProduce : orderQuantity;
+        CapacityPlan capacityPlan = buildCapacityPlan(steps, allEquipment, operatorPool, capacityTarget, workDays);
         int recommendedPlanQty = capacityPlan.feasibleQty();
-        if (materialRecommendedQty > 0) {
-            applyCapacityDecision(inventoryCheck, materialRecommendedQty, recommendedPlanQty, capacityPlan);
+        if (recommendedPlanQty <= 0) {
+            recommendedPlanQty = materialRecommendedQty;
+            if (materialRecommendedQty > 0) {
+                applyCapacityDecision(inventoryCheck, materialRecommendedQty, recommendedPlanQty, capacityPlan);
+            }
+        } else if (materialRecommendedQty > 0 && materialRecommendedQty < recommendedPlanQty) {
+            inventoryCheck.put("recommendedPlanQty", recommendedPlanQty);
+            inventoryCheck.put("decision", "PARTIAL_PRODUCE");
+            inventoryCheck.put("recommendation", String.format(
+                    "设备产能可支撑 %d 台；物料当前仅支撑 %d 台，建议同步采购后满产。",
+                    recommendedPlanQty, materialRecommendedQty));
+        } else {
+            inventoryCheck.put("recommendedPlanQty", recommendedPlanQty);
         }
         quantity = recommendedPlanQty > 0 ? recommendedPlanQty : (materialRecommendedQty > 0 ? materialRecommendedQty : orderQuantity);
         double dailyTarget = quantity / (double) workDays;
 
-        Map<String, List<Equipment>> equipByType = availableEquipment(allEquipment).stream()
-                .collect(Collectors.groupingBy(e -> normalizeType(e.getEquipmentType())));
-
         List<Map<String, Object>> workshopPlans = new ArrayList<>();
+        List<Map<String, Object>> stagePlans = new ArrayList<>();
         List<Map<String, Object>> dispatchSuggestions = new ArrayList<>();
         int totalMachines = 0;
         int totalOperators = 0;
 
-        for (WorkshopDef ws : WORKSHOPS) {
-            List<ProcessStep> matchedSteps = steps.stream()
-                    .filter(s -> matchesWorkshop(s, ws))
-                    .toList();
-            if (matchedSteps.isEmpty()) {
+        for (ProductionWorkshopCatalog.ProcessStageDef stage : ProductionWorkshopCatalog.PRODUCTION_STAGES) {
+            ProcessStep routeStep = steps.stream()
+                    .filter(s -> ProductionWorkshopCatalog.matchesStage(s, stage))
+                    .findFirst()
+                    .orElse(null);
+            if (routeStep == null) {
                 continue;
             }
 
-            int machinesNeeded = 0;
-            int operatorsNeeded = 0;
-            List<String> stepNames = new ArrayList<>();
-            List<Map<String, Object>> machines = new ArrayList<>();
+            double hours = routeStep.getStandardWorkHours() != null
+                    ? routeStep.getStandardWorkHours().doubleValue() : 1.0;
+            if (hours <= 0) {
+                hours = 1.0;
+            }
+            double dailyPerMachine = SHIFT_HOURS / hours;
+            int stageMachinesNeeded = (int) Math.ceil(dailyTarget / Math.max(1.0, dailyPerMachine));
+            stageMachinesNeeded = Math.max(1, stageMachinesNeeded);
 
-            for (ProcessStep step : matchedSteps) {
-                stepNames.add(step.getStepName());
-                String equipType = normalizeType(step.getStandardEquipmentType());
-                double hours = step.getStandardWorkHours() != null
-                        ? step.getStandardWorkHours().doubleValue() : 1.0;
-                if (hours <= 0) {
-                    hours = 1.0;
-                }
-                double dailyPerMachine = SHIFT_HOURS / hours;
-                int need = (int) Math.ceil(dailyTarget / Math.max(1.0, dailyPerMachine));
-                need = Math.max(1, need);
-
-                List<Equipment> pool = equipByType.getOrDefault(equipType, List.of());
-                if (pool.isEmpty()) {
-                    pool = availableEquipment(allEquipment).stream()
-                            .filter(e -> ws.equipmentTypes.contains(normalizeType(e.getEquipmentType())))
-                            .toList();
-                }
-                int available = Math.max(1, pool.size());
-                need = Math.min(need, available);
-
-                machinesNeeded = Math.max(machinesNeeded, need);
-                operatorsNeeded += need * ws.operatorsPerMachine;
-
-                Equipment primary = pool.isEmpty() ? null : pool.get(0);
-                Map<String, Object> suggestion = new LinkedHashMap<>();
-                suggestion.put("processStep", step.getStepName());
-                suggestion.put("workshop", ws.workshopName);
-                suggestion.put("department", ws.department);
-                suggestion.put("equipment", primary != null ? primary.getEquipmentName() : ws.workshopName + "设备");
-                suggestion.put("equipmentCode", primary != null ? primary.getEquipmentCode() : "");
-                suggestion.put("planQty", recommendedPlanQty > 0 ? recommendedPlanQty : quantity);
-                suggestion.put("requiredMachines", need);
-                suggestion.put("requiredOperators", need * ws.operatorsPerMachine);
-                suggestion.put("operatorRole", "operator");
-                dispatchSuggestions.add(suggestion);
-
-                for (int i = 0; i < need && i < pool.size(); i++) {
-                    Equipment eq = pool.get(i);
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("code", eq.getEquipmentCode());
-                    m.put("name", eq.getEquipmentName());
-                    m.put("status", eq.getStatus());
-                    m.put("statusLabel", statusLabel(eq.getStatus()));
-                    machines.add(m);
-                }
+            List<WorkshopSlot> slots = new ArrayList<>();
+            int totalIdleMachines = 0;
+            for (ProductionWorkshopCatalog.WorkshopDef ws : stage.workshops()) {
+                List<Equipment> wsEquip = equipmentForWorkshop(ws, allEquipment);
+                int idle = (int) wsEquip.stream()
+                        .filter(e -> List.of("IDLE", "RUNNING").contains(e.getStatus()))
+                        .count();
+                int available = Math.max(idle, wsEquip.size());
+                totalIdleMachines += available;
+                slots.add(new WorkshopSlot(ws, wsEquip, available, idle));
             }
 
-            int availableCount = countAvailableEquipment(allEquipment, ws);
-            int utilization = availableCount > 0
-                    ? (int) Math.min(100, Math.round(machinesNeeded * 100.0 / availableCount))
-                    : 100;
+            int stageAllocated = 0;
+            int stageOperators = 0;
+            List<String> stageWorkshopNames = new ArrayList<>();
 
-            Map<String, Object> wsRow = new LinkedHashMap<>();
-            wsRow.put("key", ws.key);
-            wsRow.put("workshopName", ws.workshopName);
-            wsRow.put("department", ws.department);
-            wsRow.put("steps", stepNames);
-            wsRow.put("requiredMachines", machinesNeeded);
-            wsRow.put("requiredOperators", operatorsNeeded);
-            wsRow.put("availableMachines", availableCount);
-            wsRow.put("availableOperators", operatorPool.size());
-            wsRow.put("utilization", utilization);
-            wsRow.put("machines", machines);
-            wsRow.put("status", utilization >= 90 ? "warning" : machinesNeeded > 0 ? "running" : "pending");
-            workshopPlans.add(wsRow);
+            for (int i = 0; i < slots.size(); i++) {
+                WorkshopSlot slot = slots.get(i);
+                ProductionWorkshopCatalog.WorkshopDef ws = slot.ws();
+                int machinesNeeded;
+                if (totalIdleMachines <= 0) {
+                    machinesNeeded = i == 0 ? stageMachinesNeeded : 0;
+                } else if (i == slots.size() - 1) {
+                    machinesNeeded = Math.max(0, stageMachinesNeeded - stageAllocated);
+                } else {
+                    machinesNeeded = (int) Math.round(stageMachinesNeeded * slot.available() / (double) totalIdleMachines);
+                }
+                machinesNeeded = Math.min(machinesNeeded, Math.max(1, slot.available()));
+                if (stageAllocated + machinesNeeded > stageMachinesNeeded) {
+                    machinesNeeded = Math.max(0, stageMachinesNeeded - stageAllocated);
+                }
+                stageAllocated += machinesNeeded;
+                int operatorsNeeded = machinesNeeded * ws.operatorsPerMachine();
+                stageOperators += operatorsNeeded;
 
-            totalMachines += machinesNeeded;
-            totalOperators += operatorsNeeded;
+                List<Map<String, Object>> machines = new ArrayList<>();
+                for (int m = 0; m < machinesNeeded && m < slot.equipment().size(); m++) {
+                    Equipment eq = slot.equipment().get(m);
+                    Map<String, Object> machine = new LinkedHashMap<>();
+                    machine.put("code", eq.getEquipmentCode());
+                    machine.put("name", eq.getEquipmentName());
+                    machine.put("status", eq.getStatus());
+                    machine.put("statusLabel", statusLabel(eq.getStatus()));
+                    machines.add(machine);
+                }
+
+                int utilization = slot.available() > 0
+                        ? (int) Math.min(100, Math.round(machinesNeeded * 100.0 / slot.available()))
+                        : 100;
+
+                Map<String, Object> wsRow = new LinkedHashMap<>();
+                wsRow.put("key", ws.key());
+                wsRow.put("workshopName", ws.workshopName());
+                wsRow.put("parentStepKey", stage.stepKey());
+                wsRow.put("parentStepName", stage.stepName());
+                wsRow.put("department", ws.department());
+                wsRow.put("steps", List.of(stage.stepName()));
+                wsRow.put("requiredMachines", machinesNeeded);
+                wsRow.put("requiredOperators", operatorsNeeded);
+                wsRow.put("availableMachines", slot.available());
+                wsRow.put("idleMachines", slot.idle());
+                wsRow.put("availableOperators", operatorPool.size());
+                wsRow.put("utilization", utilization);
+                wsRow.put("machines", machines);
+                wsRow.put("status", utilization >= 90 ? "warning" : machinesNeeded > 0 ? "running" : "pending");
+                workshopPlans.add(wsRow);
+                stageWorkshopNames.add(ws.workshopName());
+
+                if (machinesNeeded > 0) {
+                    Equipment primary = slot.equipment().isEmpty() ? null : slot.equipment().get(0);
+                    Map<String, Object> suggestion = new LinkedHashMap<>();
+                    suggestion.put("processStep", stage.stepName());
+                    suggestion.put("workshop", ws.workshopName());
+                    suggestion.put("department", ws.department());
+                    suggestion.put("equipment", primary != null ? primary.getEquipmentName() : ws.workshopName() + "设备");
+                    suggestion.put("equipmentCode", primary != null ? primary.getEquipmentCode() : "");
+                    suggestion.put("planQty", recommendedPlanQty > 0 ? recommendedPlanQty : quantity);
+                    suggestion.put("requiredMachines", machinesNeeded);
+                    suggestion.put("requiredOperators", operatorsNeeded);
+                    suggestion.put("idleMachines", slot.idle());
+                    suggestion.put("operatorRole", "operator");
+                    dispatchSuggestions.add(suggestion);
+                }
+
+                totalMachines += machinesNeeded;
+                totalOperators += operatorsNeeded;
+            }
+
+            Map<String, Object> stageRow = new LinkedHashMap<>();
+            stageRow.put("stepKey", stage.stepKey());
+            stageRow.put("stepName", stage.stepName());
+            stageRow.put("stepOrder", stage.stepOrder());
+            stageRow.put("workshopCount", stage.workshopCount());
+            stageRow.put("workshops", stageWorkshopNames);
+            stageRow.put("requiredMachines", stageAllocated);
+            stageRow.put("requiredOperators", stageOperators);
+            stageRow.put("availableMachines", totalIdleMachines);
+            stageRow.put("equipmentType", stage.equipmentType());
+            stagePlans.add(stageRow);
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -230,6 +267,7 @@ public class MesPlannerAgentService {
         result.put("totalOperators", totalOperators);
         result.put("availableOperators", operatorPool.size());
         result.put("workshops", workshopPlans);
+        result.put("processStages", stagePlans);
         result.put("dispatchSuggestions", dispatchSuggestions);
         result.put("decision", inventoryCheck.get("decision"));
         result.put("recommendation", inventoryCheck.get("recommendation"));
@@ -238,7 +276,348 @@ public class MesPlannerAgentService {
                 workDays, dailyTarget, totalMachines, totalOperators));
         result.put("summary", buildSummary(orderNo, orderQuantity, recommendedPlanQty, shipFromStock,
                 inventoryCheck, workDays, dailyTarget, totalMachines, totalOperators, workshopPlans.size()));
+        result.put("schedulingSteps", buildSchedulingSteps(orderNo, orderQuantity, planStart, planEnd,
+                item, workDays, steps, inventoryCheck, capacityPlan, workshopPlans, dispatchSuggestions,
+                recommendedPlanQty, allEquipment, operatorPool));
+        result.put("evidenceBase", buildEvidenceBase(orderNo, orderQuantity, planStart, planEnd, item,
+                inventoryCheck, capacityPlan, workshopPlans, recommendedPlanQty, allEquipment, operatorPool));
         return result;
+    }
+
+    private List<Map<String, Object>> buildEvidenceBase(String orderNo, int orderQuantity,
+                                                        LocalDate planStart, LocalDate planEnd,
+                                                        CustomerOrderItem item,
+                                                        Map<String, Object> inventoryCheck,
+                                                        CapacityPlan capacityPlan,
+                                                        List<Map<String, Object>> workshopPlans,
+                                                        int recommendedPlanQty,
+                                                        List<Equipment> allEquipment,
+                                                        List<User> operatorPool) {
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> materialChecks = (List<Map<String, Object>>) inventoryCheck
+                .getOrDefault("materialChecks", List.of());
+        List<Map<String, Object>> list = new ArrayList<>();
+        String product = item != null ? item.getProductName() : "—";
+        long workDays = Math.max(1, ChronoUnit.DAYS.between(planStart, planEnd) + 1);
+
+        Map<String, Object> orderMetrics = new LinkedHashMap<>();
+        orderMetrics.put("订单号", orderNo);
+        orderMetrics.put("产品型号", product);
+        orderMetrics.put("订购数量", orderQuantity + " 台");
+        orderMetrics.put("计划开始", planStart.toString());
+        orderMetrics.put("计划截止", planEnd.toString());
+        orderMetrics.put("计划天数", workDays + " 天");
+        list.add(evidenceItem("ev-order", "ERP", "订单", orderNo,
+                "客户订单主数据",
+                String.format("【订单数据】%s 订购 %s %d 台，要求在 %s ~ %s（%d 天）内完成交付。",
+                        orderNo, product, orderQuantity, planStart, planEnd, workDays),
+                96, List.of("order"), orderMetrics));
+
+        int fgStock = intVal(inventoryCheck.get("finishedGoodsStock"));
+        int shipStock = intVal(inventoryCheck.get("shipFromStock"));
+        int needProduce = intVal(inventoryCheck.get("needToProduce"));
+        Map<String, Object> invMetrics = new LinkedHashMap<>();
+        invMetrics.put("成品可用库存", fgStock + " 台");
+        invMetrics.put("可现货发货", shipStock + " 台");
+        invMetrics.put("需生产补足", needProduce + " 台");
+        list.add(evidenceItem("ev-inv", "WMS", "库存", "FG-STOCK",
+                "成品库存核查结果",
+                String.format("【库存数据】成品仓现有 %d 台，其中 %d 台可直接发货；订单缺口 %d 台需排产。",
+                        fgStock, shipStock, needProduce),
+                92, List.of("inventory"), invMetrics));
+
+        StringBuilder bomSnippet = new StringBuilder("【BOM 物料数据】");
+        for (Map<String, Object> mat : materialChecks) {
+            if ("FINISHED".equals(mat.get("materialType"))) {
+                continue;
+            }
+            bomSnippet.append(String.format(" %s：可用 %s、需求 %s、可支撑 %s 台；",
+                    mat.get("materialName"), mat.get("available"), mat.get("requiredForPlan"), mat.get("maxSupportQty")));
+            Map<String, Object> matMetrics = new LinkedHashMap<>();
+            matMetrics.put("物料编码", mat.get("materialCode"));
+            matMetrics.put("可用量", mat.get("available"));
+            matMetrics.put("计划需求量", mat.get("requiredForPlan"));
+            matMetrics.put("可支撑产量", mat.get("maxSupportQty") + " 台");
+            matMetrics.put("是否充足", Boolean.TRUE.equals(mat.get("sufficient")) ? "是" : "否");
+            list.add(evidenceItem("ev-mat-" + mat.get("materialCode"), "BOM", "物料",
+                    String.valueOf(mat.get("materialCode")),
+                    String.valueOf(mat.get("materialName")),
+                    String.format("可用 %s %s，按 BOM 可支撑生产 %s 台%s",
+                            mat.get("available"), mat.get("unit"), mat.get("maxSupportQty"),
+                            Boolean.TRUE.equals(mat.get("sufficient")) ? "" : "（不足）"),
+                    88, List.of("material"), matMetrics));
+        }
+        Map<String, Object> bomSummary = new LinkedHashMap<>();
+        bomSummary.put("核查物料种数", materialChecks.size());
+        bomSummary.put("物料支撑上限", intVal(inventoryCheck.get("recommendedPlanQty")) + " 台");
+        list.add(evidenceItem("ev-bom", "BOM", "汇总", "BOM-ALL",
+                "BOM 齐套汇总",
+                bomSnippet + String.format(" 物料维度最多可排 %d 台。", intVal(inventoryCheck.get("recommendedPlanQty"))),
+                88, List.of("material"), bomSummary));
+
+        int totalEq = allEquipment.size();
+        long idleEq = allEquipment.stream().filter(e -> "IDLE".equals(e.getStatus())).count();
+        long runEq = allEquipment.stream().filter(e -> "RUNNING".equals(e.getStatus())).count();
+        long faultEq = allEquipment.stream().filter(e -> "FAULT".equals(e.getStatus()) || "MAINTENANCE".equals(e.getStatus())).count();
+        Map<String, Object> eqMetrics = new LinkedHashMap<>();
+        eqMetrics.put("设备总数", totalEq + " 台");
+        eqMetrics.put("运行中", runEq + " 台");
+        eqMetrics.put("空闲", idleEq + " 台");
+        eqMetrics.put("故障/维保", faultEq + " 台");
+        eqMetrics.put("产能上限", capacityPlan.equipmentLimit() + " 台/周期");
+        eqMetrics.put("覆盖车间", workshopPlans.size() + " 个");
+        list.add(evidenceItem("ev-eq", "MES", "设备", "EQ-POOL",
+                "设备资源池",
+                String.format("【设备数据】全厂 %d 台设备（运行 %d、空闲 %d、故障/维保 %d），本周期设备产能上限 %d 台。",
+                        totalEq, runEq, idleEq, faultEq, capacityPlan.equipmentLimit()),
+                90, List.of("equipment", "allocate"), eqMetrics));
+
+        for (Map<String, Object> alloc : capacityPlan.allocations()) {
+            Map<String, Object> allocMetrics = new LinkedHashMap<>();
+            allocMetrics.put("工序", alloc.get("stepName"));
+            allocMetrics.put("车间", alloc.get("workshopName"));
+            allocMetrics.put("分配设备", alloc.get("machines") + " 台");
+            allocMetrics.put("分配人员", alloc.get("operators") + " 人");
+            allocMetrics.put("日产能", alloc.get("dailyCapacity") + " 台");
+            list.add(evidenceItem("ev-alloc-" + alloc.get("stepName"), "MES", "分配",
+                    String.valueOf(alloc.get("stepName")),
+                    String.valueOf(alloc.get("workshopName")) + " · " + alloc.get("stepName"),
+                    String.format("【分配数据】%s 投入设备 %s 台、人员 %s 人，日产能 %s 台。",
+                            alloc.get("stepName"), alloc.get("machines"), alloc.get("operators"), alloc.get("dailyCapacity")),
+                    89, List.of("allocate"), allocMetrics));
+        }
+
+        String operatorNames = operatorPool.stream()
+                .map(u -> u.getRealName() + "(" + u.getDepartment() + ")")
+                .collect(Collectors.joining("、"));
+        if (operatorNames.isBlank()) {
+            operatorNames = "暂无在岗操作员";
+        }
+        Map<String, Object> hrMetrics = new LinkedHashMap<>();
+        hrMetrics.put("在岗操作员", operatorPool.size() + " 人");
+        hrMetrics.put("人员可行产量", capacityPlan.operatorLimit() + " 台");
+        hrMetrics.put("人员名单", operatorNames);
+        list.add(evidenceItem("ev-hr", "HR", "人员", "OP-POOL",
+                "操作员编制",
+                String.format("【人员数据】在岗操作员 %d 人：%s；人员维度可行产量 %d 台。",
+                        operatorPool.size(), operatorNames, capacityPlan.operatorLimit()),
+                87, List.of("operator", "allocate"), hrMetrics));
+
+        Map<String, Object> capMetrics = new LinkedHashMap<>();
+        capMetrics.put("建议排产量", recommendedPlanQty + " 台");
+        capMetrics.put("物料上限", capacityPlan.materialLimit() + " 台");
+        capMetrics.put("设备上限", capacityPlan.equipmentLimit() + " 台");
+        capMetrics.put("人员上限", capacityPlan.operatorLimit() + " 台");
+        capMetrics.put("最终可行产量", capacityPlan.feasibleQty() + " 台");
+        list.add(evidenceItem("ev-cap", "APS", "结论", "PLAN-RESULT",
+                "排产结论",
+                String.format("【排产结论】综合约束后建议排产 %d 台（物料上限 %d、设备上限 %d、人员上限 %d，可行 %d）。",
+                        recommendedPlanQty, capacityPlan.materialLimit(), capacityPlan.equipmentLimit(),
+                        capacityPlan.operatorLimit(), capacityPlan.feasibleQty()),
+                95, List.of("result"), capMetrics));
+        return list;
+    }
+
+    private Map<String, Object> evidenceItem(String id, String source, String tag, String code,
+                                             String title, String snippet, int reliability,
+                                             List<String> relatedSteps, Map<String, Object> metrics) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", id);
+        row.put("source", source);
+        row.put("tag", tag);
+        row.put("code", code);
+        row.put("title", title);
+        row.put("snippet", snippet);
+        row.put("reliability", reliability);
+        row.put("relatedSteps", relatedSteps);
+        row.put("metrics", metrics != null ? metrics : Map.of());
+        return row;
+    }
+
+    private List<Map<String, Object>> buildSchedulingSteps(String orderNo, int orderQuantity,
+                                                           LocalDate planStart, LocalDate planEnd,
+                                                           CustomerOrderItem item, long workDays,
+                                                           List<ProcessStep> steps,
+                                                           Map<String, Object> inventoryCheck,
+                                                           CapacityPlan capacityPlan,
+                                                           List<Map<String, Object>> workshopPlans,
+                                                           List<Map<String, Object>> dispatchSuggestions,
+                                                           int recommendedPlanQty,
+                                                           List<Equipment> allEquipment,
+                                                           List<User> operatorPool) {
+        List<Map<String, Object>> flow = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> materialChecks = (List<Map<String, Object>>) inventoryCheck
+                .getOrDefault("materialChecks", List.of());
+        @SuppressWarnings("unchecked")
+        List<String> bottlenecks = (List<String>) inventoryCheck.getOrDefault("bottlenecks", List.of());
+        int insufficient = (int) materialChecks.stream().filter(m -> !Boolean.TRUE.equals(m.get("sufficient"))).count();
+        String product = item != null ? item.getProductName() : "—";
+        String bottleneckText = bottlenecks.isEmpty() ? "无" : String.join("、", bottlenecks);
+        int fgStock = intVal(inventoryCheck.get("finishedGoodsStock"));
+        int shipStock = intVal(inventoryCheck.get("shipFromStock"));
+        int needProduce = intVal(inventoryCheck.get("needToProduce"));
+        int totalEq = allEquipment.size();
+        long idleEq = allEquipment.stream().filter(e -> "IDLE".equals(e.getStatus())).count();
+        String operatorSummary = operatorPool.stream()
+                .map(u -> u.getRealName())
+                .collect(Collectors.joining("、"));
+
+        List<String> orderLines = List.of(
+                String.format("订单号：%s", orderNo),
+                String.format("产品型号：%s", product),
+                String.format("订购数量：%d 台", orderQuantity),
+                String.format("计划窗口：%s 至 %s（%d 天）", planStart, planEnd, workDays),
+                "交期约束：计划截止日为排产硬约束，不可突破");
+        flow.add(thoughtStep("order", "订单分析员", "发现", "发现",
+                "读取 ERP 客户订单",
+                String.format("「%s」读取订单：%s 订购 %d 台，交期 %d 天。", orderNo, product, orderQuantity, workDays),
+                String.format("【订单分析员】读取订单 %s：产品「%s」，客户订购 %d 台，计划窗口 %s 至 %s（共 %d 天），将交期设为排产硬约束。",
+                        orderNo, product, orderQuantity, planStart, planEnd, workDays),
+                orderLines, 1));
+
+        List<String> invLines = List.of(
+                String.format("成品可用库存：%d 台", fgStock),
+                String.format("可现货直发：%d 台", shipStock),
+                String.format("订单缺口：%d 台", needProduce),
+                String.format("订单需求：%d 台", orderQuantity));
+        flow.add(thoughtStep("inventory", "库存协调员", "执行", "执行",
+                "核查 WMS 成品库存",
+                String.format("「成品仓」库存 %d 台，可直发 %d 台，缺口 %d 台；累计证据库 2 条。", fgStock, shipStock, needProduce),
+                String.format("【库存协调员】查询成品仓：现有库存 %d 台，可现货直发 %d 台，仍需生产 %d 台才能满足订单 %d 台。",
+                        fgStock, shipStock, needProduce, orderQuantity),
+                invLines, 2));
+
+        List<String> matLines = new ArrayList<>();
+        for (Map<String, Object> mat : materialChecks) {
+            if ("FINISHED".equals(mat.get("materialType"))) {
+                continue;
+            }
+            matLines.add(String.format("%s：可用 %s %s，需求 %s %s，可支撑 %s 台%s",
+                    mat.get("materialName"), mat.get("available"), mat.get("unit"),
+                    mat.get("requiredForPlan"), mat.get("unit"), mat.get("maxSupportQty"),
+                    Boolean.TRUE.equals(mat.get("sufficient")) ? "" : "（不足）"));
+        }
+        if (matLines.isEmpty()) {
+            matLines.add("无子项物料需核查");
+        }
+        matLines.add(String.format("瓶颈物料：%s", bottleneckText));
+        matLines.add(String.format("物料维度最多支撑：%d 台", intVal(inventoryCheck.get("recommendedPlanQty"))));
+        StringBuilder matAction = new StringBuilder();
+        for (Map<String, Object> mat : materialChecks) {
+            if ("FINISHED".equals(mat.get("materialType"))) {
+                continue;
+            }
+            matAction.append(String.format("%s(可用%s/需%s) ", mat.get("materialName"), mat.get("available"), mat.get("requiredForPlan")));
+        }
+        flow.add(thoughtStep("material", "物料计划员", "执行", "执行",
+                "展开 BOM 做齐套分析",
+                String.format("「BOM」核查 %d 种原材料，%d 项不足，物料上限 %d 台；累计证据库 %d 条。",
+                        Math.max(0, materialChecks.size() - 1), insufficient,
+                        intVal(inventoryCheck.get("recommendedPlanQty")), 2 + matLines.size()),
+                String.format("【物料计划员】核查 %d 种原材料：%d 项不足，瓶颈物料「%s」。明细：%s物料维度最多支撑 %d 台。",
+                        materialChecks.size() - 1, insufficient, bottleneckText,
+                        matAction.length() > 0 ? matAction : "无子项 ",
+                        intVal(inventoryCheck.get("recommendedPlanQty"))),
+                matLines, 2 + matLines.size()));
+
+        long runEq = allEquipment.stream().filter(e -> "RUNNING".equals(e.getStatus())).count();
+        List<String> eqLines = List.of(
+                String.format("设备总数：%d 台", totalEq),
+                String.format("空闲：%d 台，运行中：%d 台", idleEq, runEq),
+                String.format("工艺工序：%d 道", steps.size()),
+                String.format("本周期设备产能上限：%d 台", capacityPlan.equipmentLimit()),
+                String.format("瓶颈工序：%s", capacityPlan.limits().isEmpty() ? "无" : capacityPlan.limits().get(0)));
+        flow.add(thoughtStep("equipment", "设备调度员", "派遣", "派遣",
+                "统计设备资源并测算产能",
+                String.format("「设备池」扫描 %d 台（空闲 %d），设备上限 %d 台；累计证据库 %d 条。",
+                        totalEq, idleEq, capacityPlan.equipmentLimit(), 3 + eqLines.size()),
+                String.format("【设备调度员】扫描全厂 %d 台设备（空闲 %d 台），加载 %d 道工序工艺；测算得本周期设备产能上限 %d 台。",
+                        totalEq, idleEq, steps.size(), capacityPlan.equipmentLimit()),
+                eqLines, 3 + eqLines.size()));
+
+        List<String> opLines = new ArrayList<>();
+        opLines.add(String.format("在岗操作员：%d 人", operatorPool.size()));
+        for (User u : operatorPool) {
+            opLines.add(String.format("· %s（%s）", u.getRealName(), u.getDepartment()));
+        }
+        if (operatorPool.isEmpty()) {
+            opLines.add("· 暂无在岗操作员");
+        }
+        opLines.add(String.format("人员可行产量：%d 台", capacityPlan.operatorLimit()));
+        flow.add(thoughtStep("operator", "人员协调员", "派遣", "派遣",
+                "统计操作员编制与负荷",
+                String.format("「人员池」在岗 %d 人，可行产量 %d 台；累计证据库 %d 条。",
+                        operatorPool.size(), capacityPlan.operatorLimit(), 4 + opLines.size()),
+                String.format("【人员协调员】在岗操作员 %d 人（%s），结合在途派工测算人员可行产量 %d 台。",
+                        operatorPool.size(),
+                        operatorSummary.isBlank() ? "暂无" : operatorSummary,
+                        capacityPlan.operatorLimit()),
+                opLines, 4 + opLines.size()));
+
+        List<String> allocLines = new ArrayList<>();
+        for (Map<String, Object> ws : workshopPlans) {
+            allocLines.add(String.format("%s：设备 %s 台、人员 %s 人、负荷 %s%%",
+                    ws.get("workshopName"), ws.get("requiredMachines"), ws.get("requiredOperators"), ws.get("utilization")));
+        }
+        StringBuilder allocDetail = new StringBuilder();
+        for (Map<String, Object> ws : workshopPlans) {
+            allocDetail.append(String.format("%s(设备%d/人%d) ",
+                    ws.get("workshopName"), ws.get("requiredMachines"), ws.get("requiredOperators")));
+        }
+        flow.add(thoughtStep("allocate", "产能优化员", "执行", "执行",
+                "分配车间设备与工序资源",
+                String.format("「车间分配」%d 道工序 → %d 个车间，生成 %d 条派工建议；累计证据库 %d 条。",
+                        steps.size(), workshopPlans.size(), dispatchSuggestions.size(), 5 + allocLines.size()),
+                String.format("【产能优化员】将 %d 道工序分配至 %d 个车间：%s共生成 %d 条工序派工建议。",
+                        steps.size(), workshopPlans.size(), allocDetail, dispatchSuggestions.size()),
+                allocLines, 5 + allocLines.size()));
+
+        List<String> resultLines = List.of(
+                String.format("订单数量：%d 台", orderQuantity),
+                String.format("物料上限：%d 台", capacityPlan.materialLimit()),
+                String.format("设备上限：%d 台", capacityPlan.equipmentLimit()),
+                String.format("人员上限：%d 台", capacityPlan.operatorLimit()),
+                String.format("综合可行产量：%d 台", capacityPlan.feasibleQty()),
+                String.format("建议排产量：%d 台", recommendedPlanQty),
+                String.valueOf(inventoryCheck.getOrDefault("recommendation", "")));
+        flow.add(thoughtStep("result", "计划汇总员", "发现", "发现",
+                "汇总约束输出生产计划",
+                String.format("「排产结论」建议排产 %d 台（订单 %d 台）；累计证据库 %d 条。",
+                        recommendedPlanQty, orderQuantity, 6 + resultLines.size()),
+                String.format("【计划汇总员】综合订单 %d 台、库存、物料、设备、人员约束，输出建议排产量 %d 台。%s",
+                        orderQuantity, recommendedPlanQty,
+                        inventoryCheck.getOrDefault("recommendation", "")),
+                resultLines, 6 + resultLines.size()));
+        return flow;
+    }
+
+    private Map<String, Object> thoughtStep(String key, String agentName, String actionType, String badge,
+                                            String action, String summary, String thought,
+                                            List<String> detailLines, int evidenceCount) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("key", key);
+        row.put("agentName", agentName);
+        row.put("actionType", actionType);
+        row.put("badge", badge);
+        row.put("title", action);
+        row.put("action", action);
+        row.put("summary", summary);
+        row.put("thought", thought);
+        row.put("detail", thought);
+        row.put("detailLines", detailLines != null ? detailLines : List.of());
+        row.put("evidenceCount", evidenceCount);
+        row.put("status", "success");
+        return row;
+    }
+
+    private Map<String, Object> schedulingStep(String key, String title, String detail) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("key", key);
+        row.put("title", title);
+        row.put("detail", detail);
+        row.put("status", "success");
+        return row;
     }
 
     private CapacityPlan buildCapacityPlan(List<ProcessStep> steps, List<Equipment> allEquipment,
@@ -248,7 +627,7 @@ public class MesPlannerAgentService {
         }
 
         List<StepCapacity> capacities = steps.stream()
-                .map(step -> buildStepCapacity(step, allEquipment, workDays))
+                .map(step -> buildStepCapacity(step, allEquipment, workDays, targetQty))
                 .toList();
         int equipmentLimit = capacities.stream()
                 .mapToInt(StepCapacity::maxByEquipment)
@@ -278,17 +657,25 @@ public class MesPlannerAgentService {
                 operatorPool.size(), limits, allocations);
     }
 
-    private StepCapacity buildStepCapacity(ProcessStep step, List<Equipment> allEquipment, long workDays) {
+    private StepCapacity buildStepCapacity(ProcessStep step, List<Equipment> allEquipment, long workDays, int targetQty) {
         String equipType = normalizeType(step.getStandardEquipmentType());
-        List<Equipment> pool = availableEquipment(allEquipment).stream()
+        List<Equipment> allAvailable = availableEquipment(allEquipment);
+        List<Equipment> pool = allAvailable.stream()
                 .filter(e -> equipType.equals(normalizeType(e.getEquipmentType())))
                 .toList();
         int availableMachines = pool.size();
-        double hours = step.getStandardWorkHours() != null ? step.getStandardWorkHours().doubleValue() : 1.0;
+        if (availableMachines == 0) {
+            availableMachines = Math.max(1, allAvailable.size());
+        }
+        double hours = step.getStandardWorkHours() != null ? step.getStandardWorkHours().doubleValue() : 0.5;
         if (hours <= 0) {
-            hours = 1.0;
+            hours = 0.5;
         }
         double dailyPerMachine = SHIFT_HOURS / hours;
+        if (targetQty > 0 && workDays > 0) {
+            int neededMachines = (int) Math.ceil((targetQty / (double) workDays) / Math.max(1.0, dailyPerMachine));
+            availableMachines = Math.min(Math.max(availableMachines, neededMachines), Math.max(availableMachines, allAvailable.size()));
+        }
         int maxByEquipment = (int) Math.floor(availableMachines * dailyPerMachine * workDays);
         return new StepCapacity(step, resolveWorkshopLabel(step, pool), availableMachines,
                 resolveOperatorsPerMachine(step), dailyPerMachine, Math.max(0, maxByEquipment));
@@ -306,7 +693,7 @@ public class MesPlannerAgentService {
 
     private int resolveOperatorsPerMachine(ProcessStep step) {
         String name = step.getStepName() != null ? step.getStepName() : "";
-        if (name.contains("组装") || name.contains("包装")) {
+        if (name.contains("整机组装") || (name.contains("组装") && !name.contains("主板"))) {
             return 2;
         }
         return 1;
@@ -315,15 +702,12 @@ public class MesPlannerAgentService {
     private AllocationResult allocateForQuantity(List<StepCapacity> capacities, int operatorCount,
                                                  int qty, long workDays) {
         List<Map<String, Object>> allocations = new ArrayList<>();
-        int requiredOperators = 0;
+        int peakOperators = 0;
         for (StepCapacity cap : capacities) {
             int machines = (int) Math.ceil((qty / (double) workDays) / Math.max(1.0, cap.dailyPerMachine()));
-            machines = Math.max(1, machines);
-            if (machines > cap.availableMachines()) {
-                return new AllocationResult(false, requiredOperators, allocations);
-            }
+            machines = Math.min(Math.max(1, machines), Math.max(1, cap.availableMachines()));
             int stepOperators = machines * cap.operatorsPerMachine();
-            requiredOperators += stepOperators;
+            peakOperators = Math.max(peakOperators, stepOperators);
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("stepName", cap.step().getStepName());
             row.put("workshopName", cap.workshopLabel());
@@ -334,7 +718,7 @@ public class MesPlannerAgentService {
             row.put("maxByEquipment", cap.maxByEquipment());
             allocations.add(row);
         }
-        return new AllocationResult(requiredOperators <= operatorCount, requiredOperators, allocations);
+        return new AllocationResult(peakOperators <= Math.max(operatorCount, 1), peakOperators, allocations);
     }
 
     private int estimateOperatorLimit(List<StepCapacity> capacities, int operatorCount, int targetQty, long workDays) {
@@ -840,16 +1224,8 @@ public class MesPlannerAgentService {
         MesRuntimeState runtime = mesRuntimeStore.load();
         List<Map<String, Object>> workshops = new ArrayList<>();
 
-        for (WorkshopDef ws : WORKSHOPS) {
-            List<Equipment> inWorkshop = allEquipment.stream()
-                    .filter(e -> ws.equipmentTypes.contains(normalizeType(e.getEquipmentType()))
-                            || (e.getWorkshop() != null && e.getWorkshop().contains(ws.department.replace("生产", ""))))
-                    .toList();
-            if (inWorkshop.isEmpty()) {
-                inWorkshop = allEquipment.stream()
-                        .filter(e -> ws.equipmentTypes.contains(normalizeType(e.getEquipmentType())))
-                        .toList();
-            }
+        for (ProductionWorkshopCatalog.WorkshopDef ws : workshops()) {
+            List<Equipment> inWorkshop = equipmentForWorkshop(ws, allEquipment);
 
             long running = inWorkshop.stream().filter(e -> "RUNNING".equals(e.getStatus())).count();
             long fault = inWorkshop.stream().filter(e -> "FAULT".equals(e.getStatus())).count();
@@ -873,11 +1249,14 @@ public class MesPlannerAgentService {
             boolean isRunning = Boolean.TRUE.equals(progressInfo.get("isRunning"));
 
             Map<String, Object> row = new LinkedHashMap<>();
-            row.put("key", ws.key);
-            row.put("name", ws.workshopName);
-            row.put("department", ws.department);
-            row.put("taskTitle", ws.taskTitle);
-            row.put("taskDescription", ws.taskDescription);
+            row.put("key", ws.key());
+            row.put("name", ws.workshopName());
+            row.put("parentStepKey", ws.parentStepKey());
+            ProductionWorkshopCatalog.ProcessStageDef parentStage = ProductionWorkshopCatalog.stageByKey(ws.parentStepKey());
+            row.put("parentStepName", parentStage != null ? parentStage.stepName() : "");
+            row.put("department", ws.department());
+            row.put("taskTitle", ws.taskTitle());
+            row.put("taskDescription", ws.taskDescription());
             row.put("workOrderNo", progressInfo.get("workOrderNo"));
             row.put("progress", progressInfo.get("progress"));
             row.put("completedQty", progressInfo.get("completedQty"));
@@ -920,7 +1299,7 @@ public class MesPlannerAgentService {
         Map<String, StepCapacity> capByType = new LinkedHashMap<>();
         for (ProcessStep step : steps) {
             String type = normalizeType(step.getStandardEquipmentType());
-            capByType.putIfAbsent(type, buildStepCapacity(step, allEquipment, 1));
+            capByType.putIfAbsent(type, buildStepCapacity(step, allEquipment, 1L, 0));
         }
 
         int totalEquipment = 0;
@@ -929,15 +1308,15 @@ public class MesPlannerAgentService {
         int totalIdle = 0;
 
         for (Map<String, Object> ws : workshops) {
-            WorkshopDef def = WORKSHOPS.stream()
-                    .filter(w -> w.key.equals(ws.get("key")))
+            ProductionWorkshopCatalog.WorkshopDef def = workshops().stream()
+                    .filter(w -> w.key().equals(ws.get("key")))
                     .findFirst()
                     .orElse(null);
-            if (def != null && !def.equipmentTypes.isEmpty()) {
-                String equipType = normalizeType(def.equipmentTypes.get(0));
+            if (def != null && !def.equipmentTypes().isEmpty()) {
+                String equipType = normalizeType(def.equipmentTypes().get(0));
                 StepCapacity cap = capByType.get(equipType);
                 if (cap != null) {
-                    ws.put("equipmentType", def.equipmentTypes.get(0));
+                    ws.put("equipmentType", def.equipmentTypes().get(0));
                     ws.put("availableMachines", cap.availableMachines());
                     ws.put("dailyCapacity", round1(cap.availableMachines() * cap.dailyPerMachine()));
                     ws.put("operatorsPerMachine", cap.operatorsPerMachine());
@@ -1034,7 +1413,7 @@ public class MesPlannerAgentService {
         return workstation.trim();
     }
 
-    private Map<String, Object> resolveWorkshopProgress(WorkshopDef ws, List<DispatchTask> dispatches,
+    private Map<String, Object> resolveWorkshopProgress(ProductionWorkshopCatalog.WorkshopDef ws, List<DispatchTask> dispatches,
                                                         Map<Long, WorkOrder> woById,
                                                         Map<Long, ProcessStep> stepById,
                                                         Map<Long, Equipment> equipmentById,
@@ -1129,22 +1508,37 @@ public class MesPlannerAgentService {
         return info;
     }
 
-    private boolean dispatchBelongsToWorkshop(DispatchTask d, WorkshopDef ws,
+    private boolean dispatchBelongsToWorkshop(DispatchTask d, ProductionWorkshopCatalog.WorkshopDef ws,
                                               Map<Long, ProcessStep> stepById,
                                               Map<Long, Equipment> equipmentById,
                                               MesRuntimeState runtime) {
-        String stepName = resolveDispatchStepName(d, stepById, runtime);
-        if (!stepName.isBlank()) {
-            return ws.stepKeywords.stream().anyMatch(stepName::contains);
+        ProcessStep step = stepById.get(d.getStepId());
+        Equipment eq = d.getEquipmentId() != null ? equipmentById.get(d.getEquipmentId()) : null;
+        if (step == null) {
+            String stepName = resolveDispatchStepName(d, stepById, runtime);
+            if (!stepName.isBlank()) {
+                step = new ProcessStep();
+                step.setStepName(stepName);
+            }
         }
-        if (d.getEquipmentId() == null) {
-            return false;
+        return ProductionWorkshopCatalog.dispatchBelongsToWorkshop(d, ws, step, eq);
+    }
+
+    private List<Equipment> equipmentForWorkshop(ProductionWorkshopCatalog.WorkshopDef ws, List<Equipment> all) {
+        List<Equipment> matched = availableEquipment(all).stream()
+                .filter(e -> ProductionWorkshopCatalog.equipmentBelongsToWorkshop(e, ws))
+                .toList();
+        if (!matched.isEmpty()) {
+            return matched;
         }
-        Equipment eq = equipmentById.get(d.getEquipmentId());
-        if (eq == null) {
-            return false;
-        }
-        return ws.equipmentTypes.contains(normalizeType(eq.getEquipmentType()));
+        return availableEquipment(all).stream()
+                .filter(e -> ws.equipmentTypes().contains(normalizeType(e.getEquipmentType())))
+                .toList();
+    }
+
+    private int countAvailableEquipment(List<Equipment> all, ProductionWorkshopCatalog.WorkshopDef ws) {
+        int count = equipmentForWorkshop(ws, all).size();
+        return Math.max(1, count);
     }
 
     private String resolveDispatchStepName(DispatchTask d, Map<Long, ProcessStep> stepById,
@@ -1182,9 +1576,17 @@ public class MesPlannerAgentService {
         Long routeId = item != null && item.getMaterialId() != null ? resolveRouteId(item.getMaterialId()) : 1L;
         List<ProcessStep> routeSteps = all.stream()
                 .filter(s -> routeId.equals(s.getRouteId()))
+                .filter(ProductionWorkshopCatalog::isProductionStep)
                 .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
                 .toList();
-        return routeSteps.isEmpty() ? defaultStepsFrom(all) : routeSteps;
+        if (!routeSteps.isEmpty()) {
+            return routeSteps;
+        }
+        List<ProcessStep> productionOnly = all.stream()
+                .filter(ProductionWorkshopCatalog::isProductionStep)
+                .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
+                .toList();
+        return productionOnly.isEmpty() ? defaultSteps() : productionOnly;
     }
 
     private Long resolveRouteId(Long materialId) {
@@ -1213,10 +1615,10 @@ public class MesPlannerAgentService {
 
     private List<ProcessStep> defaultSteps() {
         List<ProcessStep> steps = new ArrayList<>();
+        steps.add(step("显示屏加工", "显示屏线", 0.4));
+        steps.add(step("主板装配", "主板线", 0.5));
         steps.add(step("面板贴附", "贴附机", 0.5));
-        steps.add(step("背光组装", "组装线", 0.8));
-        steps.add(step("整机老化测试", "老化架", 4.0));
-        steps.add(step("外观检验包装", "包装线", 0.3));
+        steps.add(step("整机组装", "组装线", 0.8));
         return steps;
     }
 
@@ -1228,20 +1630,8 @@ public class MesPlannerAgentService {
         return s;
     }
 
-    private boolean matchesWorkshop(ProcessStep step, WorkshopDef ws) {
-        String equipType = normalizeType(step.getStandardEquipmentType());
-        if (ws.equipmentTypes.contains(equipType)) {
-            return true;
-        }
-        String name = step.getStepName() != null ? step.getStepName() : "";
-        return ws.stepKeywords.stream().anyMatch(name::contains);
-    }
-
-    private int countAvailableEquipment(List<Equipment> all, WorkshopDef ws) {
-        int count = (int) availableEquipment(all).stream()
-                .filter(e -> ws.equipmentTypes.contains(normalizeType(e.getEquipmentType())))
-                .count();
-        return Math.max(1, count);
+    private boolean matchesWorkshop(ProcessStep step, ProductionWorkshopCatalog.WorkshopDef ws) {
+        return ProductionWorkshopCatalog.matchesWorkshop(step, ws);
     }
 
     private String normalizeType(String type) {
@@ -1265,15 +1655,11 @@ public class MesPlannerAgentService {
         return BigDecimal.valueOf(v).setScale(1, RoundingMode.HALF_UP).doubleValue();
     }
 
-    private record WorkshopDef(
-            String key,
-            String workshopName,
-            String department,
-            List<String> equipmentTypes,
-            List<String> stepKeywords,
-            int operatorsPerMachine,
-            String taskTitle,
-            String taskDescription
+    private record WorkshopSlot(
+            ProductionWorkshopCatalog.WorkshopDef ws,
+            List<Equipment> equipment,
+            int available,
+            int idle
     ) {
     }
 

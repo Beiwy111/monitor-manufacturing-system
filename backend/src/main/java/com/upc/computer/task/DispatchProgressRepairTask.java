@@ -4,6 +4,7 @@ import com.upc.computer.entity.DispatchTask;
 import com.upc.computer.entity.WorkReport;
 import com.upc.computer.mapper.DispatchTaskMapper;
 import com.upc.computer.mapper.WorkReportMapper;
+import com.upc.computer.service.WorkOrderProgressService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +13,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * 修复大屏模拟任务对派工进度的干扰，恢复操作员手工报工流程。
+ * 修复大屏模拟任务对派工进度的干扰，恢复操作员手工报工流程，并同步工单成品完成量。
  */
 @Component
 public class DispatchProgressRepairTask {
@@ -21,6 +22,8 @@ public class DispatchProgressRepairTask {
     private DispatchTaskMapper dispatchTaskMapper;
     @Autowired
     private WorkReportMapper workReportMapper;
+    @Autowired
+    private WorkOrderProgressService workOrderProgressService;
 
     @Transactional
     public void repairFromWorkReports() {
@@ -45,5 +48,6 @@ public class DispatchProgressRepairTask {
             }
             dispatchTaskMapper.updateDispatch(dispatch);
         }
+        workOrderProgressService.syncAllWorkOrders();
     }
 }

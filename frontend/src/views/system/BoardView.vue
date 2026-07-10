@@ -5,10 +5,10 @@
         <span class="kanban__brand-mark">MES</span>
         <div>
           <strong>生产主管实时大屏</strong>
-          <small>5s 节拍 · 20 件批量 · 与智能排产同源</small>
+          <small>数据源：数据库实时快照 /mes/dashboard/snapshot</small>
         </div>
       </div>
-      <h1>{{ activeWorkshop ? `${activeWorkshop.name} · 车间详情` : '五车间 3D 实时总览' }}</h1>
+      <h1>{{ sceneMode ? '3D 车间实景模拟' : '生产综合看板' }}</h1>
       <div class="kanban__meta">
         <span>{{ currentTime }}</span>
         <span :class="statusClass">系统 {{ snapshot.systemStatus }}</span>
@@ -19,122 +19,181 @@
 
     <div v-if="apiError" class="kanban__alert">{{ apiError }}</div>
 
-    <section class="kanban__summary">
-      <div v-for="chip in summaryChips" :key="chip.key" class="kanban__chip" :class="chip.tone ? `tone-${chip.tone}` : ''">
-        <strong>{{ chip.value }}</strong>
-        <span>{{ chip.label }}</span>
-      </div>
-      <div class="kanban__hint">
-        {{ activeCount > 0 ? `当前 ${activeCount} 个车间有派工任务（含待接收/生产中）` : '当前没有已派工或生产中的工单，五个车间均处于待机状态' }}
-      </div>
-    </section>
-
-    <main class="board-main">
-      <section class="scene-panel">
+    <template v-if="sceneMode">
+      <section class="scene-panel scene-panel--full">
         <div class="scene-panel__head">
           <div>
             <strong>3D 车间实景模拟</strong>
-            <span>五个车间横向排布，点击车间查看详情</span>
+            <span>四道工序从左往右流水线排布，同工序内 2~3 个车间纵向并列</span>
           </div>
-          <button v-if="activeWorkshop" type="button" class="back-btn" @click="selectedKey = ''">返回全景</button>
+          <button type="button" class="back-btn" @click="sceneMode = false">返回综合看板</button>
         </div>
         <WorkshopScene3D :workshops="workshops" @select="onSelectWorkshop" />
-        <div v-if="activeWorkshop" class="scene-detail" :class="{ 'is-running': activeWorkshop.isRunning }">
-          <div>
-            <strong>{{ activeWorkshop.name }}</strong>
-            <span>{{ activeWorkshop.currentStep || activeWorkshop.taskTitle }}</span>
-          </div>
-          <div class="scene-detail__progress">
-            <em>{{ activeWorkshop.batchCompletedQty || 0 }}/{{ activeWorkshop.batchTargetQty || batchTarget }}</em>
-            <i><b :style="{ width: `${activeWorkshop.batchProgress || activeWorkshop.progress || 0}%` }" /></i>
-          </div>
-          <div class="scene-detail__meta">
-            <span>{{ activeWorkshop.isRunning ? '生产中' : '待机' }}</span>
-            <span>节拍 {{ activeWorkshop.stepSeconds || stepSeconds }}s/件</span>
-            <span>设备 {{ activeWorkshop.running || 0 }}/{{ activeWorkshop.total || 0 }}</span>
-            <span>工单 {{ activeWorkshop.workOrderNo || '-' }}</span>
-          </div>
+      </section>
+    </template>
+
+    <template v-else>
+      <section class="kanban__summary board-kpis">
+        <div v-for="chip in summaryChips" :key="chip.key" class="kanban__chip" :class="chip.tone ? `tone-${chip.tone}` : ''">
+          <strong>{{ chip.value }}</strong>
+          <span>{{ chip.label }}</span>
         </div>
+        <button type="button" class="scene-entry" @click="sceneMode = true">
+          <strong>进入 3D 车间</strong>
+          <span>查看四道工序 · 十一车间实景</span>
+        </button>
       </section>
 
-      <section class="analytics-grid">
-        <div class="chart-card chart-card--wide">
-          <div class="chart-card__head">
-            <strong>车间生产进度</strong>
-            <span>20 件实时批量</span>
-          </div>
+      <main class="dashboard-grid">
+        <section class="dashboard-card dashboard-card--trend">
+          <PanelTitle title="车间生产进度分析" subtitle="按数据库实时车间快照统计" />
           <BoardChart :option="progressChartOption" />
-        </div>
+        </section>
 
-        <div class="chart-card">
-          <div class="chart-card__head">
-            <strong>设备运行分布</strong>
-            <span>运行 / 待机 / 故障</span>
-          </div>
-          <BoardChart :option="equipmentChartOption" />
-        </div>
+        <section class="dashboard-card dashboard-card--attendance">
+          <PanelTitle title="车间人员与设备监控" subtitle="操作员/设备/运转车间" />
+          <BoardChart :option="resourceChartOption" />
+        </section>
 
-        <div class="status-table">
-          <div class="chart-card__head">
-            <strong>车间状态表</strong>
-            <span>实时快照</span>
+        <section class="dashboard-card dashboard-card--stage">
+          <PanelTitle title="工序负荷监控" subtitle="四道工序车间完成量/设备量" />
+          <BoardChart :option="stageChartOption" />
+        </section>
+
+        <section class="dashboard-card dashboard-card--equipment">
+          <PanelTitle title="车间设备性能监控" subtitle="设备运行分布与明细" />
+          <div class="equipment-layout">
+            <BoardChart :option="equipmentChartOption" />
+            <div class="equipment-cards">
+              <div v-for="item in equipmentCards" :key="item.key" class="equipment-card">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+                <em>{{ item.desc }}</em>
+              </div>
+            </div>
           </div>
-          <div class="status-table__head">
-            <span>车间</span>
-            <span>状态</span>
-            <span>批量</span>
-            <span>设备</span>
+        </section>
+
+        <section class="dashboard-card dashboard-card--table">
+          <PanelTitle title="车间状态表" subtitle="活数据 · 点击可进入对应 3D 车间" />
+          <div class="live-table">
+            <div class="live-table__head">
+              <span>车间</span>
+              <span>工序</span>
+              <span>状态</span>
+              <span>批量</span>
+              <span>设备</span>
+            </div>
+            <button
+              v-for="ws in workshops"
+              :key="ws.key"
+              type="button"
+              class="live-table__row"
+              @click="openWorkshop(ws.key)"
+            >
+              <span>{{ ws.name }}</span>
+              <span>{{ ws.parentStepName || ws.taskTitle || '-' }}</span>
+              <em>{{ ws.isRunning ? (ws.batchCompletedQty > 0 ? '生产中' : '已派工') : '待机' }}</em>
+              <strong>{{ ws.batchCompletedQty || 0 }}/{{ ws.batchTargetQty || batchTarget }}</strong>
+              <span>{{ ws.running || 0 }}/{{ ws.total || 0 }}</span>
+            </button>
           </div>
-          <button
-            v-for="ws in workshops"
-            :key="ws.key"
-            type="button"
-            class="status-table__row"
-            :class="{ 'is-active': selectedKey === ws.key }"
-            @click="selectedKey = ws.key"
-          >
-            <span>{{ ws.name }}</span>
-            <em>{{ ws.isRunning ? (ws.batchCompletedQty > 0 ? '生产中' : '已派工') : '待机' }}</em>
-            <strong>{{ ws.batchCompletedQty || 0 }}/{{ ws.batchTargetQty || batchTarget }}</strong>
-            <span>{{ ws.running || 0 }}/{{ ws.total || 0 }}</span>
-          </button>
-        </div>
-      </section>
-    </main>
+        </section>
+
+        <section class="dashboard-card dashboard-card--alarm">
+          <PanelTitle title="异常预警监控" subtitle="安灯/设备/质量异常" />
+          <div class="alarm-list">
+            <div v-if="!alarms.length" class="alarm-empty">当前无未关闭异常</div>
+            <div v-for="alarm in alarms.slice(0, 8)" :key="alarm.alarmNo || alarm.description" class="alarm-item">
+              <strong>{{ alarm.alarmType || '异常' }}</strong>
+              <span>{{ alarm.description || '-' }}</span>
+              <em>{{ alarm.reportedAt || alarm.status || '-' }}</em>
+            </div>
+          </div>
+        </section>
+      </main>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineComponent, h } from 'vue'
 import BoardChart from '@/components/board/BoardChart.vue'
 import WorkshopScene3D from '@/components/board/WorkshopScene3D.vue'
 import { useManagerDashboard } from '@/composables/useManagerDashboard'
 import { mergeWorkshopData } from '@/composables/useWorkshopScene'
 
+const PanelTitle = defineComponent({
+  props: {
+    title: { type: String, required: true },
+    subtitle: { type: String, default: '' }
+  },
+  setup(props) {
+    return () => h('div', { class: 'panel-title' }, [
+      h('strong', props.title),
+      props.subtitle ? h('span', props.subtitle) : null
+    ])
+  }
+})
+
 const { loading, apiError, lastRefreshTime, snapshot, refreshDashboard } = useManagerDashboard()
 
 const selectedKey = ref('')
+const sceneMode = ref(false)
 const currentTime = ref('')
 let clockTimer = null
 
 const overview = computed(() => snapshot.value.productionOverview || {})
 const summary = computed(() => overview.value.summary || {})
 const workshops = computed(() => mergeWorkshopData(snapshot.value.workshops3d || overview.value.workshops || []))
-const activeWorkshop = computed(() => workshops.value.find((w) => w.key === selectedKey.value) || null)
 const activeCount = computed(() => summary.value.activeWorkshops || workshops.value.filter((w) => w.isRunning).length)
-const stepSeconds = computed(() => overview.value.stepSeconds || summary.value.stepSeconds || 5)
 const batchTarget = computed(() => overview.value.batchTargetQty || summary.value.batchTargetQty || 20)
+const alarms = computed(() => Array.isArray(snapshot.value.alarms) ? snapshot.value.alarms : [])
+const equipment = computed(() => Array.isArray(snapshot.value.equipment) ? snapshot.value.equipment : [])
+
+const stageRows = computed(() => {
+  const map = new Map()
+  workshops.value.forEach((ws) => {
+    const key = ws.parentStepKey || ws.parentStepName || ws.taskTitle || ws.key
+    const row = map.get(key) || {
+      key,
+      name: ws.parentStepName || ws.taskTitle || ws.name,
+      completed: 0,
+      planned: 0,
+      running: 0,
+      total: 0,
+      workshops: 0
+    }
+    row.completed += ws.completedQty || ws.batchCompletedQty || 0
+    row.planned += ws.plannedQty || ws.batchTargetQty || batchTarget.value
+    row.running += ws.running || 0
+    row.total += ws.total || 0
+    row.workshops += 1
+    map.set(key, row)
+  })
+  return [...map.values()]
+})
 
 const summaryChips = computed(() => [
   { key: 'workshops', label: '车间', value: `${summary.value.workshopCount || workshops.value.length}个` },
   { key: 'active', label: '运转车间', value: `${activeCount.value}个`, tone: activeCount.value > 0 ? 'ok' : '' },
   { key: 'equipment', label: '设备', value: `${summary.value.equipmentTotal || 0}台` },
   { key: 'running', label: '运行设备', value: `${summary.value.running || 0}台`, tone: summary.value.running > 0 ? 'ok' : '' },
+  { key: 'operator', label: '操作员', value: `${summary.value.availableOperators || 0}人` },
   { key: 'fault', label: '故障', value: `${summary.value.fault || 0}台`, tone: summary.value.fault > 0 ? 'warn' : '' }
 ])
 
+const equipmentCards = computed(() => [
+  { key: 'total', label: '设备总数', value: summary.value.equipmentTotal || equipment.value.length || 0, desc: '数据库设备台账' },
+  { key: 'running', label: '运行中', value: summary.value.running || 0, desc: 'RUNNING 状态设备' },
+  { key: 'idle', label: '待机', value: summary.value.idle || 0, desc: 'IDLE 状态设备' },
+  { key: 'fault', label: '故障', value: summary.value.fault || 0, desc: 'FAULT 状态设备' }
+])
+
 const progressChartOption = computed(() => ({
-  grid: { left: 36, right: 18, top: 26, bottom: 28 },
+  tooltip: { trigger: 'axis' },
+  legend: { right: 8, top: 0, textStyle: { color: '#8fb4d8', fontSize: 10 } },
+  grid: { left: 42, right: 18, top: 38, bottom: 34 },
   xAxis: {
     type: 'category',
     data: workshops.value.map((w) => w.name.replace('车间', '')),
@@ -143,19 +202,35 @@ const progressChartOption = computed(() => ({
   },
   yAxis: {
     type: 'value',
-    max: batchTarget.value,
     axisLabel: { color: '#8fb4d8', fontSize: 10 },
     splitLine: { lineStyle: { color: 'rgba(143, 180, 216, 0.12)' } }
   },
-  series: [{
-    type: 'bar',
-    barWidth: 18,
-    data: workshops.value.map((w) => w.batchCompletedQty || 0),
-    itemStyle: {
-      borderRadius: [6, 6, 0, 0],
-      color: '#00c8ff'
+  series: [
+    {
+      name: '计划/批量',
+      type: 'bar',
+      barWidth: 12,
+      data: workshops.value.map((w) => w.batchTargetQty || batchTarget.value),
+      itemStyle: { borderRadius: [6, 6, 0, 0], color: '#0f7cff' }
+    },
+    {
+      name: '完成',
+      type: 'bar',
+      barWidth: 12,
+      data: workshops.value.map((w) => w.batchCompletedQty || 0),
+      itemStyle: { borderRadius: [6, 6, 0, 0], color: '#16e6a4' }
+    },
+    {
+      name: '进度',
+      type: 'line',
+      yAxisIndex: 0,
+      smooth: true,
+      data: workshops.value.map((w) => w.progress || 0),
+      symbolSize: 6,
+      itemStyle: { color: '#ffd84d' },
+      lineStyle: { color: '#ffd84d', width: 2 }
     }
-  }]
+  ]
 }))
 
 const equipmentChartOption = computed(() => ({
@@ -177,6 +252,70 @@ const equipmentChartOption = computed(() => ({
   }]
 }))
 
+const resourceChartOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  legend: { top: 0, textStyle: { color: '#8fb4d8', fontSize: 10 } },
+  grid: { left: 42, right: 18, top: 38, bottom: 30 },
+  xAxis: {
+    type: 'category',
+    data: ['操作员', '车间', '设备'],
+    axisLabel: { color: '#8fb4d8' },
+    axisLine: { lineStyle: { color: 'rgba(143, 180, 216, 0.25)' } }
+  },
+  yAxis: {
+    type: 'value',
+    axisLabel: { color: '#8fb4d8' },
+    splitLine: { lineStyle: { color: 'rgba(143, 180, 216, 0.12)' } }
+  },
+  series: [
+    {
+      name: '总量',
+      type: 'bar',
+      data: [summary.value.availableOperators || 0, summary.value.workshopCount || workshops.value.length, summary.value.equipmentTotal || 0],
+      itemStyle: { color: '#1e9bff', borderRadius: [6, 6, 0, 0] }
+    },
+    {
+      name: '运行/激活',
+      type: 'bar',
+      data: [0, activeCount.value, summary.value.running || 0],
+      itemStyle: { color: '#ffc84d', borderRadius: [6, 6, 0, 0] }
+    }
+  ]
+}))
+
+const stageChartOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  legend: { top: 0, textStyle: { color: '#8fb4d8', fontSize: 10 } },
+  grid: { left: 42, right: 18, top: 38, bottom: 32 },
+  xAxis: {
+    type: 'category',
+    data: stageRows.value.map((s) => s.name),
+    axisLabel: { color: '#8fb4d8' },
+    axisLine: { lineStyle: { color: 'rgba(143, 180, 216, 0.25)' } }
+  },
+  yAxis: {
+    type: 'value',
+    axisLabel: { color: '#8fb4d8' },
+    splitLine: { lineStyle: { color: 'rgba(143, 180, 216, 0.12)' } }
+  },
+  series: [
+    {
+      name: '完成量',
+      type: 'bar',
+      data: stageRows.value.map((s) => s.completed),
+      itemStyle: { color: '#00c8ff', borderRadius: [6, 6, 0, 0] }
+    },
+    {
+      name: '设备数',
+      type: 'line',
+      smooth: true,
+      data: stageRows.value.map((s) => s.total),
+      itemStyle: { color: '#67f58b' },
+      lineStyle: { color: '#67f58b', width: 2 }
+    }
+  ]
+}))
+
 const statusClass = computed(() => {
   const s = snapshot.value.systemStatus
   if (s === '预警') return 'kanban__status--warn'
@@ -186,6 +325,11 @@ const statusClass = computed(() => {
 
 function onSelectWorkshop(key) {
   selectedKey.value = key || ''
+}
+
+function openWorkshop(key) {
+  selectedKey.value = key || ''
+  sceneMode.value = true
 }
 
 onMounted(() => {
@@ -645,15 +789,15 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(390px, 1.35fr) minmax(190px, 0.65fr);
+  grid-template-rows: minmax(520px, 1.7fr) minmax(150px, 0.45fr);
   gap: 12px;
   overflow: hidden;
 }
 
 .scene-panel {
   position: relative;
-  min-height: 0;
-  padding: 10px;
+  min-height: 520px;
+  padding: 6px;
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(8, 34, 65, 0.72), rgba(5, 19, 38, 0.92)),
@@ -702,6 +846,251 @@ onUnmounted(() => {
 
 .scene-panel :deep(.workshop-scene__detail) {
   display: none;
+}
+
+.scene-panel--full {
+  flex: 1;
+  min-height: 0;
+}
+
+.board-kpis {
+  align-items: stretch;
+}
+
+.scene-entry {
+  min-width: 190px;
+  padding: 10px 16px;
+  color: #e8f7ff;
+  text-align: left;
+  cursor: pointer;
+  background:
+    linear-gradient(135deg, rgba(0, 170, 255, 0.28), rgba(0, 255, 200, 0.12)),
+    rgba(3, 18, 40, 0.76);
+  border: 1px solid rgba(0, 216, 255, 0.5);
+  border-radius: 6px;
+  box-shadow: inset 0 0 22px rgba(0, 200, 255, 0.12), 0 0 18px rgba(0, 160, 255, 0.16);
+}
+
+.scene-entry strong,
+.scene-entry span {
+  display: block;
+}
+
+.scene-entry strong {
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+
+.scene-entry span {
+  margin-top: 3px;
+  color: #8fdcff;
+  font-size: 11px;
+}
+
+.dashboard-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1.1fr;
+  grid-template-rows: minmax(250px, 1fr) minmax(250px, 1fr);
+  gap: 12px;
+  overflow: hidden;
+}
+
+.dashboard-card {
+  position: relative;
+  min-height: 0;
+  padding: 42px 12px 12px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(8, 34, 70, 0.86), rgba(4, 16, 36, 0.96)),
+    radial-gradient(circle at 70% 0%, rgba(0, 170, 255, 0.16), transparent 55%);
+  border: 1px solid rgba(58, 178, 255, 0.38);
+  border-radius: 8px;
+  box-shadow: inset 0 0 30px rgba(0, 126, 255, 0.12), 0 0 18px rgba(0, 50, 120, 0.24);
+}
+
+.dashboard-card::before,
+.dashboard-card::after {
+  content: '';
+  position: absolute;
+  width: 28px;
+  height: 18px;
+  border-color: rgba(118, 223, 255, 0.75);
+  pointer-events: none;
+}
+
+.dashboard-card::before {
+  left: 0;
+  top: 0;
+  border-left: 2px solid;
+  border-top: 2px solid;
+}
+
+.dashboard-card::after {
+  right: 0;
+  bottom: 0;
+  border-right: 2px solid;
+  border-bottom: 2px solid;
+}
+
+.dashboard-card--equipment {
+  grid-column: span 2;
+}
+
+.panel-title {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(84, 194, 255, 0.16);
+}
+
+.panel-title strong {
+  color: #eaf7ff;
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+
+.panel-title span {
+  color: #79a9cf;
+  font-size: 10px;
+}
+
+.equipment-layout {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) 1.1fr;
+  gap: 12px;
+}
+
+.equipment-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-content: center;
+}
+
+.equipment-card {
+  min-height: 84px;
+  padding: 12px;
+  background: rgba(0, 70, 150, 0.22);
+  border: 1px solid rgba(76, 183, 255, 0.35);
+  border-radius: 8px;
+  box-shadow: inset 0 0 22px rgba(0, 150, 255, 0.08);
+}
+
+.equipment-card span,
+.equipment-card em {
+  display: block;
+  color: #85a9c6;
+  font-style: normal;
+  font-size: 11px;
+}
+
+.equipment-card strong {
+  display: block;
+  margin: 6px 0;
+  color: #37e8b0;
+  font-size: 26px;
+}
+
+.live-table {
+  height: 100%;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.live-table__head,
+.live-table__row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.9fr 0.7fr 0.8fr 0.7fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.live-table__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 7px 10px;
+  color: #6fb6e4;
+  font-size: 11px;
+  background: rgba(4, 18, 38, 0.96);
+  border-bottom: 1px solid rgba(76, 183, 255, 0.2);
+}
+
+.live-table__row {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  color: #dbefff;
+  text-align: left;
+  cursor: pointer;
+  background: rgba(0, 60, 130, 0.16);
+  border: 1px solid rgba(65, 168, 238, 0.18);
+  border-radius: 5px;
+}
+
+.live-table__row:hover {
+  border-color: rgba(0, 225, 255, 0.55);
+  background: rgba(0, 126, 255, 0.22);
+}
+
+.live-table__row em {
+  color: #35e6a8;
+  font-style: normal;
+}
+
+.live-table__row strong {
+  color: #f9d65c;
+}
+
+.alarm-list {
+  height: 100%;
+  overflow: auto;
+}
+
+.alarm-empty {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #7fa4c5;
+}
+
+.alarm-item {
+  display: grid;
+  grid-template-columns: 74px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 9px 10px;
+  background: rgba(255, 128, 0, 0.08);
+  border: 1px solid rgba(255, 190, 88, 0.2);
+  border-radius: 6px;
+}
+
+.alarm-item strong {
+  color: #ffc45d;
+}
+
+.alarm-item span {
+  min-width: 0;
+  color: #dbefff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alarm-item em {
+  color: #8aa8c2;
+  font-style: normal;
+  font-size: 10px;
 }
 
 .scene-detail {

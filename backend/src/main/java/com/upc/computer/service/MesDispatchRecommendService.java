@@ -98,11 +98,13 @@ public class MesDispatchRecommendService {
         List<ProcessStep> steps = processStepMapper.stepList().stream()
                 .filter(s -> routeId.equals(s.getRouteId()))
                 .filter(s -> s.getStatus() == null || s.getStatus() == 1)
+                .filter(ProductionWorkshopCatalog::isProductionStep)
                 .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
                 .toList();
         if (steps.isEmpty()) {
             steps = processStepMapper.stepList().stream()
                     .filter(s -> Long.valueOf(1L).equals(s.getRouteId()))
+                    .filter(ProductionWorkshopCatalog::isProductionStep)
                     .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
                     .toList();
         }
@@ -114,9 +116,13 @@ public class MesDispatchRecommendService {
 
         String workOrderNo = wo != null ? wo.getWorkOrderNo() : "待生成";
         List<Map<String, Object>> recommendations = new ArrayList<>();
+        Set<Long> reservedOperatorIds = new HashSet<>();
 
         for (ProcessStep step : steps) {
-            OperatorPick pick = pickOperator(step, operators, allDispatches);
+            OperatorPick pick = pickOperator(step, operators, allDispatches, reservedOperatorIds);
+            if (pick.userId() != null) {
+                reservedOperatorIds.add(pick.userId());
+            }
             EquipmentPick equipPick = pickEquipment(step, allEquipment, allDispatches);
             double hoursPerUnit = step.getStandardWorkHours() != null
                     ? step.getStandardWorkHours().doubleValue() : 1.0;
@@ -129,6 +135,8 @@ public class MesDispatchRecommendService {
             row.put("recommendedOperator", pick.username());
             row.put("recommendedOperatorName", pick.realName());
             row.put("recommendReason", pick.reason());
+            ProductionWorkshopCatalog.WorkshopDef ws = OperatorWorkshopCatalog.workshopForOperator(pick.username());
+            row.put("workshopName", ws != null ? ws.workshopName() : "");
             row.put("equipmentCode", equipPick.code());
             row.put("equipmentName", equipPick.name());
             row.put("estimatedHours", estimatedHours);
@@ -149,7 +157,198 @@ public class MesDispatchRecommendService {
         result.put("hasWorkOrder", wo != null);
         result.put("summary", String.format("计划 %s 共 %d 道工序，已生成智能派工推荐",
                 planNo, recommendations.size()));
+        result.put("schedulingSteps", buildDispatchSchedulingSteps(planNo, planQty, steps,
+                operators, allEquipment, recommendations, wo));
+        result.put("evidenceBase", buildDispatchEvidenceBase(planNo, planQty, steps,
+                operators, allEquipment, recommendations, wo));
         return result;
+    }
+
+    private List<Map<String, Object>> buildDispatchSchedulingSteps(String planNo, int planQty,
+                                                                   List<ProcessStep> steps,
+                                                                   List<User> operators,
+                                                                   List<Equipment> allEquipment,
+                                                                   List<Map<String, Object>> recommendations,
+                                                                   WorkOrder wo) {
+        List<Map<String, Object>> flow = new ArrayList<>();
+        String stepNames = steps.stream().map(ProcessStep::getStepName).collect(Collectors.joining("→"));
+        long idleEq = allEquipment.stream().filter(e -> "IDLE".equals(e.getStatus())).count();
+        String operatorNames = operators.stream().map(User::getRealName).collect(Collectors.joining("、"));
+
+        List<String> routeLines = List.of(
+                String.format("计划号：%s", planNo),
+                String.format("排产量：%d 台", planQty),
+                String.format("工序数：%d 道", steps.size()),
+                String.format("工序清单：%s", stepNames));
+        flow.add(dispatchThought("route", "工艺工程师", "发现", "发现",
+                "加载计划关联的工艺路线",
+                String.format("「%s」展开 %d 道工序：%s；累计证据库 1 条。", planNo, steps.size(), stepNames),
+                String.format("【工艺工程师】读取计划 %s，排产量 %d 台，展开工艺路线共 %d 道工序：%s。",
+                        planNo, planQty, steps.size(), stepNames),
+                routeLines, 1));
+
+        long runEq = allEquipment.stream().filter(e -> "RUNNING".equals(e.getStatus())).count();
+        List<String> eqLines = List.of(
+                String.format("设备总数：%d 台", allEquipment.size()),
+                String.format("空闲：%d 台，运行中：%d 台", idleEq, runEq),
+                "按各工序设备类型筛选可用机台");
+        flow.add(dispatchThought("equipment", "设备调度员", "派遣", "派遣",
+                "扫描设备状态并匹配工序",
+                String.format("「设备池」扫描 %d 台，空闲 %d 台；累计证据库 2 条。", allEquipment.size(), idleEq),
+                String.format("【设备调度员】扫描全厂 %d 台设备（空闲 %d 台），按各工序设备类型筛选可用机台。",
+                        allEquipment.size(), idleEq),
+                eqLines, 2));
+
+        List<String> opLines = new ArrayList<>();
+        opLines.add(String.format("在岗操作员：%d 人", operators.size()));
+        for (User op : operators) {
+            opLines.add(String.format("· %s（%s）", op.getRealName(), op.getDepartment()));
+        }
+        if (operators.isEmpty()) {
+            opLines.add("· 暂无在岗操作员");
+        }
+        flow.add(dispatchThought("operator", "人员协调员", "执行", "执行",
+                "评估操作员岗位与在途负荷",
+                String.format("「人员池」统计 %d 人在岗；累计证据库 %d 条。", operators.size(), 2 + operators.size()),
+                String.format("【人员协调员】统计在岗操作员 %d 人：%s；逐一计算岗位匹配度、空闲度与历史任务权重。",
+                        operators.size(), operatorNames.isBlank() ? "暂无" : operatorNames),
+                opLines, 2 + operators.size()));
+
+        List<String> matchLines = new ArrayList<>();
+        for (Map<String, Object> rec : recommendations) {
+            matchLines.add(String.format("%s → %s @ %s（%s 台，%s h）：%s",
+                    rec.get("processStep"), rec.get("recommendedOperatorName"), rec.get("equipmentName"),
+                    rec.get("planQty"), rec.get("estimatedHours"), rec.get("recommendReason")));
+        }
+        StringBuilder matchDetail = new StringBuilder();
+        for (Map<String, Object> rec : recommendations) {
+            matchDetail.append(String.format("「%s」→%s@%s；",
+                    rec.get("processStep"), rec.get("recommendedOperatorName"), rec.get("equipmentName")));
+        }
+        flow.add(dispatchThought("match", "派工优化员", "执行", "执行",
+                "逐道工序匹配负责人与设备",
+                String.format("「智能匹配」完成 %d 道工序；累计证据库 %d 条。", recommendations.size(), 3 + matchLines.size()),
+                String.format("【派工优化员】完成 %d 道工序匹配：%s",
+                        recommendations.size(), matchDetail.length() > 0 ? matchDetail : "无推荐"),
+                matchLines, 3 + matchLines.size()));
+
+        long idleCount = recommendations.stream()
+                .filter(r -> String.valueOf(r.get("recommendReason")).contains("空闲"))
+                .count();
+        List<String> resultLines = List.of(
+                String.format("推荐工序：%d 道", recommendations.size()),
+                String.format("优先空闲人员：%d 道", idleCount),
+                wo != null ? "已有工单，将补全派工" : "确认后将自动生成工单并派工");
+        flow.add(dispatchThought("result", "派工汇总员", "发现", "发现",
+                "输出派工方案",
+                String.format("「派工结论」%d 道工序推荐完成；累计证据库 %d 条。", recommendations.size(), 4 + resultLines.size()),
+                String.format("【派工汇总员】生成派工方案：%d 道工序，其中 %d 道优先分配给空闲人员；确认后将创建工单并正式派工。",
+                        recommendations.size(), idleCount),
+                resultLines, 4 + resultLines.size()));
+        return flow;
+    }
+
+    private List<Map<String, Object>> buildDispatchEvidenceBase(String planNo, int planQty,
+                                                                 List<ProcessStep> steps,
+                                                                 List<User> operators,
+                                                                 List<Equipment> allEquipment,
+                                                                 List<Map<String, Object>> recommendations,
+                                                                 WorkOrder wo) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        Map<String, Object> planMetrics = new LinkedHashMap<>();
+        planMetrics.put("计划号", planNo);
+        planMetrics.put("计划数量", planQty + " 台");
+        planMetrics.put("工序数", steps.size() + " 道");
+        planMetrics.put("工序清单", steps.stream().map(ProcessStep::getStepName).collect(Collectors.joining("、")));
+        list.add(evidenceItem("dv-plan", "APS", "计划", planNo,
+                "生产计划数据",
+                String.format("【计划数据】%s 需生产 %d 台，工艺路线含 %d 道工序。", planNo, planQty, steps.size()),
+                95, List.of("route"), planMetrics));
+
+        long idleEq = allEquipment.stream().filter(e -> "IDLE".equals(e.getStatus())).count();
+        long runEq = allEquipment.stream().filter(e -> "RUNNING".equals(e.getStatus())).count();
+        Map<String, Object> eqMetrics = new LinkedHashMap<>();
+        eqMetrics.put("设备总数", allEquipment.size() + " 台");
+        eqMetrics.put("空闲", idleEq + " 台");
+        eqMetrics.put("运行中", runEq + " 台");
+        list.add(evidenceItem("dv-eq", "MES", "设备", "EQ-STATUS",
+                "设备资源数据",
+                String.format("【设备数据】全厂 %d 台设备，空闲 %d 台、运行 %d 台，按工序类型逐一匹配。",
+                        allEquipment.size(), idleEq, runEq),
+                90, List.of("equipment", "match"), eqMetrics));
+
+        for (User op : operators) {
+            Map<String, Object> opMetrics = new LinkedHashMap<>();
+            opMetrics.put("姓名", op.getRealName());
+            opMetrics.put("部门", op.getDepartment());
+            opMetrics.put("账号", op.getUsername());
+            list.add(evidenceItem("dv-op-" + op.getUserId(), "HR", "人员", op.getUsername(),
+                    op.getRealName(),
+                    String.format("【人员数据】%s（%s）在岗可派工", op.getRealName(), op.getDepartment()),
+                    88, List.of("operator", "match"), opMetrics));
+        }
+
+        for (int i = 0; i < recommendations.size(); i++) {
+            Map<String, Object> rec = recommendations.get(i);
+            Map<String, Object> recMetrics = new LinkedHashMap<>();
+            recMetrics.put("工序", rec.get("processStep"));
+            recMetrics.put("推荐人", rec.get("recommendedOperatorName"));
+            recMetrics.put("设备", rec.get("equipmentName"));
+            recMetrics.put("派工数量", rec.get("planQty") + " 台");
+            recMetrics.put("预计工时", rec.get("estimatedHours") + " h");
+            recMetrics.put("推荐原因", rec.get("recommendReason"));
+            list.add(evidenceItem("dv-rec-" + i, "AI", "推荐", String.valueOf(rec.get("processStep")),
+                    String.valueOf(rec.get("processStep")) + " 派工推荐",
+                    String.format("【匹配结果】%s → 操作员 %s、设备 %s，派工 %s 台，原因：%s",
+                            rec.get("processStep"), rec.get("recommendedOperatorName"),
+                            rec.get("equipmentName"), rec.get("planQty"), rec.get("recommendReason")),
+                    86, List.of("match", "result"), recMetrics));
+        }
+
+        Map<String, Object> woMetrics = new LinkedHashMap<>();
+        woMetrics.put("工单号", wo != null ? wo.getWorkOrderNo() : "待生成");
+        woMetrics.put("状态", wo != null ? "已有工单" : "确认后生成");
+        list.add(evidenceItem("dv-wo", "MES", "工单", wo != null ? wo.getWorkOrderNo() : "待生成",
+                "工单派工状态",
+                wo != null ? "【工单数据】已有工单 " + wo.getWorkOrderNo() + "，将按推荐补全派工"
+                        : "【工单数据】尚无工单，确认后将自动生成并派工",
+                84, List.of("result"), woMetrics));
+        return list;
+    }
+
+    private Map<String, Object> dispatchThought(String key, String agentName, String actionType, String badge,
+                                                String action, String summary, String thought,
+                                                List<String> detailLines, int evidenceCount) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("key", key);
+        row.put("agentName", agentName);
+        row.put("actionType", actionType);
+        row.put("badge", badge);
+        row.put("title", action);
+        row.put("action", action);
+        row.put("summary", summary);
+        row.put("thought", thought);
+        row.put("detail", thought);
+        row.put("detailLines", detailLines != null ? detailLines : List.of());
+        row.put("evidenceCount", evidenceCount);
+        row.put("status", "success");
+        return row;
+    }
+
+    private Map<String, Object> evidenceItem(String id, String source, String tag, String code,
+                                             String title, String snippet, int reliability,
+                                             List<String> relatedSteps, Map<String, Object> metrics) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", id);
+        row.put("source", source);
+        row.put("tag", tag);
+        row.put("code", code);
+        row.put("title", title);
+        row.put("snippet", snippet);
+        row.put("reliability", reliability);
+        row.put("relatedSteps", relatedSteps);
+        row.put("metrics", metrics != null ? metrics : Map.of());
+        return row;
     }
 
     private boolean hasActiveDispatches(WorkOrder wo) {
@@ -157,17 +356,50 @@ public class MesDispatchRecommendService {
                 .anyMatch(d -> wo.getWorkOrderId().equals(d.getWorkOrderId()));
     }
 
+    /**
+     * 为单道工序推荐操作员（批量派工时可传入本批次已占用的操作员 ID）。
+     */
+    public OperatorPick recommendOperator(ProcessStep step, Set<Long> excludeOperatorIds) {
+        return pickOperator(step, activeOperators(), dispatchTaskMapper.dispatchList(), excludeOperatorIds);
+    }
+
     private OperatorPick pickOperator(ProcessStep step, List<User> operators, List<DispatchTask> dispatches) {
+        return pickOperator(step, operators, dispatches, Set.of());
+    }
+
+    private OperatorPick pickOperator(ProcessStep step, List<User> operators, List<DispatchTask> dispatches,
+                                      Set<Long> reservedOperatorIds) {
+        String primaryUsername = OperatorWorkshopCatalog.primaryOperatorUsername(step);
+        ProductionWorkshopCatalog.ProcessStageDef stage = ProductionWorkshopCatalog.stageForStep(step);
+        List<User> eligible = operators.stream()
+                .filter(user -> OperatorWorkshopCatalog.isBoundOperator(user.getUsername()))
+                .filter(user -> OperatorWorkshopCatalog.operatorMatchesStep(user.getUsername(), step))
+                .toList();
+        if (eligible.isEmpty()) {
+            String stageName = stage != null ? stage.stepName() : "该工序";
+            return new OperatorPick(null, "", "", "",
+                    "工序「" + stageName + "」暂无绑定车间的空闲操作员", 0, 0);
+        }
         String stepDept = resolveStepDepartment(step);
         List<ScoredOperator> scored = new ArrayList<>();
 
-        for (User user : operators) {
+        for (User user : eligible) {
+            if (reservedOperatorIds != null && reservedOperatorIds.contains(user.getUserId())) {
+                continue;
+            }
             int activeLoad = countActiveLoad(user.getUserId(), dispatches);
+            if (activeLoad > 0) {
+                continue;
+            }
             int historyCount = countHistory(user.getUserId(), dispatches);
             boolean deptMatch = departmentMatches(user.getDepartment(), stepDept);
             boolean idle = activeLoad == 0;
+            boolean primary = primaryUsername != null && primaryUsername.equals(user.getUsername());
 
             int score = 0;
+            if (primary) {
+                score += 1000;
+            }
             if (deptMatch) {
                 score += 100;
             }
@@ -183,21 +415,25 @@ public class MesDispatchRecommendService {
         scored.sort(Comparator.comparingInt(ScoredOperator::score).reversed());
         ScoredOperator best = scored.isEmpty() ? null : scored.get(0);
         if (best == null) {
-            return new OperatorPick("wang_operator", "王操作", "生产一部",
-                    "默认推荐（无可用操作员）", 0, 0);
+            String stageName = stage != null ? stage.stepName() : "该工序";
+            return new OperatorPick(null, "", "", "",
+                    "工序「" + stageName + "」暂无空闲操作员（本批次已占用其他工序人员）", 0, 0);
         }
 
-        String reason = buildRecommendReason(best);
-        return new OperatorPick(best.user().getUsername(), best.user().getRealName(),
+        String reason = buildRecommendReason(best, primaryUsername);
+        return new OperatorPick(best.user().getUserId(), best.user().getUsername(), best.user().getRealName(),
                 best.user().getDepartment(), reason, best.activeLoad(), best.historyCount());
     }
 
-    private String buildRecommendReason(ScoredOperator best) {
+    private String buildRecommendReason(ScoredOperator best, String primaryUsername) {
         List<String> parts = new ArrayList<>();
-        if (best.deptMatch()) {
+        if (primaryUsername != null && primaryUsername.equals(best.user().getUsername())) {
+            ProductionWorkshopCatalog.WorkshopDef ws = OperatorWorkshopCatalog.workshopForOperator(primaryUsername);
+            parts.add("本工序固定车间负责人" + (ws != null ? "（" + ws.workshopName() + "）" : ""));
+        } else if (best.deptMatch()) {
             parts.add("岗位匹配「" + best.user().getDepartment() + "」");
         } else {
-            parts.add("跨岗位调配");
+            parts.add("同车间替补");
         }
         if (best.idle()) {
             parts.add("当前空闲");
@@ -254,9 +490,8 @@ public class MesDispatchRecommendService {
             return "生产部";
         }
         return switch (equipType) {
-            case "贴附机", "组装线" -> "生产一部";
-            case "老化架", "调校台", "包装线" -> "生产二部";
-            default -> "生产部";
+            case "显示屏线", "主板线", "贴附机", "组装线" -> "生产一部";
+            default -> "生产一部";
         };
     }
 
@@ -331,8 +566,8 @@ public class MesDispatchRecommendService {
         return BigDecimal.valueOf(v).setScale(1, RoundingMode.HALF_UP).doubleValue();
     }
 
-    private record OperatorPick(String username, String realName, String department,
-                                String reason, int activeLoad, int historyCount) {
+    public static record OperatorPick(Long userId, String username, String realName, String department,
+                                      String reason, int activeLoad, int historyCount) {
     }
 
     private record EquipmentPick(String code, String name) {

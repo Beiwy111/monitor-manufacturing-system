@@ -71,6 +71,8 @@ public class MesSnapshotService {
     @Autowired
     private ProcessStepMapper processStepMapper;
     @Autowired
+    private ProcessRouteMapper processRouteMapper;
+    @Autowired
     private EquipmentMaintenanceRecordMapper equipmentMaintenanceRecordMapper;
     @Autowired
     private MesRuntimeStore mesRuntimeStore;
@@ -99,6 +101,7 @@ public class MesSnapshotService {
         List<CostSettlement> settlements = costSettlementMapper.settlementList();
         List<OperationLog> dbLogs = operationLogMapper.operationLogList();
         List<ProcessStep> steps = processStepMapper.stepList();
+        List<ProcessRoute> routes = processRouteMapper.routeList();
         List<EquipmentMaintenanceRecord> maintenanceRecords = equipmentMaintenanceRecordMapper.maintenanceList();
 
         MesRuntimeState runtime = mesRuntimeStore.load();
@@ -126,7 +129,7 @@ public class MesSnapshotService {
         snapshot.put("sysRoles", mapRoles(roles, users));
         snapshot.put("orders", mapOrders(orders, itemsByOrderId, planByOrderId, woByPlanId, deliveries, userById, runtime));
         snapshot.put("plans", mapPlans(plans, planItems, orderById, itemsByOrderId, userById, runtime));
-        snapshot.put("workOrders", mapWorkOrders(workOrders, planById, orderById, itemsByOrderId, userById));
+        snapshot.put("workOrders", mapWorkOrders(workOrders, planById, orderById, itemsByOrderId, userById, dispatches, stepById));
         snapshot.put("dispatches", mapDispatches(dispatches, woById, userById, stepById, equipmentById, runtime));
         snapshot.put("workReports", mapReports(reports, woById, dispatches, userById, stepById));
         snapshot.put("inspections", mapInspections(inspections, woById, planById, itemsByOrderId, orderById, userById, runtime));
@@ -145,7 +148,7 @@ public class MesSnapshotService {
         snapshot.put("customers", CustomerCatalog.buildList(orders, deliveries, aftersaleCases));
         snapshot.put("suppliers", buildSuppliers(purchaseOrders));
         snapshot.put("purchaseDemands", buildPurchaseDemands(inventories, materialById));
-        snapshot.put("processGuide", buildProcessGuide(materials, materialById));
+        snapshot.put("processGuide", buildProcessGuide(materials, materialById, routes, steps));
         snapshot.put("bomGuide", buildBomGuide(materials, materialById));
         snapshot.put("productModels", buildProductModels(materials));
         snapshot.put("processSteps", buildProcessStepNames());
@@ -324,13 +327,19 @@ public class MesSnapshotService {
                                                     Map<Long, ProductionPlan> planById,
                                                     Map<Long, CustomerOrder> orderById,
                                                     Map<Long, List<CustomerOrderItem>> itemsByOrderId,
-                                                    Map<Long, User> userById) {
+                                                    Map<Long, User> userById,
+                                                    List<DispatchTask> dispatches,
+                                                    Map<Long, ProcessStep> stepById) {
         List<Map<String, Object>> list = new ArrayList<>();
         for (WorkOrder wo : workOrders) {
             ProductionPlan plan = planById.get(wo.getPlanId());
             CustomerOrder order = plan != null ? orderById.get(plan.getSourceOrderId()) : null;
             CustomerOrderItem item = order != null ? firstItem(itemsByOrderId.get(order.getOrderId())) : null;
             User manager = userById.get(wo.getCreatedBy());
+            List<DispatchTask> woDispatches = dispatches.stream()
+                    .filter(d -> wo.getWorkOrderId().equals(d.getWorkOrderId()))
+                    .toList();
+            int finishedQty = ProductionWorkshopCatalog.finishedGoodsQty(woDispatches, stepById);
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", wo.getWorkOrderNo());
             m.put("planId", plan != null ? plan.getPlanNo() : "");
@@ -338,7 +347,7 @@ public class MesSnapshotService {
             m.put("orderNo", order != null ? order.getOrderNo() : "");
             m.put("productModel", item != null ? item.getProductName() : "");
             m.put("quantity", intVal(wo.getPlannedQuantity()));
-            m.put("completedQty", intVal(wo.getCompletedQuantity()));
+            m.put("completedQty", finishedQty);
             m.put("qualifiedQty", intVal(wo.getQualifiedQuantity()));
             m.put("status", MesStatusMapper.toWorkOrderCn(wo.getStatus()));
             m.put("line", "装配线 A");
@@ -369,6 +378,19 @@ public class MesSnapshotService {
             m.put("workOrderId", wo != null ? wo.getWorkOrderNo() : "");
             m.put("workOrderNo", wo != null ? wo.getWorkOrderNo() : "");
             m.put("processStep", extra.getOrDefault("processStep", step != null ? step.getStepName() : ""));
+            m.put("productionStep", ProductionWorkshopCatalog.isProductionStep(step));
+            m.put("finalProductionStep", ProductionWorkshopCatalog.isFinalProductionStep(step));
+            ProductionWorkshopCatalog.ProcessStageDef stage = ProductionWorkshopCatalog.stageForStep(step);
+            ProductionWorkshopCatalog.WorkshopDef opWs = OperatorWorkshopCatalog.workshopForOperator(
+                    op != null ? op.getUsername() : String.valueOf(extra.getOrDefault("operator", "")));
+            String workshopName = extra.containsKey("workshopName")
+                    ? String.valueOf(extra.get("workshopName"))
+                    : (opWs != null ? opWs.workshopName() : resolveWorkshopName(step, eq));
+            m.put("workshopName", workshopName);
+            m.put("operatorWorkshop", opWs != null ? opWs.workshopName() : workshopName);
+            m.put("stageName", stage != null ? stage.stepName() : "");
+            m.put("stageOrder", stage != null ? stage.stepOrder() : 0);
+            m.put("totalStages", ProductionWorkshopCatalog.PRODUCTION_STAGES.size());
             m.put("equipment", extra.getOrDefault("equipment", eq != null ? eq.getEquipmentName() : ""));
             m.put("operator", op != null ? op.getUsername() : extra.getOrDefault("operator", ""));
             m.put("operatorName", extra.getOrDefault("operatorName", op != null ? op.getRealName() : ""));
@@ -819,26 +841,50 @@ public class MesSnapshotService {
         return list;
     }
 
-    private Map<String, Object> buildProcessGuide(List<Material> materials, Map<Long, Material> materialById) {
-        List<String> stepNames = processStepMapper.stepList().stream()
+    private Map<String, Object> buildProcessGuide(List<Material> materials, Map<Long, Material> materialById,
+                                                  List<ProcessRoute> routes, List<ProcessStep> steps) {
+        Map<Long, List<ProcessStep>> stepsByRoute = steps.stream()
                 .filter(s -> s.getStatus() == null || s.getStatus() == 1)
-                .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
-                .map(ProcessStep::getStepName)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
+                .collect(Collectors.groupingBy(ProcessStep::getRouteId));
         Map<String, Object> guide = new LinkedHashMap<>();
         for (Material mat : materials) {
             if (!"FINISHED".equals(mat.getMaterialType())) {
                 continue;
             }
+            ProcessRoute route = routes.stream()
+                    .filter(r -> Objects.equals(r.getMaterialId(), mat.getMaterialId()))
+                    .filter(r -> r.getStatus() == null || r.getStatus() == 1)
+                    .findFirst()
+                    .orElse(null);
+            List<String> stepNames = route != null
+                    ? stepsByRoute.getOrDefault(route.getRouteId(), List.of()).stream()
+                    .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
+                    .map(ProcessStep::getStepName)
+                    .filter(Objects::nonNull)
+                    .toList()
+                    : steps.stream()
+                    .filter(s -> s.getStatus() == null || s.getStatus() == 1)
+                    .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
+                    .map(ProcessStep::getStepName)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
             Map<String, Object> g = new LinkedHashMap<>();
             g.put("steps", stepNames);
-            g.put("keyPoints", mat.getMaterialName() + "：" + (mat.getSpecification() != null ? mat.getSpecification() : "按工艺路线执行"));
+            g.put("keyPoints", mat.getMaterialName() + "：" + (route != null ? route.getRouteName() + " " + route.getVersionNo()
+                    : (mat.getSpecification() != null ? mat.getSpecification() : "按工艺路线执行")));
             guide.put(mat.getMaterialCode(), g);
             guide.put(mat.getMaterialName(), g);
         }
         return guide;
+    }
+
+    private String resolveWorkshopName(ProcessStep step, Equipment eq) {
+        if (eq != null && eq.getWorkshop() != null && !eq.getWorkshop().isBlank()) {
+            return eq.getWorkshop().trim();
+        }
+        ProductionWorkshopCatalog.WorkshopDef ws = ProductionWorkshopCatalog.workshopForStep(step);
+        return ws != null ? ws.workshopName() : "";
     }
 
     private List<Map<String, Object>> buildProductModels(List<Material> materials) {

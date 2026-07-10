@@ -1,6 +1,7 @@
-import * as THREE from 'three'
+﻿import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
+import { PRODUCTION_STAGES } from '@/utils/productionProgress'
 
 const STATUS_COLOR = {
   running: 0x43a047,
@@ -16,16 +17,50 @@ const MACHINE_STATUS = {
   MAINTENANCE: 0xef6c00
 }
 
-/** 五车间布局：略呈弧形排布，便于全景俯视 */
-export const WORKSHOP_LAYOUT = [
-  { key: 'attach', x: -20, z: 0, rot: 0, w: 9.2, d: 8.2, h: 5.2, accent: 0x1565c0, name: '贴附车间' },
-  { key: 'assembly', x: -10, z: 0, rot: 0, w: 9.6, d: 8.6, h: 5.5, accent: 0x00838f, name: '组装车间' },
-  { key: 'aging', x: 0, z: 0, rot: 0, w: 9.2, d: 8.2, h: 5.8, accent: 0x6a1b9a, name: '老化测试车间' },
-  { key: 'tuning', x: 10, z: 0, rot: 0, w: 8.8, d: 8.2, h: 5.1, accent: 0xef6c00, name: '调校质检车间' },
-  { key: 'packing', x: 20, z: 0, rot: 0, w: 9.2, d: 8.6, h: 5.2, accent: 0x2e7d32, name: '包装发货车间' }
-]
+const STAGE_ACCENT = {
+  display: 0x5e35b1,
+  motherboard: 0x1565c0,
+  attach: 0x00838f,
+  assembly: 0x2e7d32
+}
 
-/** 将 API 返回与 3D 布局合并（不注入假数据，仅补全布局 key） */
+/** 大屏整体放大系数（车间 + 设备 + 展示显示器） */
+const SCENE_SCALE = 1.15
+const MACHINE_SCALE = 1.22
+const SHOWCASE_MONITOR_SCALE = 1.25
+
+/** 四道工序 × 每道 2~3 车间：从左往右流水线排布（X 轴=工序，Z 轴=同工序内车间） */
+function buildWorkshopLayout() {
+  const layouts = []
+  const stageGap = 32
+  const wsGap = 11
+  const startX = -((PRODUCTION_STAGES.length - 1) * stageGap) / 2
+
+  PRODUCTION_STAGES.forEach((stage, stageIdx) => {
+    const count = stage.workshops.length
+    const startZ = -((count - 1) * wsGap) / 2
+    stage.workshops.forEach((ws, wsIdx) => {
+      layouts.push({
+        key: ws.key,
+        parentStepKey: stage.stepKey,
+        parentStepName: stage.stepName,
+        x: startX + stageIdx * stageGap,
+        z: startZ + wsIdx * wsGap,
+        rot: 0,
+        w: 8.6 * SCENE_SCALE,
+        d: 7.6 * SCENE_SCALE,
+        h: 5.0 * SCENE_SCALE,
+        accent: STAGE_ACCENT[stage.stepKey] || 0x1565c0,
+        name: ws.name
+      })
+    })
+  })
+  return layouts
+}
+
+export const WORKSHOP_LAYOUT = buildWorkshopLayout()
+
+/** 将 API 返回与 3D 布局合并 */
 export function mergeWorkshopData(apiList) {
   return WORKSHOP_LAYOUT.map((layout) => {
     const hit = (apiList || []).find((w) => w.key === layout.key)
@@ -33,8 +68,10 @@ export function mergeWorkshopData(apiList) {
       return {
         key: layout.key,
         name: layout.name,
+        parentStepKey: layout.parentStepKey,
+        parentStepName: layout.parentStepName,
         department: '',
-        taskTitle: '',
+        taskTitle: layout.parentStepName,
         taskDescription: '',
         workOrderNo: '',
         progress: 0,
@@ -54,6 +91,8 @@ export function mergeWorkshopData(apiList) {
       ...hit,
       key: layout.key,
       name: hit.name || layout.name,
+      parentStepKey: hit.parentStepKey || layout.parentStepKey,
+      parentStepName: hit.parentStepName || layout.parentStepName,
       progress,
       completedQty: hit.completedQty ?? 0,
       plannedQty: hit.plannedQty ?? 0,
@@ -70,7 +109,6 @@ export function mergeWorkshopData(apiList) {
     }
   })
 }
-
 function buildLabelCardHtml() {
   return `
     <div class="workshop-3d-card">
@@ -86,7 +124,7 @@ function updateLabelCard(labelEl, data) {
   if (!labelEl || !data) return
   const pct = Math.min(100, Math.max(0, data.progress ?? 0))
   labelEl.querySelector('.workshop-3d-card__name').textContent = data.name || ''
-  labelEl.querySelector('.workshop-3d-card__task').textContent = data.taskTitle || '当前工序'
+  labelEl.querySelector('.workshop-3d-card__task').textContent = data.taskTitle || data.parentStepName || '当前工序'
   labelEl.querySelector('.workshop-3d-card__bar span').style.width = `${pct}%`
   labelEl.querySelector('.workshop-3d-card__meta').textContent =
     data.progressLabel || `已完成 ${data.completedQty ?? 0} / ${data.plannedQty ?? 0} 台 · ${pct}%`
@@ -145,61 +183,42 @@ function createMonitor(scale = 1, on = true, screenHue = 0x1565c0) {
 }
 
 const WORKSHOP_SCREEN_HUES = {
-  attach: 0x3949ab,
-  assembly: 0x00838f,
-  aging: 0x7b1fa2,
-  tuning: 0xff8f00,
-  packing: 0x2e7d32
+  display: 0x5e35b1,
+  motherboard: 0x1565c0,
+  attach: 0x00838f,
+  assembly: 0x2e7d32
 }
 
-/** 各车间成品/在制品展示架 */
 function addWorkshopShowcase(showcaseGroup, layout, data) {
   const { w, d } = layout
   const progress = data?.progress ?? 0
   const running = (data?.running ?? 0) > 0 || progress > 0
-  const hue = WORKSHOP_SCREEN_HUES[layout.key] || 0x1565c0
+  const stepKey = layout.parentStepKey || layout.key
+  const hue = WORKSHOP_SCREEN_HUES[stepKey] || 0x1565c0
   showcaseGroup.clear()
 
-  if (layout.key === 'attach') {
+  if (stepKey === 'display') {
+    for (let i = 0; i < 4; i++) {
+      const m = createMonitor(0.32 * SHOWCASE_MONITOR_SCALE, running || i < 2, hue)
+      m.position.set(-w * 0.3 + (i % 2) * 0.7, 0.42 + Math.floor(i / 2) * 0.55, d * 0.22)
+      showcaseGroup.add(m)
+    }
+  } else if (stepKey === 'motherboard') {
     for (let i = 0; i < 3; i++) {
-      const m = createMonitor(0.35, running, hue)
+      const pcb = box(0.55 * SCENE_SCALE, 0.04 * SCENE_SCALE, 0.4 * SCENE_SCALE, mat(0x1b5e20, { emissive: running ? 0x2e7d32 : 0, ei: running ? 0.25 : 0 }), -w * 0.22 + i * 0.55, 0.55, d * 0.2)
+      showcaseGroup.add(pcb)
+    }
+  } else if (stepKey === 'attach') {
+    for (let i = 0; i < 3; i++) {
+      const m = createMonitor(0.35 * SHOWCASE_MONITOR_SCALE, running, hue)
       m.position.set(-w * 0.28 + i * 0.55, 0.45, d * 0.22)
       m.rotation.y = -0.35
       showcaseGroup.add(m)
     }
-  } else if (layout.key === 'assembly') {
+  } else if (stepKey === 'assembly') {
     for (let i = 0; i < 4; i++) {
-      const m = createMonitor(0.32, running || i < 2, hue)
+      const m = createMonitor(0.32 * SHOWCASE_MONITOR_SCALE, running || i < 2, hue)
       m.position.set(-w * 0.3 + (i % 2) * 0.7, 0.4 + Math.floor(i / 2) * 0.55, d * 0.25)
-      showcaseGroup.add(m)
-    }
-  } else if (layout.key === 'aging') {
-    const rack = box(1.6, 1.8, 0.35, mat(0x37474f, { transparent: true, opacity: 0.6 }), w * 0.28, 1.1, d * 0.18)
-    showcaseGroup.add(rack)
-    for (let row = 0; row < 2; row++) {
-      for (let col = 0; col < 3; col++) {
-        const on = running && (row * 3 + col) <= Math.floor(progress / 20)
-        const m = createMonitor(0.28, on, hue)
-        m.position.set(w * 0.28 - 0.55 + col * 0.45, 0.55 + row * 0.65, d * 0.18)
-        showcaseGroup.add(m)
-      }
-    }
-  } else if (layout.key === 'tuning') {
-    const desk = box(1.8, 0.08, 0.9, mat(0x455a64), -w * 0.25, 0.35, d * 0.2)
-    showcaseGroup.add(desk)
-    const m1 = createMonitor(0.55, running, hue)
-    m1.position.set(-w * 0.25, 0.75, d * 0.2)
-    const m2 = createMonitor(0.45, running, 0x1565c0)
-    m2.position.set(-w * 0.25 + 0.9, 0.65, d * 0.2)
-    m2.rotation.y = 0.25
-    showcaseGroup.add(m1, m2)
-  } else if (layout.key === 'packing') {
-    const finished = Math.max(1, Math.floor(progress / 25))
-    for (let i = 0; i < Math.min(4, finished); i++) {
-      const carton = box(0.45, 0.35, 0.45, mat(0x8d6e63), -w * 0.28 + (i % 2) * 0.55, 0.55, d * 0.22 + Math.floor(i / 2) * 0.5)
-      showcaseGroup.add(carton)
-      const m = createMonitor(0.25, false, hue)
-      m.position.set(-w * 0.28 + (i % 2) * 0.55, 0.78, d * 0.22 + Math.floor(i / 2) * 0.5)
       showcaseGroup.add(m)
     }
   }
@@ -212,7 +231,8 @@ function fillWorkshopContent(ws, data) {
 
   ws.machinesGroup.clear()
   const machines = data.machines || []
-  const builder = MACHINE_BUILDERS[data.key] || buildAssemblyLine
+  const stepKey = data.parentStepKey || ws.layout.parentStepKey || data.key
+  const builder = MACHINE_BUILDERS[stepKey] || buildAssemblyLine
 
   if (machines.length) {
     machines.forEach((m, idx) => {
@@ -220,12 +240,12 @@ function fillWorkshopContent(ws, data) {
       const col = idx % 2
       const row = Math.floor(idx / 2)
       mesh.position.set(-1.2 + col * 2.4, 0, -0.8 + row * 1.6)
-      mesh.scale.setScalar(1.05)
+      mesh.scale.setScalar(MACHINE_SCALE)
       ws.machinesGroup.add(mesh)
     })
   } else {
     const mesh = builder(data.running > 0 ? 'RUNNING' : 'IDLE')
-    mesh.scale.setScalar(1.1)
+    mesh.scale.setScalar(MACHINE_SCALE * 1.05)
     ws.machinesGroup.add(mesh)
   }
 
@@ -251,6 +271,38 @@ function findWorkshopKeyFromObject(obj) {
   return null
 }
 
+function buildDisplayLine(status) {
+  const g = new THREE.Group()
+  const c = MACHINE_STATUS[status] || MACHINE_STATUS.IDLE
+  const bench = box(2.8, 0.7, 1.2, mat(0x455a64), 0, 0.35, 0)
+  g.add(bench)
+  for (let i = -1; i <= 1; i++) {
+    const m = createMonitor(0.5, status === 'RUNNING', 0x5e35b1)
+    m.position.set(i * 0.85, 0.72, 0.1)
+    g.add(m)
+  }
+  const light = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 10), mat(c, { emissive: c, ei: status === 'RUNNING' ? 0.7 : 0.12 }))
+  light.position.set(1.2, 1.1, 0.5)
+  light.userData.isStatusLight = true
+  g.add(light)
+  return g
+}
+
+function buildMotherboardLine(status) {
+  const g = new THREE.Group()
+  const c = MACHINE_STATUS[status] || MACHINE_STATUS.IDLE
+  const table = box(2.6, 0.75, 1.1, mat(0x546e7a), 0, 0.375, 0)
+  g.add(table)
+  for (let i = 0; i < 3; i++) {
+    const pcb = box(0.7, 0.05, 0.5, mat(0x1b5e20, { emissive: status === 'RUNNING' ? 0x2e7d32 : 0, ei: status === 'RUNNING' ? 0.3 : 0 }), -0.7 + i * 0.7, 0.78, 0)
+    g.add(pcb)
+  }
+  const tower = box(0.35, 1.0, 0.35, mat(c, { emissive: c, ei: 0.12 }), 1.05, 0.85, -0.4)
+  tower.userData.isStatusLight = true
+  g.add(tower)
+  return g
+}
+
 function buildAttachMachine(status) {
   const g = new THREE.Group()
   const c = MACHINE_STATUS[status] || MACHINE_STATUS.IDLE
@@ -273,7 +325,7 @@ function buildAttachMachine(status) {
   return g
 }
 
-/** 组装线：传送带 + 工位 */
+/** 缁勮绾匡細浼犻€佸甫 + 宸ヤ綅 */
 function buildAssemblyLine(status) {
   const g = new THREE.Group()
   const c = MACHINE_STATUS[status] || MACHINE_STATUS.IDLE
@@ -295,7 +347,7 @@ function buildAssemblyLine(status) {
   return g
 }
 
-/** 老化架：多层显示器 */
+/** 鑰佸寲鏋讹細澶氬眰鏄剧ず鍣?*/
 function buildAgingRack(status) {
   const g = new THREE.Group()
   const c = MACHINE_STATUS[status] || MACHINE_STATUS.IDLE
@@ -315,7 +367,7 @@ function buildAgingRack(status) {
   return g
 }
 
-/** 调校台 */
+/** 璋冩牎鍙?*/
 function buildTuningStation(status) {
   const g = new THREE.Group()
   const c = MACHINE_STATUS[status] || MACHINE_STATUS.IDLE
@@ -329,7 +381,7 @@ function buildTuningStation(status) {
   return g
 }
 
-/** 包装线 */
+/** 鍖呰绾?*/
 function buildPackingLine(status) {
   const g = new THREE.Group()
   const c = MACHINE_STATUS[status] || MACHINE_STATUS.IDLE
@@ -349,11 +401,10 @@ function buildPackingLine(status) {
 }
 
 const MACHINE_BUILDERS = {
+  display: buildDisplayLine,
+  motherboard: buildMotherboardLine,
   attach: buildAttachMachine,
-  assembly: buildAssemblyLine,
-  aging: buildAgingRack,
-  tuning: buildTuningStation,
-  packing: buildPackingLine
+  assembly: buildAssemblyLine
 }
 
 function buildWorkshopBuilding(layout) {
@@ -364,7 +415,7 @@ function buildWorkshopBuilding(layout) {
 
   const { w, d, h, accent } = layout
 
-  // 地坪 + 安全线（开放式，无围挡）
+  // 地坪 + 安全线
   const floor = box(w, 0.15, d, mat(0x455a64, { rough: 0.85 }), 0, 0.075, 0)
   group.add(floor)
   const lineMat = mat(0xffd600, { emissive: 0xffd600, ei: 0.25 })
@@ -391,7 +442,7 @@ function buildWorkshopBuilding(layout) {
   labelEl.className = 'workshop-3d-label'
   labelEl.innerHTML = buildLabelCardHtml()
   const label = new CSS2DObject(labelEl)
-  label.position.set(0, h + 1.25, -d * 0.32)
+  label.position.set(0, h + 1.6, -d * 0.32)
   group.add(label)
 
   const glowRing = new THREE.Mesh(
@@ -412,10 +463,10 @@ export function createWorkshopScene(container, { onSelectWorkshop, onHoverWorksh
 
   const scene = new THREE.Scene()
   scene.background = new THREE.Color(0x040c18)
-  scene.fog = new THREE.FogExp2(0x040c18, 0.018)
+  scene.fog = new THREE.FogExp2(0x040c18, 0.012)
 
-  const camera = new THREE.PerspectiveCamera(34, width / height, 0.5, 250)
-  camera.position.set(0, 21, 30)
+  const camera = new THREE.PerspectiveCamera(34, width / height, 0.5, 320)
+  camera.position.set(0, 30, 46)
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setSize(width, height)
@@ -433,9 +484,9 @@ export function createWorkshopScene(container, { onSelectWorkshop, onHoverWorksh
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
   controls.dampingFactor = 0.05
-  controls.target.set(0, 2.2, 0)
-  controls.minDistance = 18
-  controls.maxDistance = 54
+  controls.target.set(0, 2.6, 0)
+  controls.minDistance = 22
+  controls.maxDistance = 72
   controls.maxPolarAngle = Math.PI / 2.15
   controls.minPolarAngle = 0.25
 
@@ -450,18 +501,28 @@ export function createWorkshopScene(container, { onSelectWorkshop, onHoverWorksh
   scene.add(fill)
   scene.add(new THREE.HemisphereLight(0x90caf9, 0x1a2836, 0.55))
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(76, 34), mat(0x0a1420, { rough: 0.95 }))
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(118, 40), mat(0x0a1420, { rough: 0.95 }))
   ground.rotation.x = -Math.PI / 2
   ground.receiveShadow = true
   scene.add(ground)
 
-  const grid = new THREE.GridHelper(76, 38, 0x1e3a5f, 0x0d1828)
+  const grid = new THREE.GridHelper(118, 59, 0x1e3a5f, 0x0d1828)
   grid.position.y = 0.02
   scene.add(grid)
 
-  // 厂区道路
-  const road = box(52, 0.04, 3, mat(0x1c2833), 0, 0.03, -11)
+  // 横向流水线主干道（左→右）
+  const road = box(92, 0.04, 3.2, mat(0x1c2833), 0, 0.03, 0)
   scene.add(road)
+
+  // 工序分区标识线
+  const stageGap = 32
+  const startX = -((PRODUCTION_STAGES.length - 1) * stageGap) / 2
+  PRODUCTION_STAGES.forEach((stage, idx) => {
+    if (idx === 0) return
+    const x = startX + idx * stageGap - stageGap / 2
+    const divider = box(0.08, 0.06, 18, mat(STAGE_ACCENT[stage.stepKey] || 0x1565c0, { emissive: STAGE_ACCENT[stage.stepKey] || 0x1565c0, ei: 0.15 }), x, 0.04, 0)
+    scene.add(divider)
+  })
 
   const workshopMap = new Map()
   WORKSHOP_LAYOUT.forEach((layout) => {

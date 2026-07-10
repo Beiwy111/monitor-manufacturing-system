@@ -8,12 +8,21 @@
       </span>
     </div>
 
+    <div v-if="binding" class="ruoyi-operator-bar ruoyi-operator-bar--binding">
+      <p class="ruoyi-operator-bar__meta">
+        固定车间：<strong>{{ binding.workshopName }}</strong>
+        · 负责工序：<strong>{{ binding.stageName }}</strong>
+      </p>
+    </div>
+
     <div v-if="currentDispatch" class="ruoyi-operator-bar">
       <h3 class="ruoyi-operator-bar__title">
-        当前工单：{{ currentDispatch.workOrderNo }} · {{ currentDispatch.processStep }}
+        当前生产：{{ currentDispatch.workOrderNo }} · {{ stageProgressLabel(currentDispatch) }}
       </h3>
       <p style="margin:0">
-        设备：{{ currentDispatch.equipment }} · 计划 {{ currentDispatch.planQty }} 件 · 已完成 {{ currentDispatch.completedQty }}
+        车间：{{ currentDispatch.workshopName || binding?.workshopName }}
+        · 设备：{{ currentDispatch.equipment }}
+        · 计划 {{ currentDispatch.planQty }} 件 · 已完成 {{ currentDispatch.completedQty }}
       </p>
       <div class="ruoyi-operator-bar__actions">
         <el-button v-if="currentDispatch.status==='已分配'" type="primary" size="small" :loading="acting" @click="accept">接收工单</el-button>
@@ -41,6 +50,7 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useMesStore } from '@/stores/mes'
 import { DISPATCH_REPORTABLE, DISPATCH_ACTIVE } from '@/mock/constants'
+import { operatorBinding, pickCurrentDispatch, stageProgressLabel } from '@/utils/operatorWorkshop'
 import RoleWorkbench from '@/components/workbench/RoleWorkbench.vue'
 
 const userStore = useUserStore()
@@ -50,14 +60,18 @@ const alarmDesc = ref('')
 const acting = ref(false)
 
 const username = computed(() => userStore.userInfo?.username)
+const binding = computed(() => operatorBinding(username.value))
 const myDispatches = computed(() => mes.myDispatches(username.value))
 const activeCount = computed(() => myDispatches.value.filter(d => DISPATCH_REPORTABLE.includes(d.status)).length)
 const pendingAccept = computed(() => myDispatches.value.filter(d => d.status === '已分配').length)
-const currentDispatch = computed(() => myDispatches.value.find(d => DISPATCH_ACTIVE.slice(0, 3).includes(d.status)))
+const currentDispatch = computed(() => pickCurrentDispatch(
+  myDispatches.value.filter((d) => DISPATCH_ACTIVE.includes(d.status))
+))
 
 const shortcuts = [
   { label: '我的派工', path: '/production/my-dispatch' },
   { label: '生产报工', path: '/production/report' },
+  { label: '生产报表', path: '/report/production-progress' },
   { label: '工艺说明', path: '/production/process-guide' },
   { label: '安灯报警', path: '/device/alarm' }
 ]
@@ -122,5 +136,19 @@ async function submitAlarm() {
 .ruoyi-page :deep(.ruoyi-workbench) {
   min-height: auto;
   box-shadow: none;
+}
+
+.ruoyi-operator-bar--binding {
+  margin-bottom: 8px;
+  padding: 10px 14px;
+  background: #fafafa;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+}
+
+.ruoyi-operator-bar__meta {
+  margin: 0;
+  font-size: 13px;
+  color: #606266;
 }
 </style>

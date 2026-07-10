@@ -1,171 +1,102 @@
 <template>
-  <el-dialog v-model="visible" title="计划员 Agent · 智能排产" width="860px" destroy-on-close @closed="reset">
-    <el-alert type="info" :closable="false" show-icon class="agent-tip"
-      title="选择订单后系统自动核查成品库存与 BOM 物料，给出建议排产量；确认后 Agent 将测算车间、设备与人员并创建计划。" />
-
-    <el-form label-width="100px" class="agent-form">
-      <el-form-item label="待计划订单">
-        <el-select v-model="form.orderId" style="width:100%" placeholder="请选择订单" @change="onOrderChange">
-          <el-option v-for="o in pendingOrders" :key="o.id" :label="`${o.id} · ${o.productModel} · ${o.quantity}台`" :value="o.id" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="计划开始">
-        <el-date-picker v-model="form.planStart" type="date" value-format="YYYY-MM-DD" style="width:100%" @change="onDateChange" />
-      </el-form-item>
-      <el-form-item label="计划截止">
-        <el-date-picker v-model="form.planEnd" type="date" value-format="YYYY-MM-DD" style="width:100%" @change="onDateChange" />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" :loading="previewLoading" @click="runPreview">重新分析</el-button>
-        <el-button
-          type="success"
-          :loading="submitLoading"
-          :disabled="!canSubmit"
-          @click="runCreate"
-        >
-          确认并提交主管
-        </el-button>
-      </el-form-item>
-    </el-form>
-
-    <div v-if="previewLoading && !analysis" class="agent-loading">
-      <el-icon class="is-loading"><Loading /></el-icon>
-      正在核查库存并生成排产建议…
+  <el-dialog
+    v-model="visible"
+    title="智能排产"
+    width="1080px"
+    destroy-on-close
+    class="planner-dialog"
+    @closed="onClosed"
+  >
+    <div class="planner-toolbar">
+      <el-select
+        v-model="form.orderId"
+        class="planner-toolbar__order"
+        placeholder="选择订单"
+        @change="onOrderChange"
+      >
+        <el-option
+          v-for="o in pendingOrders"
+          :key="o.id"
+          :label="`${o.id} · ${o.productModel} · ${o.quantity}台`"
+          :value="o.id"
+        />
+      </el-select>
+      <el-date-picker
+        v-model="form.planStart"
+        type="date"
+        value-format="YYYY-MM-DD"
+        placeholder="开始"
+        @change="onDateChange"
+      />
+      <el-date-picker
+        v-model="form.planEnd"
+        type="date"
+        value-format="YYYY-MM-DD"
+        placeholder="截止"
+        @change="onDateChange"
+      />
+      <el-button type="primary" :loading="previewLoading" @click="runPreview">重新分析</el-button>
+      <el-button type="success" :loading="submitLoading" :disabled="!canSubmit" @click="runCreate">
+        确认并提交主管
+      </el-button>
     </div>
 
-    <div v-if="analysis" class="agent-result">
-      <el-alert
-        :type="decisionAlertType"
-        :closable="false"
-        show-icon
-        class="agent-decision"
-        :title="analysis.recommendation || analysis.summary"
-      />
+    <SchedulingThoughtPanel
+      title="智能排产引擎"
+      subtitle="订单 → 库存 → 物料 → 设备 → 人员 → 车间 → 计划"
+      :thought-stream="thoughtStream"
+      :evidence-list="evidenceList"
+      :all-evidence="allEvidence"
+      :active-step-key="activeStepKey"
+      :selected-step-key="selectedStepKey"
+      :active-index="activeStep"
+      :total-steps="7"
+      :running="previewLoading"
+      :pending-text="currentDetail"
+      @select-step="selectStep"
+    />
 
-      <div class="inventory-section">
-        <div class="section-title">库存核查</div>
-        <div class="inventory-kpi">
-          <div class="kpi-item">
-            <span class="kpi-label">订单数量</span>
-            <span class="kpi-value">{{ inventory.orderQuantity ?? analysis.orderQuantity }} 台</span>
-          </div>
-          <div class="kpi-item">
-            <span class="kpi-label">成品可用</span>
-            <span class="kpi-value">{{ inventory.finishedGoodsStock ?? '-' }} 台</span>
-          </div>
-          <div class="kpi-item">
-            <span class="kpi-label">现货交付</span>
-            <span class="kpi-value kpi-value--success">{{ inventory.shipFromStock ?? 0 }} 台</span>
-          </div>
-          <div class="kpi-item">
-            <span class="kpi-label">需生产</span>
-            <span class="kpi-value">{{ inventory.needToProduce ?? 0 }} 台</span>
-          </div>
-          <div class="kpi-item kpi-item--highlight">
-            <span class="kpi-label">建议排产</span>
-            <el-input-number
-              v-model="form.plannedQty"
-              :min="0"
-              :max="99999"
-              size="small"
-              controls-position="right"
-              style="width: 120px"
-            />
-            <span class="kpi-unit">台</span>
-          </div>
+    <div v-if="analysis" class="result-strip">
+      <div class="result-strip__conclusion" :class="`result-strip__conclusion--${decisionAlertType}`">
+        <strong>排产结论</strong>
+        <span>{{ analysis.recommendation || analysis.summary }}</span>
+      </div>
+      <div class="result-strip__metrics">
+        <div class="metric">
+          <span class="metric__label">订单</span>
+          <span class="metric__value">{{ inventory.orderQuantity ?? analysis.orderQuantity }} 台</span>
         </div>
-
-        <el-table
-          v-if="materialChecks.length"
-          :data="materialChecks"
-          border
-          stripe
-          size="small"
-          max-height="220"
-          class="material-table"
-        >
-          <el-table-column prop="materialName" label="物料" min-width="140" />
-          <el-table-column prop="materialCode" label="编码" width="100" />
-          <el-table-column prop="available" label="可用" width="80" align="right" />
-          <el-table-column label="需求" width="90" align="right">
-            <template #default="{ row }">
-              {{ row.requiredForPlan ?? row.required ?? '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="maxSupportQty" label="可支撑" width="80" align="right">
-            <template #default="{ row }">
-              {{ row.materialType === 'FINISHED' ? row.available : row.maxSupportQty }}
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="90" align="center">
-            <template #default="{ row }">
-              <el-tag :type="row.sufficient ? 'success' : 'danger'" size="small">
-                {{ row.sufficient ? '充足' : '不足' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="remark" label="说明" min-width="120" show-overflow-tooltip />
-        </el-table>
-
-        <div v-if="bottlenecks.length" class="bottleneck-tip">
-          瓶颈物料：{{ bottlenecks.join('、') }}
+        <div class="metric">
+          <span class="metric__label">现货可发</span>
+          <span class="metric__value metric__value--ok">{{ inventory.shipFromStock ?? 0 }} 台</span>
+        </div>
+        <div class="metric">
+          <span class="metric__label">需生产</span>
+          <span class="metric__value">{{ inventory.needToProduce ?? 0 }} 台</span>
+        </div>
+        <div class="metric metric--highlight">
+          <span class="metric__label">建议排产</span>
+          <el-input-number
+            v-model="form.plannedQty"
+            :min="0"
+            :max="99999"
+            size="small"
+            controls-position="right"
+          />
+          <span class="metric__unit">台</span>
+        </div>
+        <div v-if="showCapacitySection" class="metric">
+          <span class="metric__label">周期</span>
+          <span class="metric__value">{{ analysis.workDays }} 天</span>
+        </div>
+        <div v-if="showCapacitySection" class="metric">
+          <span class="metric__label">瓶颈</span>
+          <span class="metric__value">{{ bottleneckLabel }}</span>
         </div>
       </div>
-
-      <template v-if="showCapacitySection">
-        <div class="section-title">产能排布（基于建议排产量 {{ analysis.recommendedPlanQty || analysis.quantity }} 台）</div>
-        <div class="agent-result__summary">{{ analysis.summary }}</div>
-        <div v-if="analysis.planExplanation" class="explain-card">
-          <div class="explain-card__title">算法解释</div>
-          <div class="explain-card__text">{{ analysis.planExplanation }}</div>
-          <div class="capacity-tags">
-            <el-tag size="small" type="info">物料上限 {{ capacity.materialLimit ?? '-' }} 台</el-tag>
-            <el-tag size="small" type="info">设备上限 {{ capacity.equipmentLimit ?? '-' }} 台</el-tag>
-            <el-tag size="small" type="info">人员可行 {{ capacity.operatorLimit ?? '-' }} 台</el-tag>
-            <el-tag size="small" type="success">可用操作员 {{ capacity.availableOperators ?? analysis.availableOperators ?? 0 }} 人</el-tag>
-          </div>
-          <div v-if="capacityLimits.length" class="capacity-limits">
-            约束说明：{{ capacityLimits.join('；') }}
-          </div>
-        </div>
-        <div class="agent-result__stats">
-          <span>周期 {{ analysis.workDays }} 天</span>
-          <span>日均 {{ analysis.dailyTarget }} 台</span>
-          <span>设备 {{ analysis.totalMachines }} 台</span>
-          <span>人员 {{ analysis.totalOperators }} 人</span>
-        </div>
-        <el-table :data="analysis.workshops" border stripe size="small" max-height="220">
-          <el-table-column prop="workshopName" label="车间" width="120" />
-          <el-table-column prop="department" label="部门" width="100" />
-          <el-table-column prop="steps" label="工序" min-width="140">
-            <template #default="{ row }">{{ (row.steps || []).join('、') }}</template>
-          </el-table-column>
-          <el-table-column prop="requiredMachines" label="设备" width="70" align="center" />
-          <el-table-column prop="requiredOperators" label="人员" width="70" align="center" />
-          <el-table-column prop="availableOperators" label="可用人员" width="90" align="center" />
-          <el-table-column prop="utilization" label="负荷" width="80" align="center">
-            <template #default="{ row }">
-              <el-tag :type="row.utilization >= 90 ? 'warning' : 'success'" size="small">{{ row.utilization }}%</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-table
-          v-if="capacityAllocations.length"
-          :data="capacityAllocations"
-          border
-          stripe
-          size="small"
-          max-height="180"
-          class="allocation-table"
-        >
-          <el-table-column prop="stepName" label="工序" min-width="120" />
-          <el-table-column prop="workshopName" label="车间" width="120" />
-          <el-table-column prop="equipmentType" label="设备类型" width="110" />
-          <el-table-column prop="machines" label="分配设备" width="90" align="center" />
-          <el-table-column prop="operators" label="分配人员" width="90" align="center" />
-          <el-table-column prop="dailyCapacity" label="日产能" width="90" align="center" />
-        </el-table>
-      </template>
+      <p v-if="bottlenecks.length" class="result-strip__hint">
+        物料瓶颈：{{ bottlenecks.join('、') }}。详细推演见左侧思维流与右侧证据库。
+      </p>
     </div>
   </el-dialog>
 </template>
@@ -173,9 +104,10 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
+import { useSchedulingFlow } from '@/composables/useSchedulingFlow'
+import SchedulingThoughtPanel from '@/components/mes/SchedulingThoughtPanel.vue'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -189,6 +121,19 @@ const userStore = useUserStore()
 const previewLoading = ref(false)
 const submitLoading = ref(false)
 const analysis = ref(null)
+
+const {
+  activeStep,
+  activeStepKey,
+  selectedStepKey,
+  thoughtStream,
+  evidenceList,
+  allEvidence,
+  currentDetail,
+  reset: resetFlow,
+  runAnimatedPreview,
+  selectStep
+} = useSchedulingFlow()
 
 const visible = computed({
   get: () => props.modelValue,
@@ -206,12 +151,19 @@ const form = reactive({
 
 const inventory = computed(() => analysis.value?.inventoryCheck || {})
 const capacity = computed(() => analysis.value?.capacityAnalysis || {})
-const capacityLimits = computed(() => capacity.value.limits || [])
-const capacityAllocations = computed(() => capacity.value.allocations || [])
-const materialChecks = computed(() => inventory.value.materialChecks || [])
 const bottlenecks = computed(() => inventory.value.bottlenecks || analysis.value?.inventoryCheck?.bottlenecks || [])
 const decision = computed(() => analysis.value?.decision || inventory.value.decision || '')
 const showCapacitySection = computed(() => (analysis.value?.recommendedPlanQty ?? 0) > 0)
+
+const bottleneckLabel = computed(() => {
+  const limits = [
+    capacity.value.materialLimit != null ? `物料 ${capacity.value.materialLimit}` : null,
+    capacity.value.operatorLimit != null ? `人员 ${capacity.value.operatorLimit}` : null,
+    capacity.value.equipmentLimit != null ? `设备 ${capacity.value.equipmentLimit}` : null
+  ].filter(Boolean)
+  if (!limits.length) return '—'
+  return limits.join(' / ')
+})
 
 const decisionAlertType = computed(() => {
   switch (decision.value) {
@@ -235,6 +187,7 @@ watch(() => props.modelValue, (open) => {
   if (open) {
     form.orderId = props.defaultOrderId || pendingOrders.value[0]?.id || ''
     analysis.value = null
+    resetFlow()
     if (form.orderId) {
       runPreview()
     }
@@ -243,6 +196,7 @@ watch(() => props.modelValue, (open) => {
 
 function onOrderChange() {
   analysis.value = null
+  resetFlow()
   if (form.orderId) {
     runPreview()
   }
@@ -254,8 +208,9 @@ function onDateChange() {
   }
 }
 
-function reset() {
+function onClosed() {
   analysis.value = null
+  resetFlow()
 }
 
 async function runPreview() {
@@ -264,7 +219,11 @@ async function runPreview() {
   }
   previewLoading.value = true
   try {
-    analysis.value = await mes.previewPlanAgent(form, userStore.username, userStore.roleKey)
+    analysis.value = await runAnimatedPreview(async () => {
+      const result = await mes.previewPlanAgent(form, userStore.username, userStore.roleKey)
+      analysis.value = result
+      return result
+    })
     form.plannedQty = analysis.value?.recommendedPlanQty
       ?? inventory.value?.recommendedPlanQty
       ?? 0
@@ -300,117 +259,91 @@ async function runCreate() {
 </script>
 
 <style scoped>
-.agent-tip { margin-bottom: 16px; }
-.agent-form { margin-bottom: 12px; }
-.agent-loading {
+.planner-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.planner-toolbar__order {
+  flex: 1;
+  min-width: 280px;
+}
+
+.result-strip {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.result-strip__conclusion {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #303133;
+  margin-bottom: 12px;
+}
+
+.result-strip__conclusion strong {
+  flex-shrink: 0;
+  color: #1a2b4a;
+}
+
+.result-strip__conclusion--success strong { color: #67c23a; }
+.result-strip__conclusion--warning strong { color: #e6a23c; }
+.result-strip__conclusion--error strong { color: #f56c6c; }
+
+.result-strip__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.metric {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 24px;
-  color: #606266;
-  font-size: 13px;
-  justify-content: center;
-}
-.agent-decision { margin-bottom: 14px; }
-.section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #001b3f;
-  margin-bottom: 10px;
-}
-.inventory-section {
-  margin-bottom: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px dashed #e4e7ed;
-}
-.inventory-kpi {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.kpi-item {
-  flex: 1;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
   min-width: 100px;
-  padding: 10px 12px;
-  background: #f5f7fa;
-  border-radius: 6px;
-  text-align: center;
 }
-.kpi-item--highlight {
+
+.metric--highlight {
+  border-color: #b3d8ff;
   background: #ecf5ff;
-  border: 1px solid #b3d8ff;
 }
-.kpi-unit {
-  margin-left: 6px;
+
+.metric__label {
   font-size: 12px;
   color: #909399;
 }
-.kpi-label {
-  display: block;
-  font-size: 11px;
+
+.metric__value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.metric__value--ok {
+  color: #67c23a;
+}
+
+.metric__unit {
+  font-size: 12px;
   color: #909399;
-  margin-bottom: 4px;
 }
-.kpi-value {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-}
-.kpi-value--success { color: #67c23a; }
-.material-table { margin-bottom: 8px; }
-.bottleneck-tip {
+
+.result-strip__hint {
+  margin: 10px 0 0;
   font-size: 12px;
   color: #e6a23c;
-  padding: 6px 0;
-}
-.agent-result__summary {
-  font-size: 13px;
-  color: #303133;
-  line-height: 1.6;
-  margin-bottom: 10px;
-  padding: 10px 12px;
-  background: #f0f9ff;
-  border-radius: 4px;
-}
-.explain-card {
-  padding: 10px 12px;
-  margin-bottom: 12px;
-  border: 1px solid #dcdfe6;
-  border-radius: 6px;
-  background: #fafcff;
-}
-.explain-card__title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #001b3f;
-  margin-bottom: 6px;
-}
-.explain-card__text {
-  font-size: 12px;
-  color: #606266;
-  line-height: 1.7;
-  margin-bottom: 8px;
-}
-.capacity-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.capacity-limits {
-  font-size: 12px;
-  color: #e6a23c;
-}
-.allocation-table {
-  margin-top: 10px;
-}
-.agent-result__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 12px;
-  font-size: 12px;
-  color: #606266;
 }
 </style>

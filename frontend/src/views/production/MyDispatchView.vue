@@ -1,17 +1,30 @@
 <template>
   <MesPageShell toolbar-title="我的派工" :status-options="DISPATCH_STATUS" :detail-rows="rows" :logs="mes.operationLogs.slice(0, 8)">
     <template #table>
+      <div v-if="binding" class="dispatch-context">
+        <span class="dispatch-context__tag">固定车间</span>
+        <strong>{{ binding.workshopName }}</strong>
+        <el-divider direction="vertical" />
+        <span class="dispatch-context__tag">负责工序</span>
+        <strong>{{ binding.stageName }}</strong>
+        <span class="dispatch-context__hint">（同一时间只能承担一道工序）</span>
+      </div>
+
       <el-alert
         v-if="!myList.length"
         type="info"
         :closable="false"
         title="暂无派工任务。请生产主管在「工单派工」页将任务派给您。"
-        style="margin-bottom: 12px"
+        style="margin: 12px 0"
       />
       <el-table v-else :data="myList" border stripe highlight-current-row @current-change="onRowClick">
         <el-table-column prop="id" label="派工单" width="130" />
         <el-table-column prop="workOrderNo" label="工单" width="130" />
-        <el-table-column prop="processStep" label="工序" width="100" />
+        <el-table-column prop="workshopName" label="车间" min-width="130" />
+        <el-table-column prop="processStep" label="工序" width="110" />
+        <el-table-column label="工序进度" width="150">
+          <template #default="{ row }">{{ stageProgressLabel(row) }}</template>
+        </el-table-column>
         <el-table-column prop="equipment" label="设备" min-width="120" />
         <el-table-column prop="planQty" label="计划" width="70" />
         <el-table-column prop="status" label="状态" width="90">
@@ -41,17 +54,23 @@ import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { DISPATCH_STATUS, DISPATCH_REPORTABLE } from '@/mock/constants'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { operatorBinding, stageProgressLabel } from '@/utils/operatorWorkshop'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 
 const mes = useMesStore()
 const userStore = useUserStore()
 const username = computed(() => userStore.userInfo?.username)
+const binding = computed(() => operatorBinding(username.value))
 const myList = computed(() => mes.myDispatches(username.value))
 const { selected, onRowClick } = useMesFilter(myList, ['id'])
 const rows = computed(() => detailRows(selected.value, [
-  { key: 'workOrderNo', label: '工单' }, { key: 'processStep', label: '工序' },
-  { key: 'equipment', label: '设备' }, { key: 'planQty', label: '计划量' }, { key: 'status', label: '状态' }
+  { key: 'workOrderNo', label: '工单' },
+  { key: 'workshopName', label: '车间' },
+  { key: 'processStep', label: '工序' },
+  { key: 'equipment', label: '设备' },
+  { key: 'planQty', label: '计划量' },
+  { key: 'status', label: '状态' }
 ]))
 
 async function accept() {
@@ -92,3 +111,30 @@ function selectAndStart(row) {
   start()
 }
 </script>
+
+<style scoped>
+.dispatch-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.dispatch-context__tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #909399;
+  background: #f4f4f5;
+}
+
+.dispatch-context__hint {
+  font-size: 12px;
+  color: #909399;
+}
+</style>

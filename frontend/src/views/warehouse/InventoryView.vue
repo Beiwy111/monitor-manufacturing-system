@@ -1,99 +1,219 @@
 <template>
   <div class="inventory-page">
-    <el-tabs v-model="activeTab">
-      <el-tab-pane label="库存查询" name="stock">
-        <MesPageShell toolbar-title="库存查询（按组装部件归类）">
-          <template #table>
-            <el-table :data="groupedInventory" border stripe highlight-current-row row-key="group" default-expand-all>
-              <el-table-column type="expand">
-                <template #default="{ row }">
-                  <el-table :data="row.items" border size="small" style="margin: 8px 0">
-                    <el-table-column prop="materialCode" label="编码" width="110" />
-                    <el-table-column prop="materialName" label="物料名称" min-width="140" />
-                    <el-table-column prop="specification" label="规格说明" min-width="160" />
-                    <el-table-column prop="quantity" label="库存量" width="90" align="right" />
-                    <el-table-column prop="safeQty" label="安全库存" width="90" align="right" />
-                    <el-table-column prop="location" label="库位" width="100" />
-                    <el-table-column prop="status" label="状态" width="80">
-                      <template #default="{ row: item }"><StatusBadge :status="item.status" /></template>
-                    </el-table-column>
-                  </el-table>
-                </template>
-              </el-table-column>
-              <el-table-column prop="group" label="组装分类" width="140">
-                <template #default="{ row }">
-                  <el-tag :type="groupTagType(row.group)" size="small">{{ row.group }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="count" label="物料种类" width="100" align="center" />
-              <el-table-column prop="totalQty" label="库存合计" width="100" align="right" />
-              <el-table-column label="说明" min-width="200">
-                <template #default="{ row }">{{ groupHint(row.group) }}</template>
-              </el-table-column>
-            </el-table>
-          </template>
-        </MesPageShell>
+    <el-tabs v-model="activeTab" class="inventory-tabs">
+      <el-tab-pane label="成品库" name="finished">
+        <CatalogSection
+          title="成品库"
+          warehouse-label="成品仓 FG-WH"
+          :rows="finishedRows"
+          :loading="loading"
+          v-model:keyword="finishedKeyword"
+          v-model:category-filter="finishedCategory"
+          @refresh="loadData"
+        />
       </el-tab-pane>
 
-      <el-tab-pane label="BOM 装配清单" name="bom">
-        <BomGuideView />
+      <el-tab-pane label="原材料库" name="raw">
+        <CatalogSection
+          title="原材料库"
+          warehouse-label="原材料仓"
+          :rows="rawRows"
+          :loading="loading"
+          v-model:keyword="rawKeyword"
+          v-model:category-filter="rawCategory"
+          @refresh="loadData"
+        />
+      </el-tab-pane>
+
+      <el-tab-pane label="出入库记录" name="flow">
+        <div class="catalog-shell">
+          <div class="catalog-toolbar">
+            <div class="catalog-toolbar__left">
+              <div class="catalog-toolbar__title">出入库记录</div>
+              <span class="catalog-toolbar__meta">共 {{ filteredFlows.length }} 条流水</span>
+            </div>
+            <div class="catalog-toolbar__filters">
+              <el-input v-model="flowKeyword" clearable placeholder="物料编码 / 名称 / 单据" style="width: 240px" />
+              <el-select v-model="flowDirection" clearable placeholder="方向" style="width: 120px">
+                <el-option label="入库" value="入" />
+                <el-option label="出库" value="出" />
+              </el-select>
+              <el-button type="primary" @click="loadData">刷新</el-button>
+            </div>
+          </div>
+          <div class="catalog-main catalog-main--full">
+            <el-table :data="filteredFlows" border stripe v-loading="loading" class="catalog-table">
+              <el-table-column prop="flowType" label="业务类型" width="110" />
+              <el-table-column prop="materialCode" label="物料编码" width="120" />
+              <el-table-column prop="materialName" label="物料名称" min-width="160" />
+              <el-table-column prop="direction" label="方向" width="70" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="row.direction === '入' ? 'success' : 'warning'" size="small">
+                    {{ row.direction }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="quantity" label="数量" width="90" align="right" />
+              <el-table-column prop="warehouseCode" label="仓库" width="100" />
+              <el-table-column prop="batchNo" label="批次" min-width="140" />
+              <el-table-column prop="refNo" label="关联单据" min-width="160" show-overflow-tooltip />
+              <el-table-column prop="operator" label="操作人" width="100" />
+              <el-table-column prop="createdAt" label="时间" min-width="160" />
+            </el-table>
+          </div>
+        </div>
       </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import CatalogSection from './components/InventoryCatalogSection.vue'
+import { fetchWarehouseCatalog, fetchWarehouseTransactions } from '@/api/warehouse'
 import { useMesStore } from '@/stores/mes'
-import MesPageShell from '@/components/mes/MesPageShell.vue'
-import StatusBadge from '@/components/mes/StatusBadge.vue'
-import BomGuideView from '@/views/warehouse/BomGuideView.vue'
 
 const mes = useMesStore()
-const activeTab = ref('stock')
+const activeTab = ref('finished')
+const loading = ref(false)
+const catalogRows = ref([])
+const transactionRows = ref([])
+const finishedKeyword = ref('')
+const rawKeyword = ref('')
+const finishedCategory = ref('')
+const rawCategory = ref('')
+const flowKeyword = ref('')
+const flowDirection = ref('')
 
-const GROUP_ORDER = ['显示面板', '背光模组', '主控电路', '结构附件', '成品', '其他']
+const finishedRows = computed(() =>
+  catalogRows.value.filter((row) => row.warehouseCategory === 'FINISHED')
+)
+const rawRows = computed(() =>
+  catalogRows.value.filter((row) => row.warehouseCategory !== 'FINISHED')
+)
 
-const groupedInventory = computed(() => {
-  const map = new Map()
-  for (const item of mes.inventory) {
-    const group = item.assemblyGroup || '其他'
-    if (!map.has(group)) {
-      map.set(group, [])
-    }
-    map.get(group).push(item)
+const mergedFlows = computed(() => {
+  const runtime = (mes.stockFlows || []).map((row) => ({
+    id: row.id,
+    flowType: row.flowType,
+    materialCode: row.materialCode || '',
+    materialName: row.materialName || '',
+    direction: row.direction || '入',
+    quantity: row.quantity || 0,
+    warehouseCode: row.warehouseCode || '',
+    batchNo: row.batchNo || '',
+    refNo: row.refNo || '',
+    operator: row.operator || '',
+    createdAt: row.createdAt || ''
+  }))
+  const db = transactionRows.value || []
+  const seen = new Set()
+  const list = []
+  for (const row of [...runtime, ...db]) {
+    const key = row.id || `${row.flowType}-${row.materialCode}-${row.createdAt}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    list.push(row)
   }
-  return GROUP_ORDER.filter((g) => map.has(g)).map((group) => {
-    const items = map.get(group)
-    return {
-      group,
-      count: items.length,
-      totalQty: items.reduce((sum, i) => sum + Number(i.quantity || 0), 0),
-      items
-    }
+  return list.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+})
+
+const filteredFlows = computed(() => {
+  const kw = flowKeyword.value.trim().toLowerCase()
+  return mergedFlows.value.filter((row) => {
+    if (flowDirection.value && row.direction !== flowDirection.value) return false
+    if (!kw) return true
+    return [row.flowType, row.materialCode, row.materialName, row.refNo, row.operator]
+      .some((v) => String(v || '').toLowerCase().includes(kw))
   })
 })
 
-function groupTagType(group) {
-  const map = { 显示面板: 'primary', 背光模组: 'success', 主控电路: 'warning', 结构附件: 'info', 成品: '' }
-  return map[group] || 'info'
+async function loadData() {
+  loading.value = true
+  try {
+    await mes.hydrateFromApi()
+    const [catalog, transactions] = await Promise.all([
+      fetchWarehouseCatalog(),
+      fetchWarehouseTransactions()
+    ])
+    catalogRows.value = catalog || []
+    transactionRows.value = transactions || []
+  } finally {
+    loading.value = false
+  }
 }
 
-function groupHint(group) {
-  const hints = {
-    显示面板: '决定分辨率与面板类型（IPS/OLED）',
-    背光模组: '与面板尺寸匹配，提供均匀背光',
-    主控电路: '主控板 + 驱动芯片，决定刷新率与功能',
-    结构附件: '边框套件与电源适配器',
-    成品: '已组装完成的显示器成品'
-  }
-  return hints[group] || ''
-}
+onMounted(loadData)
 </script>
 
 <style scoped>
-.inventory-page :deep(.el-tabs__header) {
-  margin: 0 16px;
-  padding-top: 8px;
+.inventory-page {
+  min-height: 100%;
+  background: #f5f7fa;
+}
+
+.inventory-tabs :deep(.el-tabs__header) {
+  margin: 0;
+  padding: 12px 16px 0;
+  background: #fff;
+}
+
+.inventory-tabs :deep(.el-tabs__content) {
+  padding: 0;
+}
+
+.catalog-shell {
+  margin: 12px 16px 16px;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.catalog-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #ebeef5;
+  background: #fafafa;
+}
+
+.catalog-toolbar__left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.catalog-toolbar__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.catalog-toolbar__meta {
+  font-size: 12px;
+  color: #909399;
+}
+
+.catalog-toolbar__filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.catalog-main {
+  padding: 12px;
+  overflow: auto;
+}
+
+.catalog-main--full {
+  min-height: 520px;
+}
+
+.catalog-table {
+  width: 100%;
 }
 </style>

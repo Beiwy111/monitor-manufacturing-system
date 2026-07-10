@@ -15,8 +15,8 @@ export const MENU_PATH_MAP = {
   'order:delivery': '/delivery/list',
   'production:plan': '/production/plan',
   'production:planItem': '/production/plan',
-  'production:route': '/production/process-guide',
-  'production:step': '/production/process-guide',
+  'production:route': '/production/process-setup',
+  'production:step': '/production/process-setup',
   'production:workOrder': '/production/work-order',
   'production:dispatch': '/production/dispatch',
   'production:report': '/production/report',
@@ -42,6 +42,7 @@ export const MENU_PATH_MAP = {
   'production:myDispatch': '/production/my-dispatch',
   'production:exception': '/production/exception',
   'production:processGuide': '/production/process-guide',
+  'report:productionProgress': '/report/production-progress',
   'device:equipment': '/device/equipment',
   'device:status': '/device/status',
   'device:alarm': '/device/alarm',
@@ -79,6 +80,7 @@ const ROLE_MENU_EXTRAS = {
     ]
   },
   planner: {
+    production: [{ menuId: 9121, menuName: '工序设置', path: '/production/process-setup' }],
     order: [{ menuId: 9122, menuName: '订单跟踪', path: '/order/track' }]
   },
   manager: {
@@ -96,6 +98,9 @@ const ROLE_MENU_EXTRAS = {
       { menuId: 9052, menuName: '当前工单', path: '/production/work-order' },
       { menuId: 9053, menuName: '生产报工', path: '/production/report' },
       { menuId: 9054, menuName: '工艺说明', path: '/production/process-guide' }
+    ],
+    report: [
+      { menuId: 9056, menuName: '生产制令单进度表', path: '/report/production-progress' }
     ],
     equipment: [{ menuId: 9055, menuName: '安灯报警', path: '/device/alarm' }]
   },
@@ -123,6 +128,7 @@ const MODULE_NAME_MAP = {
   material: '物料库存',
   order: '订单发货',
   production: '生产管理',
+  report: '报表中心',
   purchase: '采购管理',
   quality: '质量管理',
   warehouse: '仓储管理',
@@ -191,9 +197,13 @@ function mergeRoleExtras(menus, roleKey) {
       '/production/report',
       '/production/process-guide'
     ])
+    const allowedReport = new Set(['/report/production-progress'])
     result.forEach((m) => {
       if (m.menuCode === 'production') {
         m.children = m.children.filter((c) => allowedProduction.has(c.path))
+      }
+      if (m.menuCode === 'report') {
+        m.children = m.children.filter((c) => allowedReport.has(c.path))
       }
       if (m.menuCode === 'equipment') {
         m.children = m.children.filter((c) => c.path === '/device/alarm')

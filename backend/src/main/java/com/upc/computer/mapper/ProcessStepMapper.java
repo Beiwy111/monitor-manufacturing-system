@@ -17,6 +17,9 @@ public interface ProcessStepMapper {
     @Select("SELECT step_id, route_id, step_no, step_code, step_name, standard_work_hours, standard_equipment_type, quality_required, status, created_at, updated_at FROM process_step WHERE step_id = #{stepId}")
     public ProcessStep getStepById(Long stepId);
 
+    @Select("SELECT step_id, route_id, step_no, step_code, step_name, standard_work_hours, standard_equipment_type, quality_required, status, created_at, updated_at FROM process_step WHERE route_id = #{routeId} ORDER BY step_no")
+    public ArrayList<ProcessStep> listByRouteId(Long routeId);
+
     // 新增工序
     @Insert("INSERT INTO process_step (step_id, route_id, step_no, step_code, step_name, standard_work_hours, standard_equipment_type, quality_required, status, created_at, updated_at) VALUES (#{stepId}, #{routeId}, #{stepNo}, #{stepCode}, #{stepName}, #{standardWorkHours}, #{standardEquipmentType}, #{qualityRequired}, #{status}, #{createdAt}, #{updatedAt})")
     @Options(useGeneratedKeys = true, keyProperty = "stepId")
@@ -29,5 +32,11 @@ public interface ProcessStepMapper {
     // 删除工序
     @Delete("DELETE FROM process_step WHERE step_id = #{stepId}")
     public void deleteStep(Long stepId);
+
+    @Update("UPDATE process_step SET status = 0, updated_at = NOW() WHERE step_id = #{stepId}")
+    public void disableStep(Long stepId);
+
+    @Update("UPDATE process_step SET status = 0, updated_at = NOW() WHERE route_id = #{routeId}")
+    public void disableByRouteId(Long routeId);
 
 }

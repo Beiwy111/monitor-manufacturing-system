@@ -29,4 +29,7 @@ public interface ProcessRouteMapper {
     @Delete("DELETE FROM process_route WHERE route_id = #{routeId}")
     public void deleteRoute(Long routeId);
 
+    @Update("UPDATE process_route SET status = 0, updated_at = NOW() WHERE route_id = #{routeId}")
+    public void disableRoute(Long routeId);
+
 }

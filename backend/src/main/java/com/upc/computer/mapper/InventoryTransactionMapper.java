@@ -2,6 +2,8 @@ package com.upc.computer.mapper;
 
 import com.upc.computer.entity.InventoryTransaction;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.apache.ibatis.annotations.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -29,5 +31,25 @@ public interface InventoryTransactionMapper {
     // 删除库存流水
     @Delete("DELETE FROM inventory_transaction WHERE transaction_id = #{transactionId}")
     public void deleteTransaction(Long transactionId);
+
+    @Select("""
+            SELECT t.transaction_no AS transactionNo,
+                   t.transaction_type AS transactionType,
+                   m.material_code AS materialCode,
+                   m.material_name AS materialName,
+                   m.material_type AS materialType,
+                   t.quantity AS quantity,
+                   t.warehouse_code AS warehouseCode,
+                   t.location_code AS locationCode,
+                   t.batch_no AS batchNo,
+                   t.remark AS remark,
+                   u.real_name AS operatorName,
+                   t.handled_at AS handledAt
+            FROM inventory_transaction t
+            LEFT JOIN material m ON m.material_id = t.material_id
+            LEFT JOIN user u ON u.user_id = t.handled_by
+            ORDER BY t.handled_at DESC, t.transaction_id DESC
+            """)
+    List<Map<String, Object>> transactionDetailList();
 
 }

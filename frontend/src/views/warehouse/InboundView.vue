@@ -19,6 +19,17 @@
           <template #default="{ row }"><StatusBadge :status="row.status" /></template>
         </el-table-column>
       </el-table>
+      <el-alert
+        v-if="lastBarcode"
+        type="success"
+        :closable="false"
+        style="margin-top: 12px"
+      >
+        <template #title>
+          本次入库条码：{{ lastBarcode.barcodeNo }}
+          <el-button link type="primary" @click="copyBarcode(lastBarcode.barcodeNo)">复制</el-button>
+        </template>
+      </el-alert>
     </template>
     <template #detail-actions>
       <el-button
@@ -47,6 +58,7 @@ const mes = useMesStore()
 const userStore = useUserStore()
 const { runDelete } = useMesDelete(mes, userStore)
 const confirming = ref(false)
+const lastBarcode = ref(null)
 const { selected, onRowClick } = useMesFilter(computed(() => mes.pendingInbound), ['id'])
 const rows = computed(() => detailRows(selected.value, [
   { key: 'orderId', label: '订单' }, { key: 'workOrderId', label: '工单' },
@@ -55,15 +67,24 @@ const rows = computed(() => detailRows(selected.value, [
 ]))
 async function confirm() {
   if (!selected.value || confirming.value) return
+  const taskId = selected.value.id
   confirming.value = true
   try {
-    await mes.confirmInbound(selected.value.id, userStore.displayName, userStore.roleKey)
-    ElMessage.success('入库成功，库存已更新')
+    const result = await mes.confirmInbound(taskId, userStore.userInfo?.username, userStore.roleKey)
+    lastBarcode.value = result?.barcodeNo ? result : null
+    ElMessage.success(lastBarcode.value?.barcodeNo
+      ? `入库成功，已生成条码 ${lastBarcode.value.barcodeNo}`
+      : '入库成功，库存已更新')
   } catch {
     // 全局 request 拦截器已提示后端错误
   } finally {
     confirming.value = false
   }
+}
+async function copyBarcode(barcodeNo) {
+  if (!barcodeNo) return
+  await navigator.clipboard?.writeText(barcodeNo)
+  ElMessage.success('条码已复制')
 }
 function removeInbound(row) {
   if (!row) return

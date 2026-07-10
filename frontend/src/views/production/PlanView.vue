@@ -9,8 +9,7 @@
     :status-options="PLAN_STATUS"
 
     :toolbar-actions="[
-      { label: '智能生成生产计划', key: 'smart', type: 'warning' },
-      { label: '智能排产（库存分析）', key: 'agent', type: 'success' },
+      { label: '智能排产', key: 'agent', type: 'success' },
       { label: '创建计划', key: 'create', type: 'primary' }
     ]"
 
@@ -196,8 +195,6 @@
 
   <PlannerAgentDialog v-model="agentVisible" :default-order-id="agentOrderId" @success="onAgentSuccess" />
 
-  <SmartPlanDialog v-model="smartVisible" @success="onSmartSuccess" />
-
   <el-dialog v-model="editVisible" title="修改生产计划" width="440px">
     <el-form label-width="100px">
       <el-form-item label="计划数量">
@@ -252,7 +249,6 @@ import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 
 import PlannerAgentDialog from '@/components/mes/PlannerAgentDialog.vue'
-import SmartPlanDialog from '@/components/mes/SmartPlanDialog.vue'
 
 
 
@@ -266,8 +262,6 @@ const { runDelete } = useMesDelete(mes, userStore)
 const dialogVisible = ref(false)
 
 const agentVisible = ref(false)
-
-const smartVisible = ref(false)
 const editVisible = ref(false)
 
 const agentOrderId = ref('')
@@ -321,39 +315,16 @@ onMounted(() => {
 
 
 function onAction(k) {
-
-  if (k === 'smart') {
-
-    smartVisible.value = true
-
-    return
-
-  }
-
   if (k === 'agent') {
-
     agentOrderId.value = pendingOrders.value[0]?.id || ''
-
     agentVisible.value = true
-
     return
-
   }
-
   if (k === 'create') openCreateForOrder(pendingOrders.value[0]?.id || '')
-
 }
 
 function onAgentSuccess() {
-
   mes.hydrateFromApi?.()
-
-}
-
-function onSmartSuccess() {
-
-  mes.hydrateFromApi?.()
-
 }
 
 

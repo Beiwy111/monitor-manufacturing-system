@@ -47,11 +47,15 @@ export const QC_ITEMS = [
 export const QC_TYPES = ['首件检验', '过程检验', '终检', '复检']
 
 export const PROCESS_STEPS = [
-  '面板贴附', '背光组装', '整机老化测试', '电竞调校', '外观检验包装'
+  '显示屏加工', '主板装配', '贴附', '组装'
+]
+
+export const QC_PROCESS_STEPS = [
+  '整机老化测试', '电竞调校', '外观检验包装'
 ]
 
 export const EQUIPMENT_TYPES = [
-  '装配线', '点亮测试设备', '亮度检测设备', '老化测试架', '包装设备', '贴合设备'
+  '显示屏线', '主板线', '贴附机', '组装线', '老化测试架', '调校台', '包装设备'
 ]
 
 export const STATUS_COLOR = {
