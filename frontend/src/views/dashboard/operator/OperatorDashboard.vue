@@ -141,14 +141,15 @@ async function submitAlarm() {
 .ruoyi-operator-bar--binding {
   margin-bottom: 8px;
   padding: 10px 14px;
-  background: #fafafa;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
+  background: var(--layout-accent-soft, rgba(45, 138, 102, 0.08));
+  border: 1px solid var(--layout-accent-border, rgba(45, 138, 102, 0.2));
+  border-radius: var(--layout-card-radius, 12px);
 }
 
 .ruoyi-operator-bar__meta {
   margin: 0;
   font-size: 13px;
-  color: #606266;
+  font-weight: 400;
+  color: var(--layout-text-secondary, #6b7280);
 }
 </style>

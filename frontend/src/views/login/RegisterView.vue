@@ -209,14 +209,14 @@ async function handleRegister() {
 .auth-brand__kicker {
   font-size: 13px;
   letter-spacing: 0.28em;
-  color: #5eead4;
+  color: #4ade80;
   margin-bottom: 18px;
 }
 
 .auth-brand__title {
   margin: 0;
   line-height: 1.15;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .auth-brand__title-cn {
@@ -228,7 +228,7 @@ async function handleRegister() {
 .auth-brand__title-en {
   display: block;
   font-size: clamp(42px, 6vw, 64px);
-  color: #2dd4bf;
+  color: #2d8a66;
   letter-spacing: 0.06em;
 }
 
@@ -274,7 +274,7 @@ async function handleRegister() {
   text-align: right;
   font-size: 11px;
   letter-spacing: 0.22em;
-  color: #5eead4;
+  color: #4ade80;
   margin-bottom: 8px;
 }
 
@@ -282,7 +282,7 @@ async function handleRegister() {
   margin: 0 0 24px;
   text-align: center;
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 400;
   color: #fff;
 }
 
@@ -324,17 +324,18 @@ async function handleRegister() {
   width: 100%;
   padding: 14px 24px;
   border: none;
-  border-radius: 2px;
-  background: #fff;
-  color: #0f4c75;
-  font-size: 16px;
-  font-weight: 600;
+  border-radius: 10px;
+  background: #2d8a66;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.2s;
+  transition: opacity 0.2s, transform 0.2s, background 0.2s;
 }
 
 .auth-submit:hover:not(:disabled) {
   transform: translateY(-1px);
+  background: #256f52;
 }
 
 .auth-submit:disabled {
@@ -359,7 +360,7 @@ async function handleRegister() {
 }
 
 .auth-panel__links a {
-  color: #5eead4;
+  color: #4ade80;
   cursor: pointer;
   text-decoration: none;
 }

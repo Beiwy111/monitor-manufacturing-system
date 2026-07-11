@@ -76,6 +76,8 @@ public class MesSnapshotService {
     private EquipmentMaintenanceRecordMapper equipmentMaintenanceRecordMapper;
     @Autowired
     private MesRuntimeStore mesRuntimeStore;
+    @Autowired
+    private OrderOcrService orderOcrService;
 
     public Map<String, Object> buildSnapshot() {
         List<User> users = userMapper.userList();
@@ -127,9 +129,9 @@ public class MesSnapshotService {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("sysUsers", mapUsers(users, roleById));
         snapshot.put("sysRoles", mapRoles(roles, users));
-        snapshot.put("orders", mapOrders(orders, itemsByOrderId, planByOrderId, woByPlanId, deliveries, userById, runtime));
+        snapshot.put("orders", mapOrders(orders, itemsByOrderId, planByOrderId, woByPlanId, deliveries, userById, materialById, runtime));
         snapshot.put("plans", mapPlans(plans, planItems, orderById, itemsByOrderId, userById, runtime));
-        snapshot.put("workOrders", mapWorkOrders(workOrders, planById, orderById, itemsByOrderId, userById, dispatches, stepById));
+        snapshot.put("workOrders", mapWorkOrders(workOrders, planById, orderById, itemsByOrderId, userById, dispatches, stepById, equipmentById));
         snapshot.put("dispatches", mapDispatches(dispatches, woById, userById, stepById, equipmentById, runtime));
         snapshot.put("workReports", mapReports(reports, woById, dispatches, userById, stepById));
         snapshot.put("inspections", mapInspections(inspections, woById, planById, itemsByOrderId, orderById, userById, runtime));
@@ -209,6 +211,7 @@ public class MesSnapshotService {
                                                   Map<Long, WorkOrder> woByPlanId,
                                                   List<DeliveryOrder> deliveries,
                                                   Map<Long, User> userById,
+                                                  Map<Long, Material> materialById,
                                                   MesRuntimeState runtime) {
         Set<Long> shippedOrderIds = deliveries.stream()
                 .filter(d -> "SHIPPED".equals(d.getDeliveryStatus()))
@@ -228,14 +231,32 @@ public class MesSnapshotService {
             m.put("customerId", extra.getOrDefault("customerId", customerId(o.getCustomerName())));
             m.put("customerName", o.getCustomerName());
             m.put("productModel", item != null ? item.getProductName() : extra.getOrDefault("productModel", ""));
+            m.put("specification", item != null && item.getSpecification() != null ? item.getSpecification() : "");
             m.put("panelType", extra.getOrDefault("panelType", panelType(item)));
             m.put("quantity", item != null ? intVal(item.getQuantity()) : extra.getOrDefault("quantity", 0));
+            m.put("unitPrice", item != null && item.getUnitPrice() != null ? item.getUnitPrice().doubleValue() : 0);
+            if (item != null && item.getMaterialId() != null) {
+                Material mat = materialById.get(item.getMaterialId());
+                if (mat != null) {
+                    m.put("materialCode", mat.getMaterialCode());
+                    if (m.get("specification") == null || String.valueOf(m.get("specification")).isBlank()) {
+                        m.put("specification", mat.getSpecification());
+                    }
+                }
+            }
             m.put("deliveryDate", o.getRequiredDeliveryDate() != null ? o.getRequiredDeliveryDate().format(DATE_FMT) : "");
             m.put("status", deriveOrderStatus(o, plan, wo, shippedOrderIds.contains(o.getOrderId())));
             m.put("amount", o.getOrderAmount() != null ? o.getOrderAmount().doubleValue() : 0);
             User creator = userById.get(o.getCreatedBy());
             m.put("salesPerson", creator != null ? creator.getRealName() : extra.getOrDefault("salesPerson", ""));
             m.put("remark", o.getRemark());
+            User auditor = userById.get(o.getAuditUserId());
+            m.put("auditOpinion", o.getAuditOpinion() != null ? o.getAuditOpinion() : "");
+            m.put("auditAt", o.getAuditAt() != null ? fmt(o.getAuditAt()) : "");
+            m.put("auditor", auditor != null ? auditor.getRealName() : "");
+            m.put("attachments", resolveOrderAttachments(o.getOrderNo(), extra));
+            m.put("auditRecords", extra.getOrDefault("auditRecords", List.of()));
+            m.put("auditFlag", extra.getOrDefault("auditFlag", ""));
             if (plan != null) {
                 m.put("planId", plan.getPlanNo());
             }
@@ -303,6 +324,10 @@ public class MesSnapshotService {
             m.put("priority", p.getPriority());
             m.put("planner", planner != null ? planner.getRealName() : "");
             m.put("remark", p.getRemark());
+            m.put("versionNo", p.getVersionNo() != null ? p.getVersionNo() : "V1");
+            m.put("parentPlanNo", p.getParentPlanNo() != null ? p.getParentPlanNo() : "");
+            m.put("adjustReason", p.getAdjustReason() != null ? p.getAdjustReason() : "");
+            m.put("schedulingMode", p.getSchedulingMode() != null ? p.getSchedulingMode() : "MANUAL");
             if (p.getApprovedAt() != null) {
                 m.put("submittedAt", fmt(p.getApprovedAt()));
             }
@@ -329,7 +354,8 @@ public class MesSnapshotService {
                                                     Map<Long, List<CustomerOrderItem>> itemsByOrderId,
                                                     Map<Long, User> userById,
                                                     List<DispatchTask> dispatches,
-                                                    Map<Long, ProcessStep> stepById) {
+                                                    Map<Long, ProcessStep> stepById,
+                                                    Map<Long, Equipment> equipmentById) {
         List<Map<String, Object>> list = new ArrayList<>();
         for (WorkOrder wo : workOrders) {
             ProductionPlan plan = planById.get(wo.getPlanId());
@@ -350,7 +376,7 @@ public class MesSnapshotService {
             m.put("completedQty", finishedQty);
             m.put("qualifiedQty", intVal(wo.getQualifiedQuantity()));
             m.put("status", MesStatusMapper.toWorkOrderCn(wo.getStatus()));
-            m.put("line", "装配线 A");
+            m.put("line", resolveWorkOrderLine(woDispatches, equipmentById));
             m.put("manager", manager != null ? manager.getRealName() : "");
             m.put("createdAt", fmt(wo.getCreatedAt()));
             m.put("updatedAt", fmt(wo.getUpdatedAt()));
@@ -687,16 +713,26 @@ public class MesSnapshotService {
 
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", a.getAlarmNo());
-            m.put("type", a.getAlarmType());
-            m.put("source", extra.getOrDefault("source", eq != null ? eq.getEquipmentName() : ""));
+            m.put("type", alarmTypeCn(a.getAlarmType()));
+            m.put("typeCode", a.getAlarmType());
+            m.put("source", buildAlarmSource(eq, extra));
+            m.put("workshop", eq != null && eq.getWorkshop() != null ? eq.getWorkshop() : extra.getOrDefault("workshop", ""));
+            m.put("equipmentName", eq != null ? eq.getEquipmentName() : extra.getOrDefault("equipmentName", ""));
             m.put("workOrderId", wo != null ? wo.getWorkOrderNo() : "");
             m.put("level", alarmLevelCn(a.getAlarmLevel()));
-            m.put("status", MesStatusMapper.toAlarmCn(a.getAlarmStatus()));
+            m.put("levelTone", alarmLevelTone(a.getAlarmLevel()));
+            m.put("status", alarmStatusCn(a.getAlarmStatus(), assignee));
+            m.put("statusCode", a.getAlarmStatus());
             m.put("reporter", reporter != null ? reporter.getUsername() : "");
             m.put("reporterName", extra.getOrDefault("reporterName", reporter != null ? reporter.getRealName() : ""));
             m.put("assignee", assignee != null ? assignee.getUsername() : "");
             m.put("assigneeName", extra.getOrDefault("assigneeName", assignee != null ? assignee.getRealName() : ""));
+            m.put("handlerName", extra.getOrDefault("handlerName", assignee != null ? assignee.getRealName() : ""));
             m.put("description", a.getAlarmDescription());
+            m.put("handleResult", extra.getOrDefault("handleResult", ""));
+            m.put("durationMinutes", alarmDurationMinutes(a));
+            m.put("durationText", formatDuration(alarmDurationMinutes(a)));
+            m.put("occurredAt", fmt(a.getReportedAt() != null ? a.getReportedAt() : a.getCreatedAt()));
             m.put("createdAt", fmt(a.getReportedAt() != null ? a.getReportedAt() : a.getCreatedAt()));
             m.put("updatedAt", fmt(a.getUpdatedAt()));
             list.add(m);
@@ -916,6 +952,15 @@ public class MesSnapshotService {
         return items != null && !items.isEmpty() ? items.get(0) : null;
     }
 
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> resolveOrderAttachments(String orderNo, Map<String, Object> extra) {
+        Object raw = extra.get("attachments");
+        if (raw instanceof List<?> list && !list.isEmpty()) {
+            return (List<Map<String, Object>>) raw;
+        }
+        return orderOcrService.defaultAttachmentsForOrder(orderNo);
+    }
+
     private int customerId(String customerName) {
         if (customerName == null) {
             return 0;
@@ -955,14 +1000,78 @@ public class MesSnapshotService {
     }
 
     private String alarmLevelCn(String level) {
-        if (level == null) {
-            return "中";
-        }
-        return switch (level) {
-            case "HIGH" -> "高";
-            case "LOW" -> "低";
-            default -> "中";
+        if (level == null) return "一般";
+        return switch (level.toUpperCase()) {
+            case "HIGH", "URGENT", "IMPORTANT" -> "严重";
+            case "LOW", "GENERAL" -> "一般";
+            default -> "较重";
         };
+    }
+
+    private String alarmLevelTone(String level) {
+        if (level == null) return "warning";
+        return switch (level.toUpperCase()) {
+            case "HIGH", "URGENT", "IMPORTANT" -> "danger";
+            default -> "warning";
+        };
+    }
+
+    private String alarmTypeCn(String type) {
+        if (type == null || type.isBlank()) return "设备故障";
+        if (type.contains("设备") || "EQUIPMENT".equalsIgnoreCase(type)) return "设备故障";
+        if (type.contains("物料") || "MATERIAL".equalsIgnoreCase(type)) return "物料短缺";
+        if (type.contains("质量") || "QUALITY".equalsIgnoreCase(type)) return "质量异常";
+        if (type.contains("进度") || type.contains("延期") || "PROCESS".equalsIgnoreCase(type)) return "进度延期";
+        if (type.contains("人员") || "SAFETY".equalsIgnoreCase(type)) return "人员异常";
+        return type;
+    }
+
+    private String alarmStatusCn(String status, User assignee) {
+        if (status == null) return "待确认";
+        return switch (status) {
+            case "REPORTED", "OPEN" -> "待确认";
+            case "RECEIVED" -> assignee != null ? "已指派" : "已确认";
+            case "PROCESSING" -> "处理中";
+            case "CLOSED" -> "已关闭";
+            default -> MesStatusMapper.toAlarmCn(status);
+        };
+    }
+
+    private String buildAlarmSource(Equipment eq, Map<String, Object> extra) {
+        Object ws = extra.get("workshop");
+        if (ws != null && !String.valueOf(ws).isBlank()) {
+            String eqName = eq != null ? eq.getEquipmentName() : String.valueOf(extra.getOrDefault("equipmentName", ""));
+            return String.valueOf(ws) + (eqName.isBlank() ? "" : " / " + eqName);
+        }
+        if (eq != null) {
+            return (eq.getWorkshop() != null ? eq.getWorkshop() + " / " : "") + eq.getEquipmentName();
+        }
+        return String.valueOf(extra.getOrDefault("source", "—"));
+    }
+
+    private long alarmDurationMinutes(AndonAlarm a) {
+        LocalDateTime start = a.getReportedAt() != null ? a.getReportedAt() : a.getCreatedAt();
+        if (start == null) return 0;
+        LocalDateTime end = "CLOSED".equals(a.getAlarmStatus()) && a.getClosedAt() != null
+                ? a.getClosedAt() : LocalDateTime.now();
+        return java.time.Duration.between(start, end).toMinutes();
+    }
+
+    private String formatDuration(long minutes) {
+        if (minutes < 60) return minutes + " 分钟";
+        return (minutes / 60) + " 小时 " + (minutes % 60) + " 分";
+    }
+
+    private String resolveWorkOrderLine(List<DispatchTask> woDispatches, Map<Long, Equipment> equipmentById) {
+        for (DispatchTask d : woDispatches) {
+            if (d.getEquipmentId() != null) {
+                Equipment eq = equipmentById.get(d.getEquipmentId());
+                if (eq != null && eq.getWorkshop() != null && !eq.getWorkshop().isBlank()) {
+                    return eq.getWorkshop();
+                }
+            }
+        }
+        return "—";
     }
 
     private int intVal(BigDecimal v) {

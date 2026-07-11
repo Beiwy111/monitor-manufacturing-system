@@ -2,28 +2,28 @@
  * 全站字体与排版变量（Siemens 企业官网风格：克制、清晰、不粗重）
  */
 :root {
-  --font-sans: "Inter", "HarmonyOS Sans SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-sans: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 
   /* 文字颜色 */
-  --text-main: #001b3f;
-  --text-muted: #4f5f73;
-  --text-subtle: #4f5f73;
-  --text-placeholder: #6b7a8f;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --text-subtle: #6b7280;
+  --text-placeholder: #9ca3af;
   --text-inverse: #ffffff;
-  --heading-color: #001b3f;
-  --accent-color: #00d7c3;
-  --accent-bright: #00d7c3;
-  --accent-hover: #00bfad;
+  --heading-color: #111827;
+  --accent-color: #2d8a66;
+  --accent-bright: #4ade80;
+  --accent-hover: #256f52;
 
-  /* 字重 */
-  --heading-weight: 600;
+  /* 字重 — 全局细体 */
+  --heading-weight: 500;
   --body-weight: 400;
   --body-weight-medium: 500;
-  --brand-weight: 600;
-  --nav-weight: 500;
-  --btn-weight: 600;
-  --table-head-weight: 600;
-  --label-weight: 600;
+  --brand-weight: 400;
+  --nav-weight: 300;
+  --btn-weight: 500;
+  --table-head-weight: 500;
+  --label-weight: 500;
 
   /* 字号 */
   --fs-base: 16px;

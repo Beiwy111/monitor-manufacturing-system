@@ -71,6 +71,13 @@ export const MENU_PATH_MAP = {
 
 export const BOARD_PATH = '/system/board'
 
+/** 仅生产主管可访问的路由 */
+export const MANAGER_ONLY_PATHS = new Set([
+  BOARD_PATH,
+  '/production/work-order',
+  '/production/dispatch'
+])
+
 /** 各角色在前端有、但 sys_menu 未单独建项的路由 */
 const ROLE_MENU_EXTRAS = {
   order: {
@@ -86,16 +93,15 @@ const ROLE_MENU_EXTRAS = {
   manager: {
     production: [
       { menuId: 9041, menuName: '生产调度大屏', path: BOARD_PATH },
+      { menuId: 9042, menuName: '生产工单', path: '/production/work-order' },
       { menuId: 9043, menuName: '工单派工', path: '/production/dispatch' },
-      { menuId: 9044, menuName: '生产进度', path: '/production/progress' },
-      { menuId: 9045, menuName: '生产异常', path: '/production/exception' }
+      { menuId: 9044, menuName: '生产进度', path: '/production/progress' }
     ],
     equipment: [{ menuId: 9046, menuName: '安灯报警', path: '/device/alarm' }]
   },
   operator: {
     production: [
       { menuId: 9051, menuName: '我的派工', path: '/production/my-dispatch' },
-      { menuId: 9052, menuName: '当前工单', path: '/production/work-order' },
       { menuId: 9053, menuName: '生产报工', path: '/production/report' },
       { menuId: 9054, menuName: '工艺说明', path: '/production/process-guide' }
     ],
@@ -158,13 +164,11 @@ export function normalizeMenus(apiMenus, roleKey, fallbackMenus) {
     menus = mergeRoleExtras(menus, roleKey)
   }
 
-  menus = stripBoardFromMenus(menus, roleKey)
-
   if (!menus.length && fallbackMenus?.length) {
-    menus = fallbackMenus
+    return normalizeMenus(fallbackMenus, roleKey, null)
   }
 
-  return menus
+  return stripManagerOnlyFromMenus(menus, roleKey)
 }
 
 function mergeRoleExtras(menus, roleKey) {
@@ -193,7 +197,6 @@ function mergeRoleExtras(menus, roleKey) {
   if (roleKey === 'operator') {
     const allowedProduction = new Set([
       '/production/my-dispatch',
-      '/production/work-order',
       '/production/report',
       '/production/process-guide'
     ])
@@ -279,13 +282,19 @@ export function getHomePath(roleKey) {
 /** @deprecated 请使用 getHomePath(roleKey) */
 export const HOME_PATH = BOARD_PATH
 
-/** 生产调度大屏仅生产主管可见 */
-export function stripBoardFromMenus(menus, roleKey) {
+/** 生产调度大屏、生产工单、工单派工仅生产主管可见 */
+export function stripManagerOnlyFromMenus(menus, roleKey) {
   if (roleKey === 'manager') return menus
   return (menus || [])
     .map((m) => ({
       ...m,
-      children: (m.children || []).filter((c) => c.path !== BOARD_PATH)
+      children: (m.children || []).filter((c) => !MANAGER_ONLY_PATHS.has(c.path))
     }))
     .filter((m) => m.children?.length)
+}
+
+/** 生产调度大屏仅生产主管可见 */
+export function stripBoardFromMenus(menus, roleKey) {
+  if (roleKey === 'manager') return menus
+  return stripManagerOnlyFromMenus(menus, roleKey)
 }

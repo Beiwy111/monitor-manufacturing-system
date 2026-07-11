@@ -31,7 +31,7 @@
 .mes-status-value {
   display: inline;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: #303133;
 }
 
@@ -49,7 +49,7 @@
 
 .mes-toolbar-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: #303133;
   margin-right: 8px;
 }
@@ -80,7 +80,7 @@
 
 .mes-table-wrap .el-table th.el-table__cell {
   background: #f8f8f9 !important;
-  font-weight: 600;
+  font-weight: 500;
   color: #515a6e;
   font-size: 13px;
 }
@@ -98,7 +98,7 @@
 
 .mes-side-header {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: #303133;
   margin-bottom: 8px;
 }
@@ -145,7 +145,7 @@
 .mes-log-header {
   padding: 8px 16px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: #909399;
   border-bottom: 1px solid #f0f0f0;
 }
@@ -194,17 +194,18 @@
   display: inline-block;
   padding: 4px 10px;
   font-size: 12px;
-  color: #409eff;
+  font-weight: 400;
+  color: var(--layout-accent);
   text-decoration: none;
-  border: 1px solid #d9ecff;
-  border-radius: 2px;
-  background: #ecf5ff;
+  border: 1px solid var(--layout-accent-border);
+  border-radius: 8px;
+  background: var(--layout-accent-soft);
 }
 
 .mes-shortcut-item:hover {
-  background: #409eff;
+  background: var(--layout-accent);
   color: #fff;
-  border-color: #409eff;
+  border-color: var(--layout-accent);
 }
 
 .mes-operator-terminal .mes-status-strip {
@@ -225,7 +226,7 @@
 .mes-operator-current h3 {
   margin: 0 0 6px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: #303133;
 }
 
@@ -248,7 +249,7 @@
   position: relative;
   padding-left: 16px;
   padding-bottom: 12px;
-  border-left: 2px solid #409eff;
+  border-left: 2px solid var(--layout-accent);
   margin-left: 4px;
 }
 
@@ -263,12 +264,12 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #409eff;
+  background: var(--layout-accent);
 }
 
 .mes-timeline-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: #303133;
 }
 

@@ -6,13 +6,13 @@ html, body, #app {
   margin: 0;
   padding: 0;
   height: 100%;
-  background: #f5f7fa;
+  background: var(--layout-surface, #f8fafa);
 }
 
 .page-card {
   background: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 6px;
+  border: 1px solid var(--layout-border, #e8eceb);
+  border-radius: var(--layout-card-radius, 12px);
   padding: 16px;
 }
 

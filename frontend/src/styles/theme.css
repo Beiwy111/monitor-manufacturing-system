@@ -1,0 +1,126 @@
+/**
+ * MES 全局主题 — 黑色侧栏 + 细体 + 墨绿强调色（全角色统一）
+ */
+:root {
+  --layout-font: 'Inter', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --layout-accent: #2d8a66;
+  --layout-accent-hover: #256f52;
+  --layout-accent-light: #4ade80;
+  --layout-accent-soft: rgba(45, 138, 102, 0.12);
+  --layout-accent-border: rgba(45, 138, 102, 0.28);
+  --layout-surface: #f8fafa;
+  --layout-card-radius: 12px;
+  --layout-text: #111827;
+  --layout-text-secondary: #6b7280;
+  --layout-border: #e8eceb;
+
+  /* Element Plus 主色 */
+  --el-color-primary: #2d8a66;
+  --el-color-primary-light-3: #5aa684;
+  --el-color-primary-light-5: #7db99f;
+  --el-color-primary-light-7: #a8d0be;
+  --el-color-primary-light-8: #c0ddd0;
+  --el-color-primary-light-9: #d8ebe2;
+  --el-color-primary-dark-2: #256f52;
+}
+
+html,
+body,
+#app {
+  font-family: var(--layout-font);
+  font-weight: 400;
+  background: var(--layout-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* —— 管理后台内容区全局细体 —— */
+.ruoyi-app-main,
+.ruoyi-page,
+.mes-page,
+.mes-workbench,
+.role-dashboard {
+  font-weight: 400;
+}
+
+.ruoyi-app-main .el-button,
+.ruoyi-page .el-button,
+.mes-page .el-button {
+  font-weight: 500 !important;
+  border-radius: 8px;
+}
+
+.ruoyi-app-main .el-button--primary,
+.ruoyi-page .el-button--primary,
+.mes-page .el-button--primary {
+  --el-button-bg-color: var(--layout-accent);
+  --el-button-border-color: var(--layout-accent);
+  --el-button-hover-bg-color: var(--layout-accent-hover);
+  --el-button-hover-border-color: var(--layout-accent-hover);
+}
+
+.ruoyi-app-main .el-button.is-link,
+.ruoyi-page .el-button.is-link,
+.mes-page .el-button.is-link {
+  font-weight: 400 !important;
+}
+
+.ruoyi-app-main .el-button--primary.is-link,
+.ruoyi-page .el-button--primary.is-link {
+  --el-button-text-color: var(--layout-accent);
+  --el-button-hover-text-color: var(--layout-accent-hover);
+}
+
+.ruoyi-app-main .el-input__wrapper,
+.ruoyi-page .el-input__wrapper,
+.mes-page .el-input__wrapper {
+  border-radius: 8px;
+}
+
+.ruoyi-app-main .el-table th.el-table__cell,
+.ruoyi-page .el-table th.el-table__cell,
+.mes-table-wrap .el-table th.el-table__cell {
+  font-weight: 500 !important;
+}
+
+.ruoyi-app-main .el-dialog,
+.ruoyi-page .el-dialog {
+  border-radius: var(--layout-card-radius);
+}
+
+.ruoyi-app-main .el-tabs__item,
+.ruoyi-page .el-tabs__item {
+  font-weight: 400;
+}
+
+.ruoyi-app-main .el-tabs__item.is-active,
+.ruoyi-page .el-tabs__item.is-active {
+  color: var(--layout-accent);
+  font-weight: 500;
+}
+
+.ruoyi-app-main .el-tabs__active-bar,
+.ruoyi-page .el-tabs__active-bar {
+  background-color: var(--layout-accent);
+}
+
+.ruoyi-app-main .el-pagination.is-background .el-pager li.is-active,
+.ruoyi-page .el-pagination.is-background .el-pager li.is-active {
+  background-color: var(--layout-accent) !important;
+}
+
+.ruoyi-app-main .el-tag--primary,
+.ruoyi-page .el-tag--primary {
+  --el-tag-bg-color: var(--layout-accent-soft);
+  --el-tag-border-color: var(--layout-accent-border);
+  --el-tag-text-color: var(--layout-accent);
+}
+
+.page-card {
+  border-radius: var(--layout-card-radius);
+  border-color: var(--layout-border);
+}
+
+.page-title {
+  font-weight: 500;
+  color: var(--layout-text);
+}

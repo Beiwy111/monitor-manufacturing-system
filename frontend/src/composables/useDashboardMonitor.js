@@ -178,7 +178,7 @@ function computeDashboardSnapshot(mes) {
     else if (o.status === '已审核') stage = '待提交计划'
     else if (o.status === '待计划' && !plan) stage = '待计划'
     else if (plan?.status === '草稿' || plan?.status === '已发布') stage = '计划编制'
-    else if (plan?.status === '已提交' && !wo) stage = '待生成工单'
+    else if (plan?.status === '已发布' && !wo) stage = '待生成工单'
     else if (wo && ['草稿', '已下达', '已派工'].includes(wo.status)) stage = '待生产'
     else if (wo && ['生产中', '待质检'].includes(wo.status)) stage = '生产中'
     else if (qc) stage = '待质检'

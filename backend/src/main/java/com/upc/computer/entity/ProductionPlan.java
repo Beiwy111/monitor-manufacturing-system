@@ -44,6 +44,18 @@ public class ProductionPlan {
     /** remark */
     private String remark;
 
+    /** version_no */
+    private String versionNo;
+
+    /** parent_plan_no */
+    private String parentPlanNo;
+
+    /** adjust_reason */
+    private String adjustReason;
+
+    /** scheduling_mode */
+    private String schedulingMode;
+
     /** created_at */
     private LocalDateTime createdAt;
 
@@ -144,6 +156,38 @@ public class ProductionPlan {
 
     public void setRemark(String remark) {
         this.remark = remark;
+    }
+
+    public String getVersionNo() {
+        return versionNo;
+    }
+
+    public void setVersionNo(String versionNo) {
+        this.versionNo = versionNo;
+    }
+
+    public String getParentPlanNo() {
+        return parentPlanNo;
+    }
+
+    public void setParentPlanNo(String parentPlanNo) {
+        this.parentPlanNo = parentPlanNo;
+    }
+
+    public String getAdjustReason() {
+        return adjustReason;
+    }
+
+    public void setAdjustReason(String adjustReason) {
+        this.adjustReason = adjustReason;
+    }
+
+    public String getSchedulingMode() {
+        return schedulingMode;
+    }
+
+    public void setSchedulingMode(String schedulingMode) {
+        this.schedulingMode = schedulingMode;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -4,7 +4,7 @@ import { getMenusByRoleKey } from '@/mock/menus'
 import { login as loginApi, getUserInfo, getMenus } from '@/api/auth'
 import { MES_LIVE_MODE } from '@/config/mes'
 import { useMesStore } from '@/stores/mes'
-import { normalizeMenus, getHomePath, BOARD_PATH, stripBoardFromMenus } from '@/utils/menuRoutes'
+import { normalizeMenus, getHomePath, BOARD_PATH, stripManagerOnlyFromMenus } from '@/utils/menuRoutes'
 import { useTagsViewStore } from '@/stores/tagsView'
 
 /** 是否使用 Mock 登录（后端接口就绪后改为 false） */
@@ -104,12 +104,12 @@ export const useUserStore = defineStore('user', {
         const apiMenus = await getMenus()
         this.menus = normalizeMenus(apiMenus, this.roleKey, fallback)
       } catch {
-        this.menus = fallback
+        this.menus = normalizeMenus([], this.roleKey, fallback)
       }
       if (!this.menus.some((m) => m.children?.length) && fallback.length) {
-        this.menus = fallback
+        this.menus = normalizeMenus(fallback, this.roleKey, null)
       }
-      this.menus = stripBoardFromMenus(this.menus, this.roleKey)
+      this.menus = stripManagerOnlyFromMenus(this.menus, this.roleKey)
       localStorage.setItem('menus', JSON.stringify(this.menus))
       return this.menus
     },

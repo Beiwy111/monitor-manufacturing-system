@@ -3,6 +3,7 @@ import { createInitialMesData, now } from '@/mock/mesData'
 import { MES_LIVE_MODE } from '@/config/mes'
 import { fetchMesSnapshot, postMesAction } from '@/api/mes'
 import { finishedGoodsQty, isProductionStep } from '@/utils/productionProgress'
+import { OPERATOR_BINDINGS } from '@/utils/operatorWorkshop'
 
 export const MES_STORAGE_KEY = 'mes-store-data'
 
@@ -110,14 +111,24 @@ export const useMesStore = defineStore('mes', {
     approvedOrders: (s) => s.orders.filter((o) => o.status === '已审核'),
     pendingSubmitToPlanner: (s) => s.orders.filter((o) => o.status === '已审核'),
     pendingPlanOrders: (s) => s.orders.filter((o) => o.status === '待计划' || o.status === '已审核'),
-    pendingSubmitPlans: (s) => s.plans.filter((p) => p.status === '已发布'),
+    pendingSubmitPlans: (s) => s.plans.filter((p) => p.status === '待提交'),
     pendingManagerPlans: (s) => {
       const woPlanIds = new Set(s.workOrders.map((w) => w.planId))
-      return s.plans.filter((p) => p.status === '已提交' && !woPlanIds.has(p.id))
+      return s.plans.filter((p) => p.status === '已发布' && !woPlanIds.has(p.id))
     },
     pendingReleaseWorkOrders: (s) => s.workOrders.filter((w) => w.status === '草稿'),
     pendingDispatchWorkOrders: (s) => s.workOrders.filter((w) => w.status === '已下达'),
+    executingWorkOrders: (s) => s.workOrders.filter((w) => ['已派工', '生产中', '待质检'].includes(w.status)),
+    abnormalWorkOrders: (s) => {
+      const alarmWoIds = new Set(s.alarms.filter((a) => a.status !== '已关闭' && a.workOrderId).map((a) => a.workOrderId))
+      return s.workOrders.filter((w) => alarmWoIds.has(w.id) || w.status === '待质检')
+    },
     operatorUsers: (s) => s.sysUsers.filter((u) => u.roleKey === 'operator' && u.status === '启用'),
+    /** 已绑定固定车间的操作员（智能派工/现场派工用） */
+    boundOperatorUsers: (s) => {
+      const bound = new Set(Object.keys(OPERATOR_BINDINGS))
+      return s.sysUsers.filter((u) => u.roleKey === 'operator' && u.status === '启用' && bound.has(u.username))
+    },
     pendingInspections: (s) => s.inspections.filter((i) => i.status === '待检'),
     pendingInbound: (s) => s.inboundTasks.filter((t) => t.status === '待入库'),
     openAlarms: (s) => s.alarms.filter((a) => a.status !== '已关闭'),
@@ -145,12 +156,12 @@ export const useMesStore = defineStore('mes', {
         s.orders.filter((o) => o.status === '已审核').forEach((o) => todos.push({ type: '订单', title: `${o.id} 待提交计划员`, ref: o.id, path: '/order/list' }))
       }
       if (roleKey === 'planner') {
-        s.orders.filter((o) => o.status === '待计划').forEach((o) => todos.push({ type: '订单', title: `${o.id} 待编制计划`, ref: o.id, path: `/production/plan?orderId=${o.id}` }))
+        s.orders.filter((o) => o.status === '待计划' || o.status === '已审核').forEach((o) => todos.push({ type: '订单', title: `${o.id} 待编制计划`, ref: o.id, path: `/production/plan?orderId=${o.id}` }))
+        s.plans.filter((p) => p.status === '待提交').forEach((p) => todos.push({ type: '计划', title: `${p.id} 待提交主管`, ref: p.id, path: '/production/plan' }))
         s.plans.filter((p) => p.status === '草稿').forEach((p) => todos.push({ type: '计划', title: `${p.id} 待发布`, ref: p.id, path: '/production/plan' }))
-        s.plans.filter((p) => p.status === '已发布').forEach((p) => todos.push({ type: '计划', title: `${p.id} 待提交主管`, ref: p.id, path: '/production/plan' }))
       }
       if (roleKey === 'manager') {
-        s.plans.filter((p) => p.status === '已提交' && !s.workOrders.some((w) => w.planId === p.id)).forEach((p) => todos.push({ type: '计划', title: `${p.id} 待生成工单`, ref: p.id, path: '/production/work-order' }))
+        s.plans.filter((p) => p.status === '已发布' && !s.workOrders.some((w) => w.planId === p.id)).forEach((p) => todos.push({ type: '计划', title: `${p.id} 待生成工单`, ref: p.id, path: '/production/work-order' }))
         s.workOrders.filter((w) => w.status === '草稿').forEach((w) => todos.push({ type: '工单', title: `${w.id} 待下达`, ref: w.id, path: '/production/work-order' }))
         s.workOrders.filter((w) => w.status === '已下达').forEach((w) => todos.push({ type: '工单', title: `${w.id} 待派工`, ref: w.id, path: `/production/dispatch?workOrderId=${w.id}` }))
         s.alarms.filter((a) => ['已上报', '已接收'].includes(a.status)).forEach((a) => todos.push({ type: '安灯', title: a.description, ref: a.id, path: '/device/alarm' }))
@@ -260,16 +271,33 @@ export const useMesStore = defineStore('mes', {
       log(this, '订单管理', '创建订单', id, operator, roleKey)
       return order
     },
-    async auditOrder(orderId, pass, operator, roleKey) {
+    async auditOrder(orderId, options, operator, roleKey) {
+      const payload = typeof options === 'boolean'
+        ? { orderId, pass: options }
+        : {
+            orderId,
+            action: options.action,
+            reason: options.reason || '',
+            pass: options.action === 'pass'
+          }
       if (MES_LIVE_MODE) {
-        await this._live('auditOrder', { orderId, pass }, operator, roleKey)
-        return true
+        await this._live('auditOrder', payload, operator, roleKey)
+        const updated = this.orders.find((x) => x.id === orderId)
+        if (typeof options === 'boolean') {
+          return options ? updated?.status === '待计划' : updated?.status === '已作废'
+        }
+        if (options.action === 'pass') return updated?.status === '待计划'
+        if (options.action === 'reject') return updated?.status === '已作废'
+        return updated?.status === '待审核'
       }
       const o = this.orders.find((x) => x.id === orderId)
       if (!o || o.status !== '待审核') return false
-      o.status = pass ? '待计划' : '已作废'
+      const action = typeof options === 'boolean' ? (options ? 'pass' : 'reject') : options.action
+      if (action === 'pass') o.status = '待计划'
+      else if (action === 'reject') o.status = '已作废'
+      else o.auditFlag = action === 'supplement' ? '待补充资料' : '暂缓审核'
       o.updatedAt = now()
-      log(this, '订单管理', pass ? '审核通过并提交计划员' : '审核驳回', orderId, operator, roleKey)
+      log(this, '订单管理', action === 'pass' ? '审核通过并提交计划员' : '订单审核', orderId, operator, roleKey)
       return true
     },
     submitOrder(orderId, operator, roleKey) {
@@ -321,7 +349,7 @@ export const useMesStore = defineStore('mes', {
       }
       const p = this.plans.find((x) => x.id === planId)
       if (!p || p.status !== '草稿') return false
-      p.status = '已发布'
+      p.status = '待提交'
       p.updatedAt = now()
       log(this, '计划管理', '发布生产计划', planId, operator, roleKey)
       return true
@@ -332,8 +360,8 @@ export const useMesStore = defineStore('mes', {
         return true
       }
       const p = this.plans.find((x) => x.id === planId)
-      if (!p || p.status !== '已发布') return false
-      p.status = '已提交'
+      if (!p || p.status !== '待提交') return false
+      p.status = '已发布'
       p.submittedAt = now()
       p.updatedAt = now()
       log(this, '计划管理', '提交生产主管', planId, operator, roleKey)
@@ -374,10 +402,12 @@ export const useMesStore = defineStore('mes', {
       }
       return { recommendations: [], plans: [] }
     },
-    async confirmSmartDispatch(planId, operator, roleKey) {
+    async confirmSmartDispatch(planId, operator, roleKey, recommendations = null) {
       if (MES_LIVE_MODE) {
         const { postConfirmSmartDispatch } = await import('@/api/mes')
-        const result = await postConfirmSmartDispatch({ planId, operator, roleKey })
+        const body = { planId, operator, roleKey }
+        if (recommendations?.length) body.recommendations = recommendations
+        const result = await postConfirmSmartDispatch(body)
         await this.hydrateFromApi()
         return result
       }
@@ -405,7 +435,7 @@ export const useMesStore = defineStore('mes', {
     async createWorkOrder(planId, operator, roleKey) {
       if (MES_LIVE_MODE) return this._live('createWorkOrder', { planId }, operator, roleKey)
       const plan = this.plans.find((p) => p.id === planId)
-      if (!plan || plan.status !== '已提交') return null
+      if (!plan || plan.status !== '已发布') return null
       const id = nextId('WO-2026')
       const wo = {
         id, planId: plan.id, orderId: plan.orderId, orderNo: plan.orderNo,
@@ -828,11 +858,13 @@ export const useMesStore = defineStore('mes', {
       log(this, '安灯报警', '触发安灯', id, operator, roleKey)
       return alarm
     },
-    handleAlarm(alarmId, action, operator, roleKey, assigneeName) {
-      if (MES_LIVE_MODE) return this._live('handleAlarm', { alarmId, action, assigneeName }, operator, roleKey)
+    handleAlarm(alarmId, action, operator, roleKey, extra = {}) {
+      const payload = typeof extra === 'string' ? { alarmId, action, assigneeName: extra } : { alarmId, action, ...extra }
+      if (MES_LIVE_MODE) return this._live('handleAlarm', payload, operator, roleKey)
       const a = this.alarms.find((x) => x.id === alarmId)
       if (!a) return false
-      if (action === 'receive') { a.status = '已接收'; a.assignee = operator; a.assigneeName = assigneeName }
+      if (action === 'confirm' || action === 'receive') { a.status = '已确认' }
+      else if (action === 'assign') { a.status = '已指派'; a.assigneeName = payload.assigneeName }
       else if (action === 'processing') { a.status = '处理中' }
       else if (action === 'close') { a.status = '已关闭' }
       a.updatedAt = now()

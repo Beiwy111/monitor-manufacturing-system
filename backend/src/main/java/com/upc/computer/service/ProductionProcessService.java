@@ -112,6 +112,25 @@ public class ProductionProcessService {
     }
 
     @Transactional
+    public void reorderSteps(Long routeId, List<Long> stepIds) {
+        if (routeId == null || stepIds == null || stepIds.isEmpty()) {
+            throw new BusinessException("工序排序参数无效");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        int no = 10;
+        for (Long stepId : stepIds) {
+            ProcessStep step = processStepMapper.getStepById(stepId);
+            if (step == null || !routeId.equals(step.getRouteId())) {
+                continue;
+            }
+            step.setStepNo(no);
+            step.setUpdatedAt(now);
+            processStepMapper.updateStep(step);
+            no += 10;
+        }
+    }
+
+    @Transactional
     public void disableRoute(Long routeId) {
         if (routeId == null) {
             throw new BusinessException("路线ID不能为空");

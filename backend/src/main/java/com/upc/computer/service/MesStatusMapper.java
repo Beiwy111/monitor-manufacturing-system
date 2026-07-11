@@ -20,9 +20,14 @@ public final class MesStatusMapper {
 
     private static final Map<String, String> PLAN_TO_CN = Map.of(
             "DRAFT", "草稿",
-            "PUBLISHED", "已发布",
-            "SUBMITTED", "已提交",
-            "EXECUTING", "执行中"
+            "PUBLISHED", "待提交",
+            "SUBMITTED", "已发布",
+            "EXECUTING", "执行中",
+            "ADJUSTED", "已调整",
+            "COMPLETED", "已完成",
+            "CANCELLED", "已取消",
+            "RELEASED", "已发布",
+            "RUNNING", "执行中"
     );
 
     private static final Map<String, String> WORK_ORDER_TO_CN = Map.of(

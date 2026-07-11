@@ -1,23 +1,24 @@
-/* 若依风格 — 全局 MES 管理界面 */
+/* 若依风格 — 全局 MES 管理界面（主题变量见 theme.css） */
 
 .ruoyi-app-main,
 .ruoyi-app-main .ruoyi-page,
 .ruoyi-app-main .el-form,
 .ruoyi-app-main .el-table {
-  font-family: 'Microsoft YaHei', 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--layout-font);
 }
 
 .ruoyi-app-main {
-  background: #f0f2f5;
-  padding: 10px;
+  background: var(--layout-surface);
+  padding: 12px;
   overflow: auto;
 }
 
 .ruoyi-page {
   background: #fff;
-  border-radius: 2px;
+  border-radius: var(--layout-card-radius);
   min-height: calc(100vh - 120px);
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  border: 1px solid #e8eceb;
+  box-shadow: none;
 }
 
 .ruoyi-page__head {
@@ -27,8 +28,8 @@
 .ruoyi-page__title {
   margin: 0;
   font-size: 15px;
-  font-weight: 600;
-  color: #303133;
+  font-weight: 500;
+  color: #111827;
 }
 
 .ruoyi-query {
@@ -71,7 +72,7 @@
 .ruoyi-table-wrap .el-table th.el-table__cell {
   background: #f8f8f9 !important;
   color: #515a6e;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 13px;
 }
 
@@ -99,7 +100,7 @@
 
 .ruoyi-stats__item em {
   font-style: normal;
-  font-weight: 600;
+  font-weight: 500;
   color: #303133;
 }
 
@@ -113,8 +114,8 @@
 
 .ruoyi-toolbar__title {
   font-size: 13px;
-  font-weight: 600;
-  color: #303133;
+  font-weight: 400;
+  color: #374151;
   margin-right: 8px;
 }
 
@@ -128,17 +129,18 @@
   display: inline-block;
   padding: 4px 10px;
   font-size: 12px;
-  color: #409eff;
+  font-weight: 400;
+  color: var(--layout-accent);
   text-decoration: none;
-  border: 1px solid #d9ecff;
-  border-radius: 2px;
-  background: #ecf5ff;
+  border: 1px solid var(--layout-accent-border);
+  border-radius: 8px;
+  background: var(--layout-accent-soft);
 }
 
 .ruoyi-link-btn:hover {
-  background: #409eff;
+  background: var(--layout-accent);
   color: #fff;
-  border-color: #409eff;
+  border-color: var(--layout-accent);
 }
 
 .ruoyi-detail {
@@ -153,7 +155,7 @@
 
 .ruoyi-detail__title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: #303133;
 }
 
@@ -188,7 +190,7 @@
 .ruoyi-log__head {
   padding: 8px 16px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: #909399;
   border-bottom: 1px solid #f0f0f0;
 }
@@ -232,7 +234,7 @@
 .ruoyi-operator-bar__title {
   margin: 0 0 6px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: #303133;
 }
 
@@ -251,7 +253,7 @@
 
 .pending-block__title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: #515a6e;
   margin-bottom: 8px;
 }
@@ -299,7 +301,7 @@
 
 .ruoyi-split__tree-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: #303133;
   margin-bottom: 10px;
 }
@@ -311,52 +313,54 @@
 
 /* 布局：侧栏用户信息 */
 .ruoyi-sidebar-user {
-  padding: 16px 12px;
+  padding: 18px 12px;
   text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .ruoyi-sidebar-user__avatar {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 8px;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 10px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #409eff, #337ecc);
+  background: linear-gradient(135deg, #2d8a66, #1a5c42);
   color: #fff;
-  font-size: 24px;
-  line-height: 64px;
-  font-weight: 600;
+  font-size: 22px;
+  line-height: 56px;
+  font-weight: 400;
 }
 
 .ruoyi-sidebar-user__name {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
 }
 
 .ruoyi-sidebar-user__links {
   margin-top: 8px;
   font-size: 12px;
+  font-weight: 300;
 }
 
 .ruoyi-sidebar-user__links a {
-  color: #b8c0cc;
+  color: rgba(255, 255, 255, 0.45);
   text-decoration: none;
   margin: 0 6px;
 }
 
 .ruoyi-sidebar-user__links a:hover {
-  color: #409eff;
+  color: #4ade80;
 }
 
 /* 顶栏标签页 */
 .ruoyi-tags {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 8px 16px;
   background: #fff;
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid #e8eceb;
   overflow-x: auto;
 }
 
@@ -364,21 +368,29 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
+  padding: 5px 12px;
   font-size: 12px;
-  color: #606266;
-  background: #f4f4f5;
-  border: 1px solid #e4e7ed;
-  border-radius: 3px;
+  font-weight: 300;
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
   text-decoration: none;
+  transition: all 0.2s;
+}
+
+.ruoyi-tags__item:hover {
+  color: #374151;
+  border-color: #d1d5db;
 }
 
 .ruoyi-tags__item.is-active {
-  background: #409eff;
-  border-color: #409eff;
-  color: #fff;
+  background: var(--layout-accent-soft);
+  border-color: rgba(45, 138, 102, 0.35);
+  color: var(--layout-accent);
+  font-weight: 400;
 }
 
 .ruoyi-tags__close {
@@ -423,7 +435,7 @@
 
 .ruoyi-stat-card__value {
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 500;
   color: #303133;
   margin-top: 8px;
 }
@@ -438,7 +450,7 @@
 
 .ruoyi-home-panel__title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: 12px;
   color: #303133;
 }
@@ -464,7 +476,7 @@
 }
 
 .ruoyi-shortcut:hover {
-  border-color: #409eff;
-  color: #409eff;
+  border-color: var(--layout-accent);
+  color: var(--layout-accent);
   background: #ecf5ff;
 }

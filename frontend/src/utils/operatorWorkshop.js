@@ -15,14 +15,35 @@ export const OPERATOR_BINDINGS = {
   wang_operator: { workshopKey: 'attach-1', workshopName: '贴附一车间', stageName: '面板贴附', stageOrder: 3 },
   zhou_operator: { workshopKey: 'attach-2', workshopName: '贴附二车间', stageName: '面板贴附', stageOrder: 3 },
   sun_operator: { workshopKey: 'assembly-1', workshopName: '组装一车间', stageName: '整机组装', stageOrder: 4 },
-  operator01: { workshopKey: 'assembly-2', workshopName: '组装二车间', stageName: '整机组装', stageOrder: 4 },
-  operator02: { workshopKey: 'assembly-3', workshopName: '组装三车间', stageName: '整机组装', stageOrder: 4 }
+  chen_operator: { workshopKey: 'assembly-2', workshopName: '组装二车间', stageName: '整机组装', stageOrder: 4 },
+  lin_operator: { workshopKey: 'assembly-3', workshopName: '组装三车间', stageName: '整机组装', stageOrder: 4 }
 }
 
 const TOTAL_STAGES = 4
 
 export function operatorBinding(username) {
   return OPERATOR_BINDINGS[username] || null
+}
+
+export function operatorLabel(user) {
+  if (!user) return ''
+  const bind = operatorBinding(user.username)
+  if (bind) return `${user.realName} · ${bind.workshopName}`
+  return `${user.realName}（${user.username}）`
+}
+
+export function operatorsForProcessStep(processStep) {
+  const name = String(processStep || '')
+  return Object.entries(OPERATOR_BINDINGS)
+    .filter(([, bind]) => {
+      if (!name) return true
+      return bind.stageName === name
+        || (name.includes('组装') && bind.stageName === '整机组装')
+        || (name.includes('贴附') && bind.stageName === '面板贴附')
+        || (name.includes('显示屏') && bind.stageName === '显示屏加工')
+        || (name.includes('主板') && bind.stageName === '主板装配')
+    })
+    .map(([username]) => username)
 }
 
 export function pickCurrentDispatch(dispatches = [], reportableOnly = false) {

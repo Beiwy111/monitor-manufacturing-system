@@ -1,272 +1,247 @@
 <template>
+  <div class="ruoyi-page manager-wo-page">
+    <div class="ruoyi-stats">
+      <span class="ruoyi-stats__item" :class="{ 'ruoyi-stats__item--warn': tabCounts.pendingPlan > 0 }">
+        待生成工单：<em>{{ tabCounts.pendingPlan }}</em>
+      </span>
+      <span class="ruoyi-stats__item" :class="{ 'ruoyi-stats__item--warn': tabCounts.pendingDispatch > 0 }">
+        待派工：<em>{{ tabCounts.pendingDispatch }}</em>
+      </span>
+      <span class="ruoyi-stats__item">执行中：<em>{{ tabCounts.executing }}</em></span>
+      <span class="ruoyi-stats__item" :class="{ 'ruoyi-stats__item--danger': tabCounts.abnormal > 0 }">
+        异常：<em>{{ tabCounts.abnormal }}</em>
+      </span>
+    </div>
 
-  <MesPageShell
+    <div class="ruoyi-toolbar">
+      <span class="ruoyi-toolbar__title">生产工单</span>
+      <el-input v-model="keyword" clearable placeholder="计划号 / 工单号 / 订单号" style="width: 220px" />
+      <el-button @click="refresh">刷新</el-button>
+    </div>
 
-    :status-items="statusItems"
-
-    toolbar-title="生产工单"
-
-    :status-options="WORK_ORDER_STATUS"
-
-    :detail-rows="rows"
-
-    :logs="mes.operationLogs.slice(0, 10)"
-
-  >
-
-    <template #table>
-
-      <div v-if="isManager && pendingPlans.length" class="pending-block">
-        <div class="pending-block__title">主管待生成工单（{{ pendingPlans.length }}）</div>
-
-        <el-table :data="pendingPlans" border stripe size="small" style="margin-bottom: 12px">
-
-          <el-table-column prop="id" label="计划号" width="140" />
-
-          <el-table-column prop="orderNo" label="订单号" width="140" />
-
-          <el-table-column prop="productModel" label="型号" width="130" />
-
-          <el-table-column prop="quantity" label="数量" width="80" />
-
-          <el-table-column label="操作" width="200">
+    <el-tabs v-model="activeTab" class="wo-tabs">
+      <el-tab-pane label="待生成工单" name="pendingPlan">
+        <el-table :data="filteredPlans" border stripe size="small" highlight-current-row>
+          <el-table-column prop="id" label="计划号" width="130" />
+          <el-table-column prop="orderNo" label="订单号" width="130" />
+          <el-table-column prop="productModel" label="型号" min-width="120" show-overflow-tooltip />
+          <el-table-column prop="quantity" label="数量" width="72" align="right" />
+          <el-table-column prop="planEnd" label="计划完工" width="110" />
+          <el-table-column label="操作" width="220" fixed="right">
             <template #default="{ row }">
-              <el-button link type="warning" @click="openSmartDispatch(row.id)">智能派工</el-button>
-              <el-button link type="primary" @click="createWoFromPlan(row.id)">生成工单</el-button>
+              <el-button link type="primary" @click="openPlanDetail(row)">详情</el-button>
+              <el-button link type="warning" @click="openSmart(row.id)">智能派工</el-button>
+              <el-button link type="success" @click="createWo(row.id)">生成工单</el-button>
             </template>
           </el-table-column>
-
         </el-table>
+      </el-tab-pane>
 
-      </div>
+      <el-tab-pane label="待派工" name="pendingDispatch">
+        <el-table :data="filteredPendingDispatch" border stripe size="small">
+          <el-table-column prop="id" label="工单号" width="130" />
+          <el-table-column prop="orderNo" label="订单号" width="130" />
+          <el-table-column prop="productModel" label="型号" min-width="120" />
+          <el-table-column prop="quantity" label="数量" width="72" align="right" />
+          <el-table-column prop="status" label="状态" width="88">
+            <template #default="{ row }"><StatusBadge :status="row.status" /></template>
+          </el-table-column>
+          <el-table-column label="操作" width="180" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="warning" @click="openSmartByWo(row)">智能派工</el-button>
+              <el-button link type="primary" @click="goDispatch(row.id)">手动派工</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
 
+      <el-tab-pane label="执行中" name="executing">
+        <el-table :data="filteredExecuting" border stripe size="small">
+          <el-table-column prop="id" label="工单号" width="130" />
+          <el-table-column prop="orderNo" label="订单号" width="130" />
+          <el-table-column prop="productModel" label="型号" min-width="120" />
+          <el-table-column prop="quantity" label="计划" width="64" align="right" />
+          <el-table-column prop="completedQty" label="完成" width="64" align="right" />
+          <el-table-column prop="line" label="产线/车间" width="110" />
+          <el-table-column prop="status" label="状态" width="88">
+            <template #default="{ row }"><StatusBadge :status="row.status" /></template>
+          </el-table-column>
+          <el-table-column label="进度" min-width="120">
+            <template #default="{ row }">
+              <el-progress :percentage="woProgress(row)" :stroke-width="8" />
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
 
+      <el-tab-pane label="异常" name="abnormal">
+        <el-table :data="filteredAbnormal" border stripe size="small">
+          <el-table-column prop="id" label="工单号" width="130" />
+          <el-table-column prop="orderNo" label="订单号" width="130" />
+          <el-table-column prop="productModel" label="型号" min-width="120" />
+          <el-table-column prop="status" label="状态" width="88">
+            <template #default="{ row }"><StatusBadge :status="row.status" /></template>
+          </el-table-column>
+          <el-table-column label="关联报警" min-width="160">
+            <template #default="{ row }">{{ relatedAlarms(row.id) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="100">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="$router.push('/device/alarm')">查看报警</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+    </el-tabs>
 
-      <el-table :data="filtered" border stripe highlight-current-row @current-change="onRowClick">
+    <el-drawer v-model="planDrawer" title="计划详情" size="560px" destroy-on-close>
+      <template v-if="planContext">
+        <el-descriptions :column="2" border size="small">
+          <el-descriptions-item label="计划号">{{ planContext.planId }}</el-descriptions-item>
+          <el-descriptions-item label="订单">{{ planContext.orderId }}</el-descriptions-item>
+          <el-descriptions-item label="客户">{{ planContext.customerName || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="型号">{{ planContext.productModel }}</el-descriptions-item>
+          <el-descriptions-item label="数量">{{ planContext.quantity }} 台</el-descriptions-item>
+          <el-descriptions-item label="交期">{{ planContext.deliveryDate || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="周期" :span="2">{{ planContext.planStart }} ~ {{ planContext.planEnd }}</el-descriptions-item>
+        </el-descriptions>
+        <el-divider content-position="left">工艺路线（来自数据库）</el-divider>
+        <el-table :data="planContext.processRoute || []" border stripe size="small">
+          <el-table-column prop="stepNo" label="序号" width="56" align="center" />
+          <el-table-column prop="stepName" label="工序" min-width="120" />
+          <el-table-column prop="standardEquipmentType" label="设备类型" width="100" />
+          <el-table-column prop="standardWorkHours" label="工时" width="72" align="right" />
+        </el-table>
+        <div class="drawer-actions">
+          <el-button type="success" :loading="creating" @click="createWo(planContext.planId)">生成总工单</el-button>
+          <el-button type="warning" @click="openSmart(planContext.planId)">智能派工（按工序）</el-button>
+        </div>
+      </template>
+      <el-skeleton v-else :rows="6" animated />
+    </el-drawer>
 
-        <el-table-column prop="id" label="工单号" width="130" />
-
-        <el-table-column prop="orderNo" label="订单号" width="130" />
-
-        <el-table-column prop="productModel" label="型号" width="130" />
-
-        <el-table-column prop="quantity" label="计划量" width="80" />
-
-        <el-table-column prop="completedQty" label="完成量" width="80" />
-
-        <el-table-column prop="line" label="产线" width="100" />
-
-        <el-table-column prop="status" label="状态" width="90">
-
-          <template #default="{ row }"><StatusBadge :status="row.status" /></template>
-
-        </el-table-column>
-
-        <el-table-column label="操作" width="160" fixed="right">
-
-          <template #default="{ row }">
-
-            <el-button v-if="isManager && row.status === '草稿'" link type="primary" @click="selectAndRelease(row)">下达工单</el-button>
-
-            <el-button v-if="isManager && row.status === '已下达'" link type="primary" @click="$router.push(`/production/dispatch?workOrderId=${row.id}`)">去派工</el-button>
-
-            <el-button v-if="isManager" link type="danger" @click="removeWorkOrder(row)">删除</el-button>
-          </template>
-
-        </el-table-column>
-
-      </el-table>
-
-    </template>
-
-    <template #detail-actions>
-
-      <el-button v-if="isManager && selected?.status === '草稿'" type="primary" size="small" @click="release">下达工单</el-button>
-
-      <el-button v-if="isManager && selected?.status === '已下达'" type="primary" size="small" @click="$router.push(`/production/dispatch?workOrderId=${selected.id}`)">前往派工</el-button>
-
-      <el-button v-if="isManager && selected" type="danger" size="small" plain @click="removeWorkOrder(selected)">删除工单</el-button>
-    </template>
-
-  </MesPageShell>
-
-  <SmartDispatchDialog v-model="smartVisible" :default-plan-id="smartPlanId" @success="onSmartSuccess" />
+    <SmartDispatchDialog v-model="smartVisible" :default-plan-id="smartPlanId" @success="onSmartSuccess" />
+  </div>
 </template>
 
-
-
 <script setup>
-
 import { computed, onMounted, ref } from 'vue'
-
-import { useRoute } from 'vue-router'
-
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-
 import { useMesStore } from '@/stores/mes'
-
 import { useUserStore } from '@/stores/user'
-
-import { WORK_ORDER_STATUS } from '@/mock/constants'
-
-import { useMesFilter, detailRows } from '@/composables/useMesPage'
-import { useMesDelete } from '@/composables/useMesDelete'
-
-import MesPageShell from '@/components/mes/MesPageShell.vue'
-
+import { fetchManagerPlanContext } from '@/api/mes'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 import SmartDispatchDialog from '@/components/mes/SmartDispatchDialog.vue'
 
-
-
 const route = useRoute()
-
+const router = useRouter()
 const mes = useMesStore()
-
 const userStore = useUserStore()
-const { runDelete } = useMesDelete(mes, userStore)
 
+const activeTab = ref('pendingPlan')
+const keyword = ref('')
+const planDrawer = ref(false)
+const planContext = ref(null)
+const creating = ref(false)
 const smartVisible = ref(false)
 const smartPlanId = ref('')
 
-const isManager = computed(() => userStore.roleKey === 'manager')
-const isOperator = computed(() => userStore.roleKey === 'operator')
+const tabCounts = computed(() => ({
+  pendingPlan: mes.pendingManagerPlans.length,
+  pendingDispatch: mes.pendingDispatchWorkOrders.length,
+  executing: mes.executingWorkOrders.length,
+  abnormal: mes.abnormalWorkOrders.length
+}))
 
-const pendingPlans = computed(() => (isManager.value ? mes.pendingManagerPlans : []))
+function matchKeyword(item) {
+  if (!keyword.value) return true
+  const k = keyword.value.toLowerCase()
+  return [item.id, item.orderNo, item.orderId, item.planId].some((f) => String(f || '').toLowerCase().includes(k))
+}
 
-const workOrderSource = computed(() => {
-  if (!isOperator.value) return mes.workOrders
-  const woNos = new Set(
-    mes.myDispatches(userStore.userInfo?.username).map((d) => d.workOrderId || d.workOrderNo)
-  )
-  return mes.workOrders.filter((w) => woNos.has(w.id) || woNos.has(w.workOrderNo))
-})
-
-const { selected, filtered, onRowClick } = useMesFilter(workOrderSource, ['id', 'orderNo'])
-
-
-
-const statusItems = computed(() => {
-  if (isOperator.value) {
-    return [
-      { label: '我的相关工单', value: filtered.value.length },
-      { label: '生产中', value: filtered.value.filter((w) => w.status === '生产中').length }
-    ]
-  }
-  return [
-    { label: '待生成工单', value: pendingPlans.value.length, warn: pendingPlans.value.length > 0 },
-    { label: '待下达', value: mes.pendingReleaseWorkOrders.length, warn: mes.pendingReleaseWorkOrders.length > 0 },
-    { label: '待派工', value: mes.pendingDispatchWorkOrders.length, warn: mes.pendingDispatchWorkOrders.length > 0 },
-    { label: '工单总数', value: mes.workOrders.length }
-  ]
-})
-
-
-
-const rows = computed(() => detailRows(selected.value, [
-
-  { key: 'id', label: '工单号' }, { key: 'productModel', label: '型号' },
-
-  { key: 'quantity', label: '计划' }, { key: 'completedQty', label: '完成' }, { key: 'status', label: '状态' }
-
-]))
-
-
+const filteredPlans = computed(() => mes.pendingManagerPlans.filter(matchKeyword))
+const filteredPendingDispatch = computed(() => mes.pendingDispatchWorkOrders.filter(matchKeyword))
+const filteredExecuting = computed(() => mes.executingWorkOrders.filter(matchKeyword))
+const filteredAbnormal = computed(() => mes.abnormalWorkOrders.filter(matchKeyword))
 
 onMounted(async () => {
-  try {
-    await mes.hydrateFromApi()
-  } catch {
-    /* ignore */
-  }
-  if (isManager.value && route.query.planId) {
-    createWoFromPlan(String(route.query.planId))
+  await refresh()
+  if (route.query.planId) {
+    activeTab.value = 'pendingPlan'
+    openPlanDetail({ id: String(route.query.planId) })
   }
 })
 
+async function refresh() {
+  try { await mes.hydrateFromApi() } catch { /* ignore */ }
+}
 
+function woProgress(row) {
+  if (!row?.quantity) return 0
+  return Math.min(100, Math.round((row.completedQty || 0) / row.quantity * 100))
+}
 
-async function createWoFromPlan(planId) {
+function relatedAlarms(woId) {
+  return mes.alarms
+    .filter((a) => a.workOrderId === woId && a.status !== '已关闭')
+    .map((a) => a.type)
+    .join('、') || '—'
+}
+
+async function openPlanDetail(row) {
+  if (!row?.id) return
+  planDrawer.value = true
+  planContext.value = null
   try {
-    const wo = await mes.createWorkOrder(planId, userStore.username, userStore.roleKey)
-    if (wo) {
-      ElMessage.success(`工单 ${wo.id} 已创建并下达，可直接前往派工`)
-    } else {
-      ElMessage.warning('请确认计划已由计划员提交至主管')
-    }
+    planContext.value = await fetchManagerPlanContext(row.id)
   } catch (e) {
-    ElMessage.error(e?.message || '生成工单失败')
+    ElMessage.error(e?.message || '加载失败')
+    planDrawer.value = false
   }
 }
 
-function openSmartDispatch(planId) {
+async function createWo(planId) {
+  creating.value = true
+  try {
+    const wo = await mes.createWorkOrder(planId, userStore.username, userStore.roleKey)
+    if (wo) {
+      ElMessage.success(`工单 ${wo.id} 已创建`)
+      activeTab.value = 'pendingDispatch'
+      planDrawer.value = false
+      await refresh()
+    } else {
+      ElMessage.warning('请确认计划已提交至主管')
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '生成失败')
+  } finally {
+    creating.value = false
+  }
+}
+
+function openSmart(planId) {
   smartPlanId.value = planId
   smartVisible.value = true
 }
 
+function openSmartByWo(wo) {
+  smartPlanId.value = wo.planId || mes.plans.find((p) => p.orderNo === wo.orderNo)?.id || ''
+  smartVisible.value = true
+}
+
+function goDispatch(woId) {
+  router.push(`/production/dispatch?workOrderId=${woId}`)
+}
+
 function onSmartSuccess() {
-  mes.hydrateFromApi?.()
+  refresh()
+  activeTab.value = 'executing'
 }
-
-async function release() {
-  if (!selected.value) return
-  try {
-    await mes.releaseWorkOrder(selected.value.id, userStore.username, userStore.roleKey)
-    ElMessage.success('工单已下达，请到「工单派工」分配操作员')
-  } catch (e) {
-    ElMessage.error(e?.message || '下达工单失败')
-  }
-}
-
-
-
-function selectAndRelease(row) {
-
-  selected.value = row
-
-  release()
-
-}
-
-function removeWorkOrder(row) {
-  if (!row) return
-  runDelete({
-    action: 'deleteWorkOrder',
-    payload: { workOrderId: row.id },
-    message: `确定删除工单 ${row.id}？关联派工、报工、质检记录将一并删除。`,
-    onSuccess: () => {
-      if (selected.value?.id === row.id) selected.value = null
-    }
-  }).catch(() => {})
-}
-
 </script>
 
-
-
 <style scoped>
-
-.pending-block {
-
-  padding: 12px 0 4px;
-
-  border-bottom: 1px solid #e8ecf0;
-
-  margin-bottom: 8px;
-
-}
-
-.pending-block__title {
-
-  font-size: 14px;
-
-  font-weight: 600;
-
-  color: #001b3f;
-
-  margin-bottom: 8px;
-
-}
-
+.manager-wo-page { padding: 0 4px; }
+.wo-tabs { margin-top: 8px; }
+.drawer-actions { margin-top: 16px; display: flex; gap: 8px; }
 </style>
-

@@ -38,7 +38,6 @@ export const roleMenus = {
   operator: [
     { menuId: 5, menuName: '现场作业', children: [
       { menuId: 51, menuName: '我的派工', path: '/production/my-dispatch' },
-      { menuId: 52, menuName: '当前工单', path: '/production/work-order' },
       { menuId: 53, menuName: '生产报工', path: '/production/report' },
       { menuId: 54, menuName: '安灯报警', path: '/device/alarm' },
       { menuId: 55, menuName: '工艺说明', path: '/production/process-guide' }

@@ -30,9 +30,24 @@ export function postConfirmSmartDispatch(body) {
   return request.post('/mes/manager/smart-dispatch/confirm', body)
 }
 
+/** 订单附件 OCR 识别（模拟） */
+export function postOrderOcrRecognize(body) {
+  return request.post('/mes/order/ocr/recognize', body)
+}
+
 /** 质检报告 - 刷新/重新生成（千问 AI） */
 export function postRefreshQualityReport(body) {
   return request.post('/mes/quality/reports/refresh', body)
+}
+
+/** 智能派工 - 冲突校验（静默，避免编辑时重复弹错） */
+export function postValidateSmartDispatch(body) {
+  return request.post('/mes/manager/smart-dispatch/validate', body, { silent: true })
+}
+
+/** 主管计划上下文（订单/工艺/交期） */
+export function fetchManagerPlanContext(planNo) {
+  return request.get(`/mes/manager/plan/${planNo}/context`)
 }
 
 /** 生产主管大屏完整快照 */

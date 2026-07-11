@@ -1,7 +1,7 @@
 /** MES 业务常量 — 显示器制造场景 */
 
 export const ORDER_STATUS = ['待审核', '已审核', '待计划', '已计划', '生产中', '已发货', '已完成', '已作废']
-export const PLAN_STATUS = ['草稿', '已发布', '已提交', '执行中', '已完成', '已取消']
+export const PLAN_STATUS = ['草稿', '待提交', '已发布', '执行中', '已调整', '已完成', '已取消']
 export const WORK_ORDER_STATUS = ['草稿', '已下达', '已派工', '生产中', '待质检', '已完成', '已取消']
 export const DISPATCH_STATUS = ['已分配', '已接收', '生产中', '待质检', '已完成']
 /** 操作员可报工 / 可继续生产的派工状态 */
@@ -61,7 +61,7 @@ export const EQUIPMENT_TYPES = [
 export const STATUS_COLOR = {
   待审核: 'warning', 已审核: 'primary', 待计划: 'warning', 已计划: 'primary', 生产中: 'primary',
   已发货: 'success', 已完成: 'success', 已作废: 'info',
-  草稿: 'info', 已发布: 'primary', 执行中: 'primary', 已取消: 'info',
+  草稿: 'info', 待提交: 'warning', 已发布: 'primary', 执行中: 'primary', 已调整: 'warning', 已取消: 'info',
   已下达: 'primary', 已派工: 'primary', 待质检: 'warning',
   已分配: 'warning', 已接收: 'primary', 待质检: 'warning',
   待处理: 'warning', 返修中: 'primary', 已返修: 'success', 已报废: 'info',

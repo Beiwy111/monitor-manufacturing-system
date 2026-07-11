@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="900" viewBox="0 0 640 900">
+  <rect width="640" height="900" fill="#f5f7fa"/>
+  <rect x="40" y="40" width="560" height="820" fill="#fff" stroke="#dcdfe6"/>
+  <text x="320" y="90" text-anchor="middle" font-size="26" font-family="Microsoft YaHei, sans-serif" fill="#303133">电竞显示器采购单</text>
+  <text x="80" y="150" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">客户：北京星辰电竞俱乐部</text>
+  <text x="80" y="190" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">型号：23.8寸电竞显示器</text>
+  <text x="80" y="230" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">数量：150 台</text>
+  <text x="80" y="270" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">交期：2026-07-25</text>
+  <text x="80" y="310" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">金额：¥192,000.00</text>
+  <text x="80" y="380" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#909399">（模拟采购单 · CO202607002）</text>
+</svg>

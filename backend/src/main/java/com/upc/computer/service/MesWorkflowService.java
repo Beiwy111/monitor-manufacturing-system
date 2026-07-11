@@ -82,7 +82,11 @@ public class MesWorkflowService {
     @Autowired
     private MesPlannerAgentService plannerAgentService;
     @Autowired
+    private MesPlannerSchedulingService plannerSchedulingService;
+    @Autowired
     private MesDispatchRecommendService dispatchRecommendService;
+    @Autowired
+    private OrderOcrService orderOcrService;
     @Autowired
     private QualityReportAiService qualityReportAiService;
     @Autowired
@@ -102,6 +106,7 @@ public class MesWorkflowService {
         return switch (req.getAction()) {
             case "createOrder" -> createOrder(payload, operator, roleKey);
             case "auditOrder" -> auditOrder(payload, operator, roleKey);
+            case "recognizeOrderOcr" -> recognizeOrderAttachment(payload);
             case "submitOrder" -> submitOrder(payload, operator, roleKey);
             case "submitOrderToPlanner" -> submitOrderToPlanner(payload, operator, roleKey);
             case "createPlan" -> createPlan(payload, operator, roleKey);
@@ -110,6 +115,19 @@ public class MesWorkflowService {
             case "agentCreatePlan" -> agentCreatePlan(payload, operator, roleKey);
             case "previewSmartPlans" -> previewSmartPlans(payload, operator, roleKey);
             case "generateSmartPlans" -> generateSmartPlans(payload, operator, roleKey);
+            case "previewOrderPlanning" -> plannerSchedulingService.previewOrderContext(str(payload, "orderId"));
+            case "comparePlanSchemes" -> plannerSchedulingService.compareSchemes(
+                    str(payload, "orderId"),
+                    parseDate(str(payload, "planStart")),
+                    parseDate(str(payload, "planEnd")),
+                    intVal(payload.get("plannedQty")));
+            case "validateProductionPlan" -> plannerSchedulingService.validatePlan(payload);
+            case "saveProductionPlan" -> plannerSchedulingService.savePlanWithSchedule(payload, operator);
+            case "copyProductionPlan" -> plannerSchedulingService.copyPlan(str(payload, "planId"), operator);
+            case "loadManualPlanWizard" -> plannerSchedulingService.loadManualWizardContext(
+                    str(payload, "orderId"), intVal(payload.get("plannedQty")));
+            case "listPlanSchedules" -> plannerSchedulingService.listPlanSchedules(str(payload, "planId"));
+            case "listPlanHistory" -> plannerSchedulingService.listPlanHistory(str(payload, "planId"));
             case "agentBatchDispatch" -> agentBatchDispatch(payload, operator, roleKey);
             case "previewSmartDispatch" -> previewSmartDispatch(payload, operator, roleKey);
             case "confirmSmartDispatch" -> confirmSmartDispatch(payload, operator, roleKey);
@@ -236,25 +254,92 @@ public class MesWorkflowService {
 
     private boolean auditOrder(Map<String, Object> p, String operator, String roleKey) {
         String orderNo = str(p, "orderId");
-        boolean pass = bool(p, "pass");
+        boolean passLegacy = bool(p, "pass");
+        String actionRaw = str(p, "action");
+        String action = !actionRaw.isBlank()
+                ? actionRaw
+                : (passLegacy ? "pass" : "reject");
+        String reason = str(p, "reason");
         CustomerOrder order = findOrderByNo(orderNo);
         if (order == null || !"PENDING".equals(order.getAuditStatus())) {
             throw new BusinessException("订单状态不允许审核");
         }
+        if (!"pass".equals(action) && reason.isBlank()) {
+            throw new BusinessException("驳回、要求补充资料或暂缓审核时必须填写原因");
+        }
         LocalDateTime now = LocalDateTime.now();
-        // 审核通过后直接进入计划员待办（PLAN_PENDING），形成订单→计划员闭环
-        order.setAuditStatus(pass ? "PLAN_PENDING" : "REJECTED");
+        User user = findUserByUsername(operator);
+        switch (action) {
+            case "pass" -> order.setAuditStatus("PLAN_PENDING");
+            case "reject" -> order.setAuditStatus("REJECTED");
+            case "supplement", "defer" -> order.setAuditStatus("PENDING");
+            default -> throw new BusinessException("未知审核动作：" + action);
+        }
         order.setAuditAt(now);
         order.setUpdatedAt(now);
-        User user = findUserByUsername(operator);
         if (user != null) {
             order.setAuditUserId(user.getUserId());
         }
+        if (!reason.isBlank()) {
+            order.setAuditOpinion(reason);
+        }
         customerOrderMapper.updateCustomerOrder(order);
+
         MesRuntimeState runtime = mesRuntimeStore.load();
-        appendLog(runtime, "订单管理", pass ? "审核通过并提交计划员" : "审核驳回", orderNo, operator, roleKey);
+        Map<String, Object> extra = mesRuntimeStore.getExtra(runtime, "order:" + orderNo);
+        extra.put("auditFlag", "supplement".equals(action) ? "待补充资料"
+                : ("defer".equals(action) ? "暂缓审核" : ""));
+        appendOrderAuditRecord(extra, action, reason, operator, user, now);
+        String logAction = switch (action) {
+            case "pass" -> "审核通过并提交计划员";
+            case "reject" -> "审核驳回";
+            case "supplement" -> "要求补充资料";
+            case "defer" -> "暂缓审核";
+            default -> "订单审核";
+        };
+        appendLog(runtime, "订单管理", logAction, orderNo, operator, roleKey);
         mesRuntimeStore.save(runtime);
         return true;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void appendOrderAuditRecord(Map<String, Object> extra, String action, String reason,
+                                        String operator, User user, LocalDateTime now) {
+        List<Map<String, Object>> records = new ArrayList<>();
+        Object existing = extra.get("auditRecords");
+        if (existing instanceof List<?> list) {
+            for (Object item : list) {
+                if (item instanceof Map<?, ?> map) {
+                    records.add(new LinkedHashMap<>((Map<String, Object>) map));
+                }
+            }
+        }
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("id", "AR" + now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+        record.put("action", action);
+        record.put("actionLabel", auditActionLabel(action));
+        record.put("reason", reason);
+        record.put("operator", operator);
+        record.put("operatorName", user != null ? user.getRealName() : operator);
+        record.put("createdAt", fmt(now));
+        records.add(0, record);
+        extra.put("auditRecords", records);
+    }
+
+    private String auditActionLabel(String action) {
+        return switch (action) {
+            case "pass" -> "审核通过";
+            case "reject" -> "驳回作废";
+            case "supplement" -> "要求补充资料";
+            case "defer" -> "暂缓审核";
+            default -> action;
+        };
+    }
+
+    public Map<String, Object> recognizeOrderAttachment(Map<String, Object> body) {
+        String fileName = str(body, "fileName");
+        String orderId = str(body, "orderId");
+        return orderOcrService.recognize(fileName, orderId);
     }
 
     private boolean submitOrder(Map<String, Object> p, String operator, String roleKey) {
@@ -309,6 +394,8 @@ public class MesWorkflowService {
         plan.setPlanStatus("DRAFT");
         plan.setPlannerId(planner != null ? planner.getUserId() : null);
         plan.setRemark(str(p, "remark"));
+        plan.setVersionNo("V1");
+        plan.setSchedulingMode("MANUAL");
         plan.setCreatedAt(now);
         plan.setUpdatedAt(now);
         productionPlanMapper.insertPlan(plan);
@@ -661,9 +748,18 @@ public class MesWorkflowService {
         }
 
         Map<String, Object> preview = dispatchRecommendService.generateRecommendations(planNo);
-        List<Map<String, Object>> recommendations = (List<Map<String, Object>>) preview.get("recommendations");
+        List<Map<String, Object>> recommendations;
+        if (p.get("recommendations") instanceof List<?> custom && !custom.isEmpty()) {
+            recommendations = (List<Map<String, Object>>) custom;
+        } else {
+            recommendations = (List<Map<String, Object>>) preview.get("recommendations");
+        }
         if (recommendations == null || recommendations.isEmpty()) {
             throw new BusinessException("没有可确认的派工推荐");
+        }
+        Map<String, Object> validation = dispatchRecommendService.validateRecommendations(planNo, recommendations);
+        if (Boolean.TRUE.equals(validation.get("hasDanger"))) {
+            throw new BusinessException("存在严重冲突，禁止确认派工");
         }
 
         WorkOrder wo = workOrderMapper.workOrderList().stream()
@@ -688,23 +784,31 @@ public class MesWorkflowService {
         List<Map<String, Object>> created = new ArrayList<>();
         Set<Long> batchUsedOperatorIds = new HashSet<>();
         for (Map<String, Object> rec : recommendations) {
-            ProcessStep step = findStepByName(String.valueOf(rec.get("processStep")));
-            MesDispatchRecommendService.OperatorPick pick = step != null
-                    ? dispatchRecommendService.recommendOperator(step, batchUsedOperatorIds)
-                    : null;
-            if (pick == null || pick.username() == null || pick.username().isBlank()) {
-                throw new BusinessException("工序「" + rec.get("processStep") + "」暂无空闲且岗位匹配的操作员");
+            String opUsername = str(rec, "recommendedOperator", str(rec, "operator"));
+            String opName = str(rec, "recommendedOperatorName", str(rec, "operatorName"));
+            if (opUsername.isBlank()) {
+                ProcessStep step = findStepByName(String.valueOf(rec.get("processStep")));
+                MesDispatchRecommendService.OperatorPick pick = step != null
+                        ? dispatchRecommendService.recommendOperator(step, batchUsedOperatorIds)
+                        : null;
+                if (pick == null || pick.username() == null || pick.username().isBlank()) {
+                    throw new BusinessException("工序「" + rec.get("processStep") + "」暂无可用操作员");
+                }
+                opUsername = pick.username();
+                opName = pick.realName();
             }
             Map<String, Object> dispatchPayload = new LinkedHashMap<>();
             dispatchPayload.put("workOrderId", workOrderNo);
             dispatchPayload.put("processStep", rec.get("processStep"));
-            dispatchPayload.put("equipment", rec.get("equipmentName"));
+            dispatchPayload.put("equipmentCode", rec.get("equipmentCode"));
+            dispatchPayload.put("equipment", rec.getOrDefault("equipmentName", rec.get("equipment")));
             dispatchPayload.put("planQty", rec.getOrDefault("planQty", wo.getPlannedQuantity()));
-            dispatchPayload.put("operator", pick.username());
-            dispatchPayload.put("operatorName", pick.realName());
+            dispatchPayload.put("operator", opUsername);
+            dispatchPayload.put("operatorName", opName);
             created.add(createDispatch(dispatchPayload, operator, roleKey));
-            if (pick.userId() != null) {
-                batchUsedOperatorIds.add(pick.userId());
+            User opUser = findUserByUsername(opUsername);
+            if (opUser != null) {
+                batchUsedOperatorIds.add(opUser.getUserId());
             }
         }
 
@@ -890,7 +994,10 @@ public class MesWorkflowService {
         OperatorWorkshopCatalog.ensureSingleActiveDispatch(
                 opUser.getUserId(), null, dispatchTaskMapper.dispatchList(), stepById);
         User assigner = findUserByUsername(operator);
-        Equipment eq = findEquipmentByName(str(p, "equipment"));
+        Equipment eq = findEquipmentByCode(str(p, "equipmentCode"));
+        if (eq == null) {
+            eq = findEquipmentByName(str(p, "equipment"));
+        }
         String dispatchNo = nextNo("DT", dispatchTaskMapper.dispatchList(), DispatchTask::getDispatchNo);
 
         DispatchTask d = new DispatchTask();
@@ -1825,8 +1932,8 @@ public class MesWorkflowService {
         AndonAlarm alarm = new AndonAlarm();
         alarm.setAlarmNo(alarmNo);
         alarm.setWorkOrderId(wo != null ? wo.getWorkOrderId() : null);
-        alarm.setAlarmType(str(p, "type"));
-        alarm.setAlarmLevel(alarmLevelDb(str(p, "level", "中")));
+        alarm.setAlarmType(normalizeAlarmType(str(p, "type")));
+        alarm.setAlarmLevel(alarmLevelDb(str(p, "level", "较重")));
         alarm.setAlarmDescription(str(p, "description"));
         alarm.setAlarmStatus("REPORTED");
         alarm.setReportedBy(reporter != null ? reporter.getUserId() : null);
@@ -1838,6 +1945,8 @@ public class MesWorkflowService {
         MesRuntimeState runtime = mesRuntimeStore.load();
         Map<String, Object> extra = mesRuntimeStore.getExtra(runtime, "alarm:" + alarmNo);
         extra.put("source", str(p, "source"));
+        extra.put("workshop", str(p, "workshop"));
+        extra.put("equipmentName", str(p, "equipmentName"));
         extra.put("reporterName", str(p, "reporterName", reporter != null ? reporter.getRealName() : ""));
         appendLog(runtime, "安灯报警", "触发安灯", alarmNo, operator, roleKey);
         mesRuntimeStore.save(runtime);
@@ -1857,17 +1966,26 @@ public class MesWorkflowService {
         Map<String, Object> extra = mesRuntimeStore.getExtra(runtime, "alarm:" + alarmNo);
 
         switch (action) {
-            case "receive" -> {
+            case "confirm", "receive" -> {
                 alarm.setAlarmStatus("RECEIVED");
                 alarm.setReceivedBy(user != null ? user.getUserId() : null);
                 alarm.setReceivedAt(now);
-                extra.put("assigneeName", str(p, "assigneeName"));
+            }
+            case "assign" -> {
+                String assigneeUsername = str(p, "assignee");
+                User assignee = assigneeUsername.isBlank() ? user : findUserByUsername(assigneeUsername);
+                alarm.setAlarmStatus("RECEIVED");
+                alarm.setReceivedBy(assignee != null ? assignee.getUserId() : null);
+                alarm.setReceivedAt(now);
+                extra.put("assigneeName", str(p, "assigneeName", assignee != null ? assignee.getRealName() : ""));
+                extra.put("handlerName", extra.get("assigneeName"));
             }
             case "processing" -> alarm.setAlarmStatus("PROCESSING");
             case "close" -> {
                 alarm.setAlarmStatus("CLOSED");
                 alarm.setClosedBy(user != null ? user.getUserId() : null);
                 alarm.setClosedAt(now);
+                extra.put("handleResult", str(p, "handleResult"));
             }
             default -> throw new BusinessException("未知报警处理动作");
         }
@@ -3040,11 +3158,25 @@ public class MesWorkflowService {
     }
 
     private String alarmLevelDb(String cn) {
+        if (cn == null) return "MEDIUM";
         return switch (cn) {
-            case "高" -> "HIGH";
-            case "低" -> "LOW";
-            default -> "MEDIUM";
+            case "严重", "高" -> "HIGH";
+            case "一般", "低" -> "LOW";
+            case "较重", "中" -> "MEDIUM";
+            default -> List.of("HIGH", "LOW", "MEDIUM").contains(cn) ? cn : "MEDIUM";
         };
+    }
+
+    private String normalizeAlarmType(String type) {
+        if (type == null || type.isBlank()) return "EQUIPMENT";
+        if (type.contains("设备")) return "EQUIPMENT";
+        if (type.contains("物料")) return "MATERIAL";
+        if (type.contains("质量")) return "QUALITY";
+        if (type.contains("进度") || type.contains("延期")) return "PROCESS";
+        if (type.contains("人员")) return "SAFETY";
+        String u = type.toUpperCase();
+        if (List.of("EQUIPMENT", "MATERIAL", "QUALITY", "PROCESS", "SAFETY").contains(u)) return u;
+        return "EQUIPMENT";
     }
 
     private String str(Map<String, Object> m, String key) {

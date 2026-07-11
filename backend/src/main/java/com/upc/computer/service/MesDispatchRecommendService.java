@@ -42,6 +42,8 @@ public class MesDispatchRecommendService {
     private RoleMapper roleMapper;
     @Autowired
     private MaterialMapper materialMapper;
+    @Autowired
+    private CustomerOrderMapper customerOrderMapper;
 
     /**
      * 批量预览：所有已提交且待派工的计划。
@@ -161,6 +163,10 @@ public class MesDispatchRecommendService {
                 operators, allEquipment, recommendations, wo));
         result.put("evidenceBase", buildDispatchEvidenceBase(planNo, planQty, steps,
                 operators, allEquipment, recommendations, wo));
+        Map<String, Object> validation = validateRecommendations(planNo, recommendations);
+        attachConflictHints(recommendations, (List<Map<String, Object>>) validation.get("conflicts"));
+        result.put("validation", validation);
+        result.put("canSubmit", validation.get("canSubmit"));
         return result;
     }
 
@@ -446,8 +452,7 @@ public class MesDispatchRecommendService {
 
     private EquipmentPick pickEquipment(ProcessStep step, List<Equipment> allEquipment,
                                       List<DispatchTask> dispatches) {
-        String equipType = step.getStandardEquipmentType() != null
-                ? step.getStandardEquipmentType().trim() : "";
+        String equipType = resolveEquipmentType(step);
         Set<Long> busyEquipIds = dispatches.stream()
                 .filter(d -> ACTIVE_DISPATCH_STATUS.contains(d.getStatus()))
                 .map(DispatchTask::getEquipmentId)
@@ -484,8 +489,28 @@ public class MesDispatchRecommendService {
                 .count();
     }
 
+    private String resolveEquipmentType(ProcessStep step) {
+        String raw = step.getStandardEquipmentType() != null ? step.getStandardEquipmentType().trim() : "";
+        if (!raw.isBlank() && !raw.contains("?") && !raw.contains("？")) {
+            return raw;
+        }
+        ProductionWorkshopCatalog.ProcessStageDef stage = ProductionWorkshopCatalog.stageForStep(step);
+        if (stage != null && stage.equipmentType() != null) {
+            return stage.equipmentType();
+        }
+        String name = step.getStepName() != null ? step.getStepName() : "";
+        if (name.contains("显示屏")) return "显示屏线";
+        if (name.contains("主板")) return "主板线";
+        if (name.contains("贴附")) return "贴附机";
+        if (name.contains("组装")) return "组装线";
+        if (name.contains("老化")) return "老化架";
+        if (name.contains("包装")) return "包装线";
+        if (name.contains("调校")) return "调校台";
+        return raw;
+    }
+
     private String resolveStepDepartment(ProcessStep step) {
-        String equipType = step.getStandardEquipmentType();
+        String equipType = resolveEquipmentType(step);
         if (equipType == null) {
             return "生产部";
         }
@@ -513,6 +538,7 @@ public class MesDispatchRecommendService {
                     Role role = roleMapper.getRoleById(u.getRoleId());
                     return role != null && "OPERATOR".equalsIgnoreCase(role.getRoleCode());
                 })
+                .filter(u -> OperatorWorkshopCatalog.isBoundOperator(u.getUsername()))
                 .toList();
     }
 
@@ -560,6 +586,159 @@ public class MesDispatchRecommendService {
         return productionPlanMapper.planList().stream()
                 .filter(p -> planNo.equals(p.getPlanNo()))
                 .findFirst().orElse(null);
+    }
+
+    /** 从数据库读取计划关联订单、工艺路线、交期 */
+    public Map<String, Object> loadPlanContext(String planNo) {
+        ProductionPlan plan = findPlanByNo(planNo);
+        if (plan == null) {
+            throw new BusinessException("计划不存在");
+        }
+        CustomerOrder order = customerOrderMapper.customerOrderList().stream()
+                .filter(o -> plan.getSourceOrderId().equals(o.getOrderId()))
+                .findFirst().orElse(null);
+        CustomerOrderItem item = customerOrderItemMapper.orderItemList().stream()
+                .filter(i -> plan.getSourceOrderId().equals(i.getOrderId()))
+                .findFirst().orElse(null);
+        Long materialId = resolveMaterialId(plan);
+        Long routeId = resolveRouteId(materialId);
+        List<Map<String, Object>> steps = processStepMapper.stepList().stream()
+                .filter(s -> routeId.equals(s.getRouteId()))
+                .filter(s -> s.getStatus() == null || s.getStatus() == 1)
+                .filter(ProductionWorkshopCatalog::isProductionStep)
+                .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
+                .map(s -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("stepNo", s.getStepNo());
+                    m.put("stepName", s.getStepName());
+                    m.put("standardEquipmentType", s.getStandardEquipmentType());
+                    m.put("standardWorkHours", s.getStandardWorkHours());
+                    return m;
+                }).toList();
+
+        WorkOrder wo = workOrderMapper.workOrderList().stream()
+                .filter(w -> plan.getPlanId().equals(w.getPlanId()))
+                .findFirst().orElse(null);
+
+        Map<String, Object> ctx = new LinkedHashMap<>();
+        ctx.put("planId", planNo);
+        ctx.put("orderId", order != null ? order.getOrderNo() : "");
+        ctx.put("customerName", order != null ? order.getCustomerName() : "");
+        ctx.put("productModel", item != null ? item.getProductName() : orderProductModel(plan.getSourceOrderId()));
+        ctx.put("quantity", resolvePlanQty(plan, materialId));
+        ctx.put("deliveryDate", order != null && order.getRequiredDeliveryDate() != null
+                ? order.getRequiredDeliveryDate().toString() : "");
+        ctx.put("planStart", plan.getPlannedStartDate() != null ? plan.getPlannedStartDate().toString() : "");
+        ctx.put("planEnd", plan.getPlannedEndDate() != null ? plan.getPlannedEndDate().toString() : "");
+        ctx.put("processRoute", steps);
+        ctx.put("workOrderId", wo != null ? wo.getWorkOrderNo() : "");
+        ctx.put("hasWorkOrder", wo != null);
+        return ctx;
+    }
+
+    public Map<String, Object> validateRecommendations(String planNo, List<Map<String, Object>> rows) {
+        ProductionPlan plan = findPlanByNo(planNo);
+        if (plan == null) {
+            throw new BusinessException("计划不存在");
+        }
+        if (rows == null || rows.isEmpty()) {
+            throw new BusinessException("派工明细为空");
+        }
+        List<DispatchTask> allDispatches = dispatchTaskMapper.dispatchList();
+        List<Equipment> allEquipment = equipmentMapper.equipmentList();
+        List<User> operators = activeOperators();
+        Map<String, ProcessStep> stepByName = processStepMapper.stepList().stream()
+                .collect(Collectors.toMap(ProcessStep::getStepName, s -> s, (a, b) -> a));
+
+        List<Map<String, Object>> conflicts = new ArrayList<>();
+        Set<String> usedOperators = new HashSet<>();
+        Set<String> usedEquipCodes = new HashSet<>();
+        int planQty = resolvePlanQty(plan, resolveMaterialId(plan));
+        Integer prevStepNo = null;
+
+        for (Map<String, Object> row : rows) {
+            String stepName = String.valueOf(row.getOrDefault("processStep", ""));
+            String operator = String.valueOf(row.getOrDefault("recommendedOperator", row.get("operator")));
+            String equipName = String.valueOf(row.getOrDefault("equipmentName", row.get("equipment")));
+            String equipCode = String.valueOf(row.getOrDefault("equipmentCode", ""));
+            int qty = row.get("planQty") instanceof Number n ? n.intValue() : planQty;
+
+            ProcessStep step = stepByName.get(stepName);
+            if (step != null && step.getStepNo() != null) {
+                if (prevStepNo != null && step.getStepNo() < prevStepNo) {
+                    conflicts.add(conflict("danger", "process_order", "工序顺序", stepName + " 顺序异常"));
+                }
+                prevStepNo = step.getStepNo();
+            }
+            if (operator.isBlank() || "null".equals(operator)) {
+                conflicts.add(conflict("danger", "no_operator", "人员缺失", stepName + " 未指定操作员"));
+            } else if (!usedOperators.add(operator)) {
+                conflicts.add(conflict("danger", "operator_duplicate", "人员重复", operator + " 被重复派工"));
+            } else {
+                User op = operators.stream().filter(u -> operator.equals(u.getUsername())).findFirst().orElse(null);
+                if (op != null) {
+                    long active = allDispatches.stream()
+                            .filter(d -> op.getUserId().equals(d.getOperatorId()))
+                            .filter(d -> ACTIVE_DISPATCH_STATUS.contains(d.getStatus()))
+                            .count();
+                    if (active > 0) {
+                        conflicts.add(conflict("danger", "operator_busy", "人员占用",
+                                op.getRealName() + " 已有进行中的派工"));
+                    }
+                }
+            }
+            Equipment eq = allEquipment.stream()
+                    .filter(e -> (!equipCode.isBlank() && !"null".equals(equipCode) && equipCode.equals(e.getEquipmentCode()))
+                            || equipName.equals(e.getEquipmentName()) || equipName.equals(e.getEquipmentCode()))
+                    .findFirst().orElse(null);
+            if (eq != null) {
+                if ("FAULT".equals(eq.getStatus()) || "MAINTENANCE".equals(eq.getStatus())) {
+                    conflicts.add(conflict("danger", "equipment_fault", "设备故障", eq.getEquipmentName() + " 不可用"));
+                }
+                if (!usedEquipCodes.add(eq.getEquipmentCode())) {
+                    conflicts.add(conflict("danger", "equipment_duplicate", "设备占用", eq.getEquipmentName() + " 重复分配"));
+                }
+                boolean busy = allDispatches.stream()
+                        .filter(d -> eq.getEquipmentId().equals(d.getEquipmentId()))
+                        .anyMatch(d -> ACTIVE_DISPATCH_STATUS.contains(d.getStatus()));
+                if (busy) {
+                    conflicts.add(conflict("warning", "equipment_busy", "设备占用", eq.getEquipmentName() + " 使用中"));
+                }
+            }
+            String workshop = String.valueOf(row.getOrDefault("workshopName", ""));
+            if (!workshop.isBlank() && qty > 300) {
+                conflicts.add(conflict("warning", "workshop_overload", "车间负载", workshop + " 派工量偏大"));
+            }
+        }
+
+        boolean hasDanger = conflicts.stream().anyMatch(c -> "danger".equals(c.get("level")));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("conflicts", conflicts);
+        result.put("hasDanger", hasDanger);
+        result.put("canSubmit", !hasDanger);
+        return result;
+    }
+
+    public void attachConflictHints(List<Map<String, Object>> rows, List<Map<String, Object>> conflicts) {
+        if (rows == null || conflicts == null) return;
+        for (Map<String, Object> row : rows) {
+            String step = String.valueOf(row.get("processStep"));
+            List<Map<String, Object>> rowConflicts = conflicts.stream()
+                    .filter(c -> String.valueOf(c.get("detail")).contains(step))
+                    .toList();
+            row.put("conflicts", rowConflicts);
+            row.put("conflictStatus", rowConflicts.stream().anyMatch(c -> "danger".equals(c.get("level")))
+                    ? "冲突" : rowConflicts.isEmpty() ? "正常" : "提示");
+        }
+    }
+
+    private Map<String, Object> conflict(String level, String code, String label, String detail) {
+        Map<String, Object> c = new LinkedHashMap<>();
+        c.put("level", level);
+        c.put("code", code);
+        c.put("label", label);
+        c.put("detail", detail);
+        return c;
     }
 
     private double round1(double v) {

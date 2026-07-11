@@ -19,22 +19,24 @@ request.interceptors.request.use((config) => {
 request.interceptors.response.use(
   (response) => {
     const res = response.data
+    const silent = response.config?.silent
     if (res && typeof res.code !== 'undefined') {
       if (res.code === 200) {
         return res.data
       }
-      ElMessage.error(res.message || '请求失败')
+      if (!silent) ElMessage.error(res.message || '请求失败')
       return Promise.reject(new Error(res.message || '请求失败'))
     }
     return response.data
   },
   (error) => {
+    const silent = error.config?.silent
     if (error.response && error.response.status === 401) {
       const userStore = useUserStore()
       userStore.logout()
       router.replace('/login')
     }
-    ElMessage.error(error.message || '网络异常')
+    if (!silent) ElMessage.error(error.message || '网络异常')
     return Promise.reject(error)
   }
 )

@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useMesStore } from '@/stores/mes'
 import { MES_LIVE_MODE } from '@/config/mes'
-import { BOARD_PATH, getHomePath } from '@/utils/menuRoutes'
+import { BOARD_PATH, getHomePath, MANAGER_ONLY_PATHS } from '@/utils/menuRoutes'
 import MainLayout from '@/layouts/MainLayout.vue'
 
 const dashboardRoutes = [
@@ -30,8 +30,8 @@ const businessRoutes = [
   { path: 'order/audit', component: () => import('@/views/order/OrderAuditView.vue'), meta: { title: '订单审核' } },
   { path: 'order/track', component: () => import('@/views/order/OrderTrackView.vue'), meta: { title: '订单跟踪' } },
   { path: 'production/plan', component: () => import('@/views/production/PlanView.vue'), meta: { title: '生产计划' } },
-  { path: 'production/work-order', component: () => import('@/views/production/WorkOrderView.vue'), meta: { title: '生产工单' } },
-  { path: 'production/dispatch', component: () => import('@/views/production/DispatchView.vue'), meta: { title: '工单派工' } },
+  { path: 'production/work-order', component: () => import('@/views/production/WorkOrderView.vue'), meta: { title: '生产工单', roleKey: 'manager' } },
+  { path: 'production/dispatch', component: () => import('@/views/production/DispatchView.vue'), meta: { title: '工单派工', roleKey: 'manager' } },
   { path: 'production/my-dispatch', component: () => import('@/views/production/MyDispatchView.vue'), meta: { title: '我的派工' } },
   { path: 'production/report', component: () => import('@/views/production/ReportView.vue'), meta: { title: '生产报工' } },
   { path: 'production/progress', component: () => import('@/views/production/ProgressView.vue'), meta: { title: '生产进度' } },
@@ -109,7 +109,7 @@ router.beforeEach(async (to, from, next) => {
       mesStore.hydrateFromApi().catch(() => {})
     }
   }
-  if (to.path === BOARD_PATH && userStore.roleKey !== 'manager') {
+  if (MANAGER_ONLY_PATHS.has(to.path) && userStore.roleKey !== 'manager') {
     next(home())
     return
   }

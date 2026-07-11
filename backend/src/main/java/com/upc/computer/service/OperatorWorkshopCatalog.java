@@ -32,8 +32,8 @@ public final class OperatorWorkshopCatalog {
             Map.entry("wang_operator", "attach-1"),
             Map.entry("zhou_operator", "attach-2"),
             Map.entry("sun_operator", "assembly-1"),
-            Map.entry("operator01", "assembly-2"),
-            Map.entry("operator02", "assembly-3")
+            Map.entry("chen_operator", "assembly-2"),
+            Map.entry("lin_operator", "assembly-3")
     );
 
     /** 四道工序默认主责操作员（智能派工优先） */
