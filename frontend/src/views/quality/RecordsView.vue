@@ -1,85 +1,165 @@
 <template>
-  <div class="ruoyi-page quality-report-page">
-    <div class="report-summary">
-      <div class="summary-card">
-        <span class="summary-card__label">自动质量报告</span>
-        <strong>{{ reports.length }}</strong>
+  <div class="records-page">
+    <!-- 统计卡片 -->
+    <div class="summary-row">
+      <div class="sum-card">
+        <span class="sum-label">质检总数</span>
+        <strong>{{ list.length }}</strong>
       </div>
-      <div class="summary-card">
-        <span class="summary-card__label">平均合格率</span>
+      <div class="sum-card pass">
+        <span class="sum-label">通过</span>
+        <strong>{{ passCount }}</strong>
+      </div>
+      <div class="sum-card fail">
+        <span class="sum-label">不通过</span>
+        <strong>{{ failCount }}</strong>
+      </div>
+      <div class="sum-card warn">
+        <span class="sum-label">需复检</span>
+        <strong>{{ recheckCount }}</strong>
+      </div>
+      <div class="sum-card">
+        <span class="sum-label">平均合格率</span>
         <strong>{{ avgYield }}%</strong>
       </div>
-      <div class="summary-card">
-        <span class="summary-card__label">不良总数</span>
-        <strong>{{ defectTotal }}</strong>
+      <div class="sum-card defect">
+        <span class="sum-label">不良总数</span>
+        <strong>{{ totalDefect }}</strong>
       </div>
     </div>
 
-    <div class="ruoyi-toolbar">
-      <span class="ruoyi-toolbar__title">质检记录与自动报告</span>
-      <span class="ruoyi-toolbar__meta">共 {{ reports.length }} 份报告</span>
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <el-input v-model="keyword" placeholder="质检单号/工单/批次/物料" clearable size="small" style="width:220px" />
+      <el-select v-model="filterResult" clearable placeholder="检验结果" size="small" style="width:110px;margin-left:6px">
+        <el-option label="通过"   value="QUALIFIED" />
+        <el-option label="不通过" value="UNQUALIFIED" />
+        <el-option label="待检"   value="PENDING" />
+      </el-select>
+      <el-select v-model="filterCategory" clearable placeholder="产品类型" size="small" style="width:110px;margin-left:6px">
+        <el-option label="成品"   value="FINISHED_PRODUCT" />
+        <el-option label="半成品" value="SEMI_FINISHED" />
+      </el-select>
+      <el-button size="small" :loading="loading" style="margin-left:6px" @click="load">刷新</el-button>
     </div>
 
-    <el-table :data="reports" border stripe highlight-current-row>
-      <el-table-column prop="id" label="报告号" width="120" />
-      <el-table-column prop="qcId" label="质检单" width="130" />
-      <el-table-column prop="workOrderId" label="工单" width="130" />
-      <el-table-column prop="productModel" label="型号" min-width="140" />
-      <el-table-column prop="result" label="判定" width="90" />
-      <el-table-column prop="yieldRate" label="合格率" width="90" align="center">
+    <!-- 质检记录表 -->
+    <el-table :data="filtered" border stripe highlight-current-row size="small"
+      style="width:100%" v-loading="loading" @current-change="onSelect">
+      <el-table-column prop="inspectionNo"      label="质检单号"   width="140" />
+      <el-table-column prop="workOrderNo"       label="工单号"     width="140" show-overflow-tooltip />
+      <el-table-column prop="materialName"      label="物料/产品"  min-width="130" show-overflow-tooltip />
+      <el-table-column prop="batchNo"           label="批次"       width="140" show-overflow-tooltip />
+      <el-table-column label="类型" width="90">
         <template #default="{ row }">
-          <el-tag :type="row.yieldRate >= 95 ? 'success' : 'warning'" size="small">{{ row.yieldRate }}%</el-tag>
+          <el-tag :type="row.inspectionCategory==='SEMI_FINISHED'?'warning':'success'" size="small" effect="plain">
+            {{ row.inspectionCategoryCn }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="topDefect" label="主要不良" min-width="120" />
-      <el-table-column prop="createdAt" label="生成时间" min-width="160" />
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column prop="sampleQuantity"    label="送检"  width="65" align="center" />
+      <el-table-column prop="qualifiedQuantity" label="合格"  width="65" align="center">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openReport(row)">查看报告</el-button>
+          <span style="color:#67c23a;font-weight:600">{{ row.qualifiedQuantity }}</span>
         </template>
       </el-table-column>
+      <el-table-column prop="unqualifiedQuantity" label="不良" width="65" align="center">
+        <template #default="{ row }">
+          <span :style="Number(row.unqualifiedQuantity)>0?'color:#f56c6c;font-weight:700':''">
+            {{ row.unqualifiedQuantity }}
+          </span>
+        </template>
+      </el-table-column>
+      <el-table-column label="合格率" width="72" align="center">
+        <template #default="{ row }">
+          <el-tag :type="yieldType(row)" size="small">{{ yieldRate(row) }}%</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="检验结果" width="90">
+        <template #default="{ row }">
+          <el-tag :type="resultType(row.inspectionResult)" size="small">{{ row.inspectionResultCn }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" width="90">
+        <template #default="{ row }">
+          <el-tag :type="statusType(row.inspectionStatus)" size="small">{{ row.inspectionStatusCn }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="inspectedAt" label="检验时间" width="148" />
     </el-table>
 
-    <el-divider content-position="left">质检明细</el-divider>
-    <el-table :data="records" border stripe>
-      <el-table-column prop="id" label="质检单" width="130" />
-      <el-table-column prop="inspectorName" label="质检员" width="100" />
-      <el-table-column prop="result" label="结果" width="90" />
-      <el-table-column prop="qualifiedQty" label="合格数" width="90" align="right" />
-      <el-table-column prop="unqualifiedQty" label="不合格数" width="100" align="right" />
-      <el-table-column prop="createdAt" label="时间" min-width="160" />
-    </el-table>
-
-    <el-dialog v-model="reportVisible" title="智能质量报告" width="720px">
-      <template v-if="currentReport">
+    <!-- 详情抽屉式面板 -->
+    <el-dialog v-model="detailVisible" title="质检记录详情" width="680px" :close-on-click-modal="true">
+      <template v-if="detail">
         <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="报告号">{{ currentReport.id }}</el-descriptions-item>
-          <el-descriptions-item label="质检单">{{ currentReport.qcId }}</el-descriptions-item>
-          <el-descriptions-item label="工单">{{ currentReport.workOrderId }}</el-descriptions-item>
-          <el-descriptions-item label="批次">{{ currentReport.batchNo }}</el-descriptions-item>
-          <el-descriptions-item label="产品型号">{{ currentReport.productModel }}</el-descriptions-item>
-          <el-descriptions-item label="合格率">{{ currentReport.yieldRate }}%</el-descriptions-item>
-          <el-descriptions-item label="抽样数">{{ currentReport.sampleQty }}</el-descriptions-item>
-          <el-descriptions-item label="不合格数">{{ currentReport.unqualifiedQty }}</el-descriptions-item>
+          <el-descriptions-item label="质检单号">{{ detail.inspectionNo }}</el-descriptions-item>
+          <el-descriptions-item label="检验类型">{{ detail.inspectionTypeCn }}</el-descriptions-item>
+          <el-descriptions-item label="产品类型">
+            <el-tag :type="detail.inspectionCategory==='SEMI_FINISHED'?'warning':'success'" size="small" effect="plain">
+              {{ detail.inspectionCategoryCn }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="工单号">{{ detail.workOrderNo || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="物料">{{ detail.materialName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="批次">{{ detail.batchNo }}</el-descriptions-item>
+          <el-descriptions-item label="送检数">{{ detail.sampleQuantity }}</el-descriptions-item>
+          <el-descriptions-item label="合格数">
+            <span style="color:#67c23a;font-weight:600">{{ detail.qualifiedQuantity }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="不良数">
+            <span :style="Number(detail.unqualifiedQuantity)>0?'color:#f56c6c;font-weight:700':''">
+              {{ detail.unqualifiedQuantity }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="合格率">
+            <el-tag :type="yieldType(detail)" size="small">{{ yieldRate(detail) }}%</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="检验结果">
+            <el-tag :type="resultType(detail.inspectionResult)" size="small">{{ detail.inspectionResultCn }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="检验时间">{{ detail.inspectedAt }}</el-descriptions-item>
+          <el-descriptions-item v-if="detail.remark" label="备注" :span="2">{{ detail.remark }}</el-descriptions-item>
         </el-descriptions>
 
-        <div class="report-block">
-          <div class="report-block__title">系统结论</div>
-          <p>{{ currentReport.conclusion }}</p>
+        <!-- 检测项明细 -->
+        <div v-if="detailItems.length" style="margin-top:16px">
+          <div style="font-size:13px;font-weight:600;color:#2c3e50;margin-bottom:8px">
+            检测项明细（{{ detailItems.length }} 项）
+          </div>
+          <el-table :data="detailItems" border size="small">
+            <el-table-column prop="itemName"       label="检测项"   min-width="110" />
+            <el-table-column prop="standardValue"  label="标准值"   width="100" show-overflow-tooltip />
+            <el-table-column prop="unit"           label="单位"     width="60" />
+            <el-table-column label="实测值" width="90">
+              <template #default="{ row }">{{ row.measuredValue || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="结果" width="75">
+              <template #default="{ row }">
+                <el-tag :type="itType(row.result)" size="small">{{ row.resultCn }}</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
         </div>
 
-        <div class="report-block">
-          <div class="report-block__title">改进建议</div>
-          <ul>
-            <li v-for="item in currentReport.suggestions || []" :key="item">{{ item }}</li>
-          </ul>
-        </div>
-
-        <div v-if="defectRows.length" class="report-block">
-          <div class="report-block__title">不良分布</div>
-          <el-table :data="defectRows" border size="small">
-            <el-table-column prop="name" label="不良类型" />
-            <el-table-column prop="value" label="数量" width="100" align="right" />
+        <!-- 关联不良品 -->
+        <div v-if="detailNc.length" style="margin-top:16px">
+          <div style="font-size:13px;font-weight:600;color:#f56c6c;margin-bottom:8px">
+            关联不良品（{{ detailNc.length }} 条）
+          </div>
+          <el-table :data="detailNc" border size="small">
+            <el-table-column prop="nonconformingNo" label="不良品单号" width="140" />
+            <el-table-column prop="defectType"      label="缺陷类型"  min-width="100" />
+            <el-table-column prop="quantity"        label="数量"      width="60" align="center" />
+            <el-table-column label="严重度" width="75">
+              <template #default="{ row }">
+                <el-tag :type="sevType(row.severity)" size="small">{{ row.severityCn }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="处置状态" width="85">
+              <template #default="{ row }">
+                <el-tag :type="ncStatusType(row.handleStatus)" size="small">{{ row.handleStatusCn }}</el-tag>
+              </template>
+            </el-table-column>
           </el-table>
         </div>
       </template>
@@ -88,76 +168,127 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { useMesStore } from '@/stores/mes'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { fetchInspectionViews, fetchInspectionDetail, fetchInspectionItems } from '@/api/quality'
 
-const mes = useMesStore()
-const reportVisible = ref(false)
-const currentReport = ref(null)
+const route = useRoute()
+const routeCategory = computed(() => route.meta?.category || '')
 
-const reports = computed(() => mes.qualityReports || [])
-const records = computed(() => mes.inspections.filter((i) => i.status !== '待检'))
+const list           = ref([])
+const loading        = ref(false)
+const selected       = ref(null)
+const detail         = ref(null)
+const detailItems    = ref([])
+const detailNc       = ref([])
+const detailVisible  = ref(false)
+const keyword        = ref('')
+const filterResult   = ref('')
+const filterCategory = ref(routeCategory.value)
+
+const passCount   = computed(() => list.value.filter(r => r.inspectionStatus === 'PASSED').length)
+const failCount   = computed(() => list.value.filter(r => r.inspectionStatus === 'FAILED').length)
+const recheckCount = computed(() => list.value.filter(r => r.inspectionStatus === 'RECHECK_REQUIRED').length)
+const totalDefect = computed(() => list.value.reduce((s, r) => s + (Number(r.unqualifiedQuantity) || 0), 0))
 const avgYield = computed(() => {
-  if (!reports.value.length) return 0
-  const total = reports.value.reduce((sum, r) => sum + Number(r.yieldRate || 0), 0)
-  return (total / reports.value.length).toFixed(1)
-})
-const defectTotal = computed(() => reports.value.reduce((sum, r) => sum + Number(r.defectQty || 0), 0))
-const defectRows = computed(() => {
-  const dist = currentReport.value?.defectDistribution || {}
-  return Object.entries(dist).map(([name, value]) => ({ name, value }))
+  const finished = list.value.filter(r => Number(r.sampleQuantity) > 0)
+  if (!finished.length) return '0.0'
+  const sum = finished.reduce((s, r) => s + Number(yieldRate(r)), 0)
+  return (sum / finished.length).toFixed(1)
 })
 
-function openReport(row) {
-  currentReport.value = row
-  reportVisible.value = true
+const filtered = computed(() => {
+  let data = list.value
+  if (filterResult.value)   data = data.filter(r => r.inspectionResult === filterResult.value)
+  if (filterCategory.value) data = data.filter(r => r.inspectionCategory === filterCategory.value)
+  if (keyword.value) {
+    const kw = keyword.value.toLowerCase()
+    data = data.filter(r =>
+      (r.inspectionNo  || '').toLowerCase().includes(kw) ||
+      (r.workOrderNo   || '').toLowerCase().includes(kw) ||
+      (r.batchNo       || '').toLowerCase().includes(kw) ||
+      (r.materialName  || '').toLowerCase().includes(kw)
+    )
+  }
+  return data
+})
+
+function yieldRate(row) {
+  const s = Number(row.sampleQuantity)
+  const q = Number(row.qualifiedQuantity)
+  if (!s || s <= 0) return 0
+  if (!Number.isFinite(q) || q <= 0) return 0
+  const r = Math.round(q / s * 100)
+  return Math.min(100, Math.max(0, r))
 }
+function yieldType(row) {
+  const y = yieldRate(row)
+  if (y >= 95) return 'success'
+  if (y >= 80) return 'warning'
+  return 'danger'
+}
+function resultType(s)  {
+  return { QUALIFIED:'success', UNQUALIFIED:'danger', PENDING:'info' }[s] || 'info'
+}
+function statusType(s)  {
+  return { PASSED:'success', FAILED:'danger', RECHECK_REQUIRED:'warning', PENDING:'info', CLOSED:'info' }[s] || 'info'
+}
+function itType(r)      { return { PASSED:'success', FAILED:'danger', WARNING:'warning', PENDING:'info' }[r] || 'info' }
+function sevType(s)     { return { MINOR:'', GENERAL:'warning', MAJOR:'danger', CRITICAL:'danger' }[s] || '' }
+function ncStatusType(s){ return { PENDING:'danger', PROCESSING:'warning', DONE:'success' }[s] || 'info' }
+
+async function load() {
+  loading.value = true
+  try {
+    const res = await fetchInspectionViews()
+    list.value = (res.data ?? res).map(r => ({
+      ...r,
+      inspectionResultCn: { QUALIFIED:'合格', UNQUALIFIED:'不合格', PENDING:'待判定' }[r.inspectionResult] || r.inspectionResult
+    }))
+  } catch { /* 静默 */ }
+  finally { loading.value = false }
+}
+
+async function onSelect(row) {
+  if (!row) return
+  selected.value = row
+  detailVisible.value = true
+  detail.value = null; detailItems.value = []; detailNc.value = []
+  try {
+    const [d, it] = await Promise.all([
+      fetchInspectionDetail(row.inspectionId).catch(() => null),
+      fetchInspectionItems(row.inspectionId).catch(() => null)
+    ])
+    const dData = d ? (d.data ?? d) : {}
+    detail.value     = { ...row, ...dData }
+    detailItems.value = it ? (it.data ?? it) : []
+    detailNc.value    = dData.nonconformingList || []
+  } catch { /* 静默 */ }
+}
+
+onMounted(load)
+
+watch(routeCategory, (val) => {
+  filterCategory.value = val
+  selected.value = null
+  load()
+})
 </script>
 
 <style scoped>
-.quality-report-page {
-  min-height: calc(100vh - 130px);
+.records-page { padding: 16px; background: #f5f7fa; min-height: 100%; display: flex; flex-direction: column; gap: 12px; }
+
+.summary-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.sum-card {
+  background: #fff; border: 1px solid #e4e7ed; border-radius: 6px;
+  padding: 10px 18px; display: flex; flex-direction: column; align-items: center; min-width: 88px;
 }
-.report-summary {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.summary-card {
-  flex: 1;
-  padding: 14px 16px;
-  background: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-}
-.summary-card__label {
-  display: block;
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 6px;
-}
-.summary-card strong {
-  font-size: 22px;
-  color: #001b3f;
-}
-.ruoyi-toolbar__meta {
-  margin-left: auto;
-  font-size: 12px;
-  color: #909399;
-}
-.report-block {
-  margin-top: 16px;
-}
-.report-block__title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #001b3f;
-  margin-bottom: 8px;
-}
-.report-block p,
-.report-block li {
-  font-size: 13px;
-  line-height: 1.7;
-  color: #606266;
-}
+.sum-card.pass   { border-top: 3px solid #67c23a; }
+.sum-card.fail   { border-top: 3px solid #f56c6c; }
+.sum-card.warn   { border-top: 3px solid #e6a23c; }
+.sum-card.defect { border-top: 3px solid #f56c6c; }
+.sum-label { font-size: 11px; color: #8492a6; margin-bottom: 4px; }
+.sum-card strong { font-size: 20px; font-weight: 700; color: #2c3e50; }
+
+.toolbar { display: flex; align-items: center; flex-wrap: wrap; }
 </style>

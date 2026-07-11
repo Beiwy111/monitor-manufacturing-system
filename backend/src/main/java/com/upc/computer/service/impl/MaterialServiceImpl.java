@@ -58,6 +58,11 @@ public class MaterialServiceImpl implements MaterialService {
         materialMapper.deleteMaterial(materialId);
     }
 
+    @Override
+    public void bindSupplier(Long materialId, Long supplierId) {
+        materialMapper.updateSupplier(materialId, supplierId);
+    }
+
     // 查询所有BOM
     @Override
     public ArrayList<Bom> bomList() {

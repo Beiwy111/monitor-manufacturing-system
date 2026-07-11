@@ -44,20 +44,28 @@ export const roleMenus = {
     ]}
   ],
   quality: [
-    { menuId: 6, menuName: '质量管理', children: [
-      { menuId: 61, menuName: '待检任务', path: '/quality/inspection' },
-      { menuId: 62, menuName: '不合格品', path: '/quality/defect' },
-      { menuId: 63, menuName: '复检处理', path: '/quality/reinspect' },
-      { menuId: 64, menuName: '质检记录', path: '/quality/records' },
-      { menuId: 65, menuName: '质量追溯', path: '/quality/trace' }
+    { menuId: 6, menuName: '半成品质量管理', children: [
+      { menuId: 61, menuName: '待检任务', path: '/quality/semi/inspection' },
+      { menuId: 62, menuName: '不合格品', path: '/quality/semi/defect' },
+      { menuId: 63, menuName: '复检处理', path: '/quality/semi/reinspect' },
+      { menuId: 64, menuName: '质检记录', path: '/quality/semi/records' },
+      { menuId: 65, menuName: '质量追溯', path: '/quality/semi/trace' },
+      { menuId: 66, menuName: '报表打印', path: '/quality/semi/print' }
+    ]},
+    { menuId: 118, menuName: '成品质量管理', children: [
+      { menuId: 119, menuName: '待检任务', path: '/quality/fp/inspection' },
+      { menuId: 120, menuName: '不合格品', path: '/quality/fp/defect' },
+      { menuId: 121, menuName: '复检处理', path: '/quality/fp/reinspect' },
+      { menuId: 122, menuName: '质检记录', path: '/quality/fp/records' },
+      { menuId: 123, menuName: '质量追溯', path: '/quality/fp/trace' },
+      { menuId: 124, menuName: '报表打印', path: '/quality/fp/print' }
     ]}
   ],
   purchase: [
     { menuId: 7, menuName: '采购管理', children: [
       { menuId: 71, menuName: '采购需求', path: '/purchase/demand' },
       { menuId: 72, menuName: '采购订单', path: '/purchase/order' },
-      { menuId: 73, menuName: '供应商管理', path: '/purchase/supplier' },
-      { menuId: 74, menuName: '到货进度', path: '/purchase/arrival' }
+      { menuId: 73, menuName: '供应商管理', path: '/purchase/supplier' }
     ]}
   ],
   warehouse: [

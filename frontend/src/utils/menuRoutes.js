@@ -23,8 +23,21 @@ export const MENU_PATH_MAP = {
   'production:progress': '/production/progress',
   'purchase:purchaseOrder': '/purchase/order',
   'purchase:purchaseOrderItem': '/purchase/order',
-  'quality:inspection': '/quality/inspection',
-  'quality:nonconforming': '/quality/defect',
+  'purchase:aiDocument': '/purchase/ai-document',
+  'quality:inspection':    '/quality/semi/inspection',
+  'quality:nonconforming': '/quality/semi/defect',
+  'quality:defect':        '/quality/semi/defect',
+  'quality:reinspect':     '/quality/semi/reinspect',
+  'quality:records':       '/quality/semi/records',
+  'quality:trace':         '/quality/semi/trace',
+  'quality:print':         '/quality/semi/print',
+  'quality:semi:print':    '/quality/semi/print',
+  'quality:fp:inspection': '/quality/fp/inspection',
+  'quality:fp:defect':     '/quality/fp/defect',
+  'quality:fp:reinspect':  '/quality/fp/reinspect',
+  'quality:fp:records':    '/quality/fp/records',
+  'quality:fp:trace':      '/quality/fp/trace',
+  'quality:fp:print':      '/quality/fp/print',
   'equipment:equipment': '/device/equipment',
   'equipment:alarm': '/device/alarm',
   'equipment:maintenance': '/device/maintenance',
@@ -33,6 +46,22 @@ export const MENU_PATH_MAP = {
 }
 
 export const BOARD_PATH = '/system/board'
+
+/** 已下线、需从导航中移除的菜单（按 path 或 menuCode 匹配） */
+const REMOVED_MENU_PATHS = new Set(['/purchase/arrival'])
+const REMOVED_MENU_CODES = new Set(['purchase:arrival'])
+
+/** 清理菜单树中的下线项，同时用于 localStorage 缓存兜底数据 */
+export function sanitizeMenus(menus) {
+  return (menus || [])
+    .map((m) => ({
+      ...m,
+      children: (m.children || []).filter(
+        (c) => !REMOVED_MENU_PATHS.has(c.path) && !REMOVED_MENU_CODES.has(c.menuCode)
+      )
+    }))
+    .filter((m) => m.children?.length)
+}
 
 /** 各角色在前端有、但 sys_menu 未单独建项的路由 */
 const ROLE_MENU_EXTRAS = {
@@ -62,6 +91,14 @@ const ROLE_MENU_EXTRAS = {
       { menuId: 9054, menuName: '工艺说明', path: '/production/process-guide' }
     ],
     equipment: [{ menuId: 9055, menuName: '安灯报警', path: '/device/alarm' }]
+  },
+  purchase: {
+    purchase: [
+      { menuId: 9061, menuName: '采购需求', path: '/purchase/demand' },
+      { menuId: 9062, menuName: '采购订单', path: '/purchase/order' },
+      { menuId: 9064, menuName: '供应商管理', path: '/purchase/supplier' },
+      { menuId: 9065, menuName: 'AI 单据录入', path: '/purchase/ai-document' }
+    ]
   }
 }
 
@@ -79,6 +116,7 @@ const MODULE_NAME_MAP = {
 
 export function resolveMenuPath(menu) {
   if (menu?.path) return menu.path
+  if (menu?.routePath) return menu.routePath
   if (menu?.menuCode && MENU_PATH_MAP[menu.menuCode]) {
     return MENU_PATH_MAP[menu.menuCode]
   }
@@ -152,6 +190,7 @@ function normalizeNode(node) {
     .map((c) => {
       const path = resolveMenuPath(c)
       if (!path) return null
+      if (REMOVED_MENU_PATHS.has(path) || REMOVED_MENU_CODES.has(c.menuCode)) return null
       return { ...c, path }
     })
     .filter(Boolean)
@@ -197,10 +236,10 @@ const ROLE_HOME_PATH = {
   order: '/order/list',
   planner: '/production/plan',
   operator: '/production/my-dispatch',
-  quality: '/quality/inspection',
-  purchase: '/purchase/order',
+  quality: '/dashboard/quality',
+  purchase: '/dashboard/purchase',
   warehouse: '/warehouse/inventory',
-  device: '/device/equipment',
+  device: '/dashboard/device',
   aftersale: '/aftersale/case',
   cost: '/cost/report'
 }

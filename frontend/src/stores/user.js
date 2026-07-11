@@ -4,7 +4,7 @@ import { getMenusByRoleKey } from '@/mock/menus'
 import { login as loginApi, getUserInfo, getMenus } from '@/api/auth'
 import { MES_LIVE_MODE } from '@/config/mes'
 import { useMesStore } from '@/stores/mes'
-import { normalizeMenus, getHomePath, BOARD_PATH, stripBoardFromMenus } from '@/utils/menuRoutes'
+import { normalizeMenus, getHomePath, BOARD_PATH, stripBoardFromMenus, sanitizeMenus } from '@/utils/menuRoutes'
 import { useTagsViewStore } from '@/stores/tagsView'
 
 /** 是否使用 Mock 登录（后端接口就绪后改为 false） */
@@ -41,17 +41,23 @@ function buildUserInfo(session) {
   }
 }
 
+const _MENU_VERSION = '5'
+if (localStorage.getItem('menuVersion') !== _MENU_VERSION) {
+  localStorage.removeItem('menus')
+  localStorage.setItem('menuVersion', _MENU_VERSION)
+}
+
 export const useUserStore = defineStore('user', {
   state: () => ({
     token: localStorage.getItem('token') || '',
     userInfo: JSON.parse(localStorage.getItem('userInfo') || 'null'),
-    menus: JSON.parse(localStorage.getItem('menus') || '[]')
+    menus: sanitizeMenus(JSON.parse(localStorage.getItem('menus') || '[]'))
   }),
   getters: {
     isLoggedIn: (state) => !!state.token,
     displayName: (state) => state.userInfo?.realName || state.userInfo?.username || '用户',
     roleKey: (state) => state.userInfo?.roleKey || '',
-    dashboardPath: (state) => state.userInfo?.dashboardPath || getHomePath(state.userInfo?.roleKey)
+    dashboardPath: (state) => getHomePath(state.userInfo?.roleKey) || state.userInfo?.dashboardPath
   },
   actions: {
     async login(form) {
@@ -99,6 +105,12 @@ export const useUserStore = defineStore('user', {
       return this.userInfo
     },
     async loadMenus() {
+      // 菜单结构版本号：改动菜单后递增，强制清除旧缓存
+      const MENU_VERSION = '5'
+      if (localStorage.getItem('menuVersion') !== MENU_VERSION) {
+        localStorage.removeItem('menus')
+        localStorage.setItem('menuVersion', MENU_VERSION)
+      }
       const fallback = getMenusByRoleKey(this.roleKey)
       try {
         const apiMenus = await getMenus()

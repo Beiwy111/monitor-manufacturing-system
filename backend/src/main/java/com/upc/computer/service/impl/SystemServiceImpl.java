@@ -233,6 +233,7 @@ public class SystemServiceImpl implements SystemService {
         node.setParentId(menu.getParentId());
         node.setMenuLevel(menu.getMenuLevel());
         node.setApiPath(menu.getApiPath());
+        node.setRoutePath(menu.getRoutePath());
         node.setBusinessTable(menu.getBusinessTable());
         node.setIcon(menu.getIcon());
         node.setSortNo(menu.getSortNo());

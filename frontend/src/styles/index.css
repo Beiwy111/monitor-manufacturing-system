@@ -31,3 +31,35 @@ html, body, #app {
   color: var(--text-placeholder);
   margin-bottom: 16px;
 }
+
+.el-table {
+  width: 100%;
+}
+
+.el-table .cell {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.el-table th.el-table__cell,
+.el-table td.el-table__cell {
+  padding: 8px 0;
+}
+
+.el-table .el-button + .el-button {
+  margin-left: 4px;
+}
+
+.el-table__body-wrapper,
+.el-table__inner-wrapper {
+  max-width: 100%;
+}
+
+.el-dialog {
+  max-width: calc(100vw - 48px);
+}
+
+.el-dialog .el-dialog__body {
+  overflow-x: hidden;
+}

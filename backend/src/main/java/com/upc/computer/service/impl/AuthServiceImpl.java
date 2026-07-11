@@ -213,6 +213,7 @@ public class AuthServiceImpl implements AuthService {
         copy.setParentId(node.getParentId());
         copy.setMenuLevel(node.getMenuLevel());
         copy.setApiPath(node.getApiPath());
+        copy.setRoutePath(node.getRoutePath());
         copy.setBusinessTable(node.getBusinessTable());
         copy.setIcon(node.getIcon());
         copy.setSortNo(node.getSortNo());

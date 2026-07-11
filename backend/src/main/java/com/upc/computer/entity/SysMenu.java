@@ -2,140 +2,58 @@ package com.upc.computer.entity;
 
 import java.time.LocalDateTime;
 
-/**
- * 系统菜单实体，对应表 sys_menu
- */
 public class SysMenu {
 
-    /** menu_id */
     private Long menuId;
-
-    /** menu_code */
     private String menuCode;
-
-    /** menu_name */
     private String menuName;
-
-    /** parent_id */
     private Long parentId;
-
-    /** menu_level */
     private Integer menuLevel;
-
-    /** api_path */
     private String apiPath;
-
-    /** business_table */
+    private String routePath;
     private String businessTable;
-
-    /** icon */
     private String icon;
-
-    /** sort_no */
     private Integer sortNo;
-
-    /** status */
     private Integer status;
-
-    /** created_at */
     private LocalDateTime createdAt;
-
-    /** updated_at */
     private LocalDateTime updatedAt;
 
-    public Long getMenuId() {
-        return menuId;
-    }
+    public Long getMenuId() { return menuId; }
+    public void setMenuId(Long menuId) { this.menuId = menuId; }
 
-    public void setMenuId(Long menuId) {
-        this.menuId = menuId;
-    }
+    public String getMenuCode() { return menuCode; }
+    public void setMenuCode(String menuCode) { this.menuCode = menuCode; }
 
-    public String getMenuCode() {
-        return menuCode;
-    }
+    public String getMenuName() { return menuName; }
+    public void setMenuName(String menuName) { this.menuName = menuName; }
 
-    public void setMenuCode(String menuCode) {
-        this.menuCode = menuCode;
-    }
+    public Long getParentId() { return parentId; }
+    public void setParentId(Long parentId) { this.parentId = parentId; }
 
-    public String getMenuName() {
-        return menuName;
-    }
+    public Integer getMenuLevel() { return menuLevel; }
+    public void setMenuLevel(Integer menuLevel) { this.menuLevel = menuLevel; }
 
-    public void setMenuName(String menuName) {
-        this.menuName = menuName;
-    }
+    public String getApiPath() { return apiPath; }
+    public void setApiPath(String apiPath) { this.apiPath = apiPath; }
 
-    public Long getParentId() {
-        return parentId;
-    }
+    public String getRoutePath() { return routePath; }
+    public void setRoutePath(String routePath) { this.routePath = routePath; }
 
-    public void setParentId(Long parentId) {
-        this.parentId = parentId;
-    }
+    public String getBusinessTable() { return businessTable; }
+    public void setBusinessTable(String businessTable) { this.businessTable = businessTable; }
 
-    public Integer getMenuLevel() {
-        return menuLevel;
-    }
+    public String getIcon() { return icon; }
+    public void setIcon(String icon) { this.icon = icon; }
 
-    public void setMenuLevel(Integer menuLevel) {
-        this.menuLevel = menuLevel;
-    }
+    public Integer getSortNo() { return sortNo; }
+    public void setSortNo(Integer sortNo) { this.sortNo = sortNo; }
 
-    public String getApiPath() {
-        return apiPath;
-    }
+    public Integer getStatus() { return status; }
+    public void setStatus(Integer status) { this.status = status; }
 
-    public void setApiPath(String apiPath) {
-        this.apiPath = apiPath;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public String getBusinessTable() {
-        return businessTable;
-    }
-
-    public void setBusinessTable(String businessTable) {
-        this.businessTable = businessTable;
-    }
-
-    public String getIcon() {
-        return icon;
-    }
-
-    public void setIcon(String icon) {
-        this.icon = icon;
-    }
-
-    public Integer getSortNo() {
-        return sortNo;
-    }
-
-    public void setSortNo(Integer sortNo) {
-        this.sortNo = sortNo;
-    }
-
-    public Integer getStatus() {
-        return status;
-    }
-
-    public void setStatus(Integer status) {
-        this.status = status;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

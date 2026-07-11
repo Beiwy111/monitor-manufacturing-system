@@ -41,6 +41,12 @@ public class QualityInspection {
     /** inspection_result */
     private String inspectionResult;
 
+    /** inspection_status: PENDING/PASSED/FAILED/RECHECK_REQUIRED/CLOSED */
+    private String inspectionStatus;
+
+    /** inspection_category: FINISHED_PRODUCT/SEMI_FINISHED */
+    private String inspectionCategory;
+
     /** inspector_id */
     private Long inspectorId;
 
@@ -142,6 +148,22 @@ public class QualityInspection {
 
     public void setInspectionResult(String inspectionResult) {
         this.inspectionResult = inspectionResult;
+    }
+
+    public String getInspectionStatus() {
+        return inspectionStatus;
+    }
+
+    public void setInspectionStatus(String inspectionStatus) {
+        this.inspectionStatus = inspectionStatus;
+    }
+
+    public String getInspectionCategory() {
+        return inspectionCategory;
+    }
+
+    public void setInspectionCategory(String inspectionCategory) {
+        this.inspectionCategory = inspectionCategory;
     }
 
     public Long getInspectorId() {
