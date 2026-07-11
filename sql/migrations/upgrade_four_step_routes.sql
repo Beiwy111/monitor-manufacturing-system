@@ -1,5 +1,5 @@
 -- 升级工艺路线为四道生产工序，并为未完成工单补派「显示屏加工」「主板装配」
--- 执行：mysql -uroot -p display_manufacturing < upgrade_four_step_routes.sql
+-- 执行：mysql -uroot -p display_manufacturing < sql/migrations/upgrade_four_step_routes.sql
 
 USE display_manufacturing;
 SET NAMES utf8mb4;

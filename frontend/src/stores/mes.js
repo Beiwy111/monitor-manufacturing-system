@@ -176,10 +176,16 @@ export const useMesStore = defineStore('mes', {
         s.dispatches.filter((d) => d.operator === username && d.processStep === '返修' && d.status === '已分配').forEach((d) => todos.push({ type: '返修', title: `返修任务 ${d.planQty} 台`, ref: d.id, path: '/production/my-dispatch' }))
       }
       if (roleKey === 'quality') {
-        s.inspections.filter((i) => i.status === '待检').forEach((i) => todos.push({ type: '质检', title: `${i.id} 待检验`, ref: i.id, path: '/quality/inspection' }))
+        s.inspections.filter((i) => i.status === '待检').forEach((i) => todos.push({
+          type: '质检', title: `${i.id} 待检验`, ref: i.id,
+          path: i.inspectionCategory === 'RAW_MATERIAL' ? '/quality/material/inspection' : '/quality/fp/inspection'
+        }))
         s.defects.filter((d) => d.status === '待处理').forEach((d) => todos.push({ type: '不合格', title: `${d.defectLocation || '未知部位'} · ${d.severity || ''}`, ref: d.id, path: '/quality/defect' }))
       }
       if (roleKey === 'purchase') {
+        s.orders.filter((o) => o.status === '待计划').forEach((o) => todos.push({
+          type: '订单', title: `${o.id} 新审核订单待采购`, ref: o.id, path: '/purchase/demand'
+        }))
         s.purchaseDemands.filter((d) => d.status === '待采购').forEach((d) => todos.push({ type: '采购', title: `${d.materialName} 缺口 ${d.gapQty}`, ref: d.id, path: '/purchase/demand' }))
       }
       if (roleKey === 'warehouse') {
@@ -297,7 +303,7 @@ export const useMesStore = defineStore('mes', {
       else if (action === 'reject') o.status = '已作废'
       else o.auditFlag = action === 'supplement' ? '待补充资料' : '暂缓审核'
       o.updatedAt = now()
-      log(this, '订单管理', action === 'pass' ? '审核通过并提交计划员' : '订单审核', orderId, operator, roleKey)
+      log(this, '订单管理', action === 'pass' ? '审核通过，已同步计划员与采购员' : '订单审核', orderId, operator, roleKey)
       return true
     },
     submitOrder(orderId, operator, roleKey) {

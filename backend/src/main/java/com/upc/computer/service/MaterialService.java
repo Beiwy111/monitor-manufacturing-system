@@ -18,6 +18,8 @@ public interface MaterialService {
 
     public void deleteMaterial(Long materialId);
 
+    void bindSupplier(Long materialId, Long supplierId);
+
     public ArrayList<Bom> bomList();
 
     public Bom getBomById(Long bomId);

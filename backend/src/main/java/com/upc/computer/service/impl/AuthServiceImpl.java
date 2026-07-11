@@ -81,6 +81,10 @@ public class AuthServiceImpl implements AuthService {
             session.setRoleCode(role.getRoleCode());
             session.setRoleName(role.getRoleName());
         }
+        session.setPhone(user.getPhone());
+        session.setEmail(user.getEmail());
+        session.setCustomerName(user.getCustomerName());
+        session.setShippingAddress(user.getShippingAddress());
         return session;
     }
 
@@ -213,6 +217,7 @@ public class AuthServiceImpl implements AuthService {
         copy.setParentId(node.getParentId());
         copy.setMenuLevel(node.getMenuLevel());
         copy.setApiPath(node.getApiPath());
+        copy.setRoutePath(node.getRoutePath());
         copy.setBusinessTable(node.getBusinessTable());
         copy.setIcon(node.getIcon());
         copy.setSortNo(node.getSortNo());
@@ -258,6 +263,8 @@ public class AuthServiceImpl implements AuthService {
                 return new HashSet<>(Arrays.asList("afterSales", "order", "quality"));
             case "COST":
                 return new HashSet<>(Arrays.asList("afterSales", "material", "production"));
+            case "CUSTOMER":
+                return new HashSet<>(Arrays.asList("customer"));
             default:
                 return new HashSet<>(Arrays.asList("system", "material", "order", "production",
                         "purchase", "quality", "equipment", "afterSales"));

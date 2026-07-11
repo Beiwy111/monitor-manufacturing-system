@@ -3,152 +3,77 @@ package com.upc.computer.entity;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * 库存实体，对应表 inventory
- */
 public class Inventory {
 
-    /** inventory_id */
     private Long inventoryId;
-
-    /** material_id */
     private Long materialId;
 
-    /** warehouse_code */
+    /** joined from material */
+    private String materialCode;
+    private String materialName;
+    private String unit;
+    private BigDecimal safetyStock;
+
     private String warehouseCode;
-
-    /** warehouse_name */
     private String warehouseName;
-
-    /** location_code */
     private String locationCode;
-
-    /** batch_no */
     private String batchNo;
-
-    /** quantity_on_hand */
     private BigDecimal quantityOnHand;
-
-    /** quantity_reserved */
     private BigDecimal quantityReserved;
-
-    /** quantity_available */
     private BigDecimal quantityAvailable;
-
-    /** inventory_status */
     private String inventoryStatus;
-
-    /** last_transaction_at */
     private LocalDateTime lastTransactionAt;
-
-    /** created_at */
     private LocalDateTime createdAt;
-
-    /** updated_at */
     private LocalDateTime updatedAt;
 
-    public Long getInventoryId() {
-        return inventoryId;
-    }
+    public Long getInventoryId() { return inventoryId; }
+    public void setInventoryId(Long inventoryId) { this.inventoryId = inventoryId; }
 
-    public void setInventoryId(Long inventoryId) {
-        this.inventoryId = inventoryId;
-    }
+    public Long getMaterialId() { return materialId; }
+    public void setMaterialId(Long materialId) { this.materialId = materialId; }
 
-    public Long getMaterialId() {
-        return materialId;
-    }
+    public String getMaterialCode() { return materialCode; }
+    public void setMaterialCode(String materialCode) { this.materialCode = materialCode; }
 
-    public void setMaterialId(Long materialId) {
-        this.materialId = materialId;
-    }
+    public String getMaterialName() { return materialName; }
+    public void setMaterialName(String materialName) { this.materialName = materialName; }
 
-    public String getWarehouseCode() {
-        return warehouseCode;
-    }
+    public String getUnit() { return unit; }
+    public void setUnit(String unit) { this.unit = unit; }
 
-    public void setWarehouseCode(String warehouseCode) {
-        this.warehouseCode = warehouseCode;
-    }
+    public BigDecimal getSafetyStock() { return safetyStock; }
+    public void setSafetyStock(BigDecimal safetyStock) { this.safetyStock = safetyStock; }
 
-    public String getWarehouseName() {
-        return warehouseName;
-    }
+    public String getWarehouseCode() { return warehouseCode; }
+    public void setWarehouseCode(String warehouseCode) { this.warehouseCode = warehouseCode; }
 
-    public void setWarehouseName(String warehouseName) {
-        this.warehouseName = warehouseName;
-    }
+    public String getWarehouseName() { return warehouseName; }
+    public void setWarehouseName(String warehouseName) { this.warehouseName = warehouseName; }
 
-    public String getLocationCode() {
-        return locationCode;
-    }
+    public String getLocationCode() { return locationCode; }
+    public void setLocationCode(String locationCode) { this.locationCode = locationCode; }
 
-    public void setLocationCode(String locationCode) {
-        this.locationCode = locationCode;
-    }
+    public String getBatchNo() { return batchNo; }
+    public void setBatchNo(String batchNo) { this.batchNo = batchNo; }
 
-    public String getBatchNo() {
-        return batchNo;
-    }
+    public BigDecimal getQuantityOnHand() { return quantityOnHand; }
+    public void setQuantityOnHand(BigDecimal quantityOnHand) { this.quantityOnHand = quantityOnHand; }
 
-    public void setBatchNo(String batchNo) {
-        this.batchNo = batchNo;
-    }
+    public BigDecimal getQuantityReserved() { return quantityReserved; }
+    public void setQuantityReserved(BigDecimal quantityReserved) { this.quantityReserved = quantityReserved; }
 
-    public BigDecimal getQuantityOnHand() {
-        return quantityOnHand;
-    }
+    public BigDecimal getQuantityAvailable() { return quantityAvailable; }
+    public void setQuantityAvailable(BigDecimal quantityAvailable) { this.quantityAvailable = quantityAvailable; }
 
-    public void setQuantityOnHand(BigDecimal quantityOnHand) {
-        this.quantityOnHand = quantityOnHand;
-    }
+    public String getInventoryStatus() { return inventoryStatus; }
+    public void setInventoryStatus(String inventoryStatus) { this.inventoryStatus = inventoryStatus; }
 
-    public BigDecimal getQuantityReserved() {
-        return quantityReserved;
-    }
+    public LocalDateTime getLastTransactionAt() { return lastTransactionAt; }
+    public void setLastTransactionAt(LocalDateTime lastTransactionAt) { this.lastTransactionAt = lastTransactionAt; }
 
-    public void setQuantityReserved(BigDecimal quantityReserved) {
-        this.quantityReserved = quantityReserved;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public BigDecimal getQuantityAvailable() {
-        return quantityAvailable;
-    }
-
-    public void setQuantityAvailable(BigDecimal quantityAvailable) {
-        this.quantityAvailable = quantityAvailable;
-    }
-
-    public String getInventoryStatus() {
-        return inventoryStatus;
-    }
-
-    public void setInventoryStatus(String inventoryStatus) {
-        this.inventoryStatus = inventoryStatus;
-    }
-
-    public LocalDateTime getLastTransactionAt() {
-        return lastTransactionAt;
-    }
-
-    public void setLastTransactionAt(LocalDateTime lastTransactionAt) {
-        this.lastTransactionAt = lastTransactionAt;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

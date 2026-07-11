@@ -1,17 +1,256 @@
 <template>
-  <MesDataPage
-    title="复检处理"
-    data-key="inspections"
-    :columns="cols"
-    :filter-fn="f => f.filter(i => i.status === '复检' || i.status === '不合格')"
-    delete-action="deleteInspection"
-    delete-payload-key="qcId"
-  />
+  <div class="ruoyi-page reinspect-page">
+    <div class="ruoyi-stats">
+      <span class="ruoyi-stats__item">需复检总数：<em>{{ list.length }}</em></span>
+      <span class="ruoyi-stats__item ruoyi-stats__item--warn">半成品复检：<em>{{ semiCount }}</em></span>
+      <span class="ruoyi-stats__item">成品复检：<em>{{ fpCount }}</em></span>
+    </div>
+
+    <div class="ruoyi-toolbar">
+      <span class="ruoyi-toolbar__title">复检处理</span>
+      <el-input v-model="keyword" placeholder="质检单/工单/批次" clearable size="small" style="width:200px" />
+      <el-select v-model="categoryFilter" clearable placeholder="分类" size="small" style="width:100px">
+        <el-option label="半成品质检" value="SEMI_FINISHED" />
+        <el-option label="成品质检" value="FINISHED_PRODUCT" />
+      </el-select>
+      <el-button size="small" :loading="loading" @click="loadData">刷新</el-button>
+    </div>
+
+    <div class="qc-split-layout">
+      <div class="qc-split-layout__main ruoyi-table-wrap">
+        <el-table v-loading="loading" :data="filtered" border stripe highlight-current-row size="small"
+          empty-text="暂无需复检任务" @current-change="onSelect">
+          <el-table-column prop="inspectionNo" label="质检单号" width="145" />
+          <el-table-column label="分类" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.inspectionCategory==='SEMI_FINISHED'?'warning':'success'" size="small" effect="plain">
+                {{ row.inspectionCategoryCn }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="inspectionTypeCn" label="类型" width="80" />
+          <el-table-column prop="workOrderNo" label="工单" width="120" show-overflow-tooltip />
+          <el-table-column prop="materialName" label="物料" min-width="95" show-overflow-tooltip />
+          <el-table-column prop="batchNo" label="批次" width="120" show-overflow-tooltip />
+          <el-table-column prop="sampleQuantity" label="抽样" width="55" align="center" />
+          <el-table-column prop="unqualifiedQuantity" label="不良" width="55" align="center">
+            <template #default="{ row }">
+              <span style="color:#f56c6c;font-weight:700">{{ row.unqualifiedQuantity }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="updatedAt" label="转复检时间" width="148" show-overflow-tooltip />
+        </el-table>
+      </div>
+
+      <div class="qc-split-layout__side">
+        <template v-if="selected">
+        <div class="qc-section">
+          <div class="qc-section__title">
+            <el-tag :type="selected.inspectionCategory==='SEMI_FINISHED'?'warning':'success'" size="small" style="margin-right:6px">
+              {{ selected.inspectionCategoryCn }}
+            </el-tag>
+            {{ selected.inspectionNo }}
+            <el-tag type="warning" size="small" style="margin-left:8px">需复检</el-tag>
+          </div>
+          <el-descriptions :column="2" size="small" border>
+            <el-descriptions-item label="工单">{{ selected.workOrderNo||'-' }}</el-descriptions-item>
+            <el-descriptions-item label="物料">{{ selected.materialName||'-' }}</el-descriptions-item>
+            <el-descriptions-item label="批次">{{ selected.batchNo }}</el-descriptions-item>
+            <el-descriptions-item label="检验类型">{{ selected.inspectionTypeCn }}</el-descriptions-item>
+            <el-descriptions-item label="送检数">{{ selected.sampleQuantity }}</el-descriptions-item>
+            <el-descriptions-item label="上次不良数">
+              <span style="color:#f56c6c;font-weight:700">{{ selected.unqualifiedQuantity }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="检验员">{{ selected.inspectorName||'-' }}</el-descriptions-item>
+            <el-descriptions-item label="转复检时间">{{ selected.updatedAt||'-' }}</el-descriptions-item>
+            <el-descriptions-item label="备注" :span="2">{{ selected.remark||'-' }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <div v-if="items.length" class="qc-section">
+          <div class="qc-section__title">上次检测项记录</div>
+          <el-table :data="items" border size="small">
+            <el-table-column prop="itemName" label="检测项目" min-width="90" />
+            <el-table-column prop="standardValue" label="标准值" width="95" show-overflow-tooltip />
+            <el-table-column prop="measuredValue" label="实测值" width="85">
+              <template #default="{ row }">{{ row.measuredValue||'-' }}</template>
+            </el-table-column>
+            <el-table-column label="结果" width="72">
+              <template #default="{ row }">
+                <el-tag :type="itemTagType(row.result)" size="small">{{ row.resultCn }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="缺陷级别" width="80">
+              <template #default="{ row }">
+                <el-tag v-if="row.defectLevel" :type="defectTagType(row.defectLevel)" size="small">
+                  {{ row.defectLevelCn }}
+                </el-tag>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <div class="qc-section">
+          <div class="qc-section__title">复检判定</div>
+          <el-form label-width="80px" size="small">
+            <el-form-item label="备注">
+              <el-input v-model="form.remark" type="textarea" rows="2" placeholder="可选，填写复检说明" />
+            </el-form-item>
+          </el-form>
+          <div class="action-row">
+            <el-button type="success" :loading="acting" @click="doRecheckPass">复检通过</el-button>
+            <el-button type="danger" @click="openFailDialog">复检不通过</el-button>
+          </div>
+        </div>
+        </template>
+        <div v-else class="ruoyi-detail__empty" style="padding: 48px 16px; text-align: center;">
+          从左侧选择需复检的质检单进行处理
+        </div>
+      </div>
+    </div>
+
+    <el-dialog v-model="failDialog" title="复检不通过 - 填写不良信息" width="460px" :close-on-click-modal="false">
+      <el-form :model="failForm" label-width="90px" size="small">
+        <el-form-item label="不良原因" required>
+          <el-input v-model="failForm.defectReason" type="textarea" rows="2" placeholder="必填，描述复检缺陷" />
+        </el-form-item>
+        <el-form-item label="缺陷类型">
+          <el-select v-model="failForm.defectType" style="width:100%">
+            <el-option v-for="t in DEFECT_TYPES" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="不良数量" required>
+          <el-input-number v-model="failForm.defectQuantity" :min="1" style="width:130px" />
+        </el-form-item>
+        <el-form-item label="严重程度">
+          <el-select v-model="failForm.severity" style="width:100%">
+            <el-option label="轻微 MINOR" value="MINOR" />
+            <el-option label="一般 GENERAL" value="GENERAL" />
+            <el-option label="严重 MAJOR" value="MAJOR" />
+            <el-option label="致命 CRITICAL" value="CRITICAL" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="failForm.remark" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="failDialog=false">取消</el-button>
+        <el-button type="danger" :loading="acting" @click="doRecheckFail">确认复检不通过</el-button>
+      </template>
+    </el-dialog>
+  </div>
 </template>
+
 <script setup>
-import MesDataPage from '@/components/mes/MesDataPage.vue'
-const cols = [
-  { prop: 'id', label: '质检单', width: 130 }, { prop: 'batchNo', label: '批次', minWidth: 140 },
-  { prop: 'qcType', label: '类型', width: 90 }, { prop: 'status', label: '状态', width: 90 }
-]
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRoute } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import { fetchRecheckViews, fetchInspectionItems, recheckPass, recheckFail } from '@/api/quality'
+
+const route = useRoute()
+const userStore = useUserStore()
+const list = ref([])
+const selected = ref(null)
+const items = ref([])
+const loading = ref(false)
+const acting = ref(false)
+const failDialog = ref(false)
+const keyword = ref('')
+const categoryFilter = ref('')
+const form = reactive({ remark: '' })
+
+const routeCategory = computed(() => route.meta?.category || '')
+categoryFilter.value = routeCategory.value
+const failForm = reactive({
+  defectReason: '', defectType: '外观缺陷', defectQuantity: 1, severity: 'GENERAL', remark: ''
+})
+
+const DEFECT_TYPES = ['外观缺陷', '色差', '亮点不良', '暗点不良', '坏点', '漏光', '线路不良', '结构问题', '其他']
+
+const filtered = computed(() => {
+  let data = list.value
+  if (categoryFilter.value) data = data.filter(r => r.inspectionCategory === categoryFilter.value)
+  if (keyword.value) {
+    const kw = keyword.value.toLowerCase()
+    data = data.filter(r =>
+      (r.inspectionNo||'').toLowerCase().includes(kw) ||
+      (r.workOrderNo||'').toLowerCase().includes(kw) ||
+      (r.batchNo||'').toLowerCase().includes(kw)
+    )
+  }
+  return data
+})
+
+const semiCount = computed(() => list.value.filter(r => r.inspectionCategory === 'SEMI_FINISHED').length)
+const fpCount   = computed(() => list.value.filter(r => r.inspectionCategory === 'FINISHED_PRODUCT').length)
+
+function itemTagType(r)  { return { PASSED:'success', FAILED:'danger', WARNING:'warning', PENDING:'info' }[r] || 'info' }
+function defectTagType(l){ return { MINOR:'', MAJOR:'warning', CRITICAL:'danger' }[l] || '' }
+
+async function loadData() {
+  loading.value = true
+  const res = await fetchRecheckViews().catch(() => null)
+  if (res) list.value = res.data ?? res
+  loading.value = false
+}
+
+async function onSelect(row) {
+  selected.value = row
+  form.remark = ''
+  items.value = []
+  if (!row) return
+  const it = await fetchInspectionItems(row.inspectionId).catch(() => null)
+  if (it) items.value = it.data ?? it
+}
+
+async function doRecheckPass() {
+  await ElMessageBox.confirm('确认复检通过？', '复检通过', { type: 'success' })
+  acting.value = true
+  try {
+    await recheckPass({ inspectionId: selected.value.inspectionId, remark: form.remark, operator: userStore.userInfo?.username })
+    ElMessage.success('复检通过，工单已更新')
+    await loadData()
+    selected.value = null
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || e?.message || '操作失败')
+  } finally {
+    acting.value = false
+  }
+}
+
+function openFailDialog() {
+  Object.assign(failForm, { defectReason: '', defectType: '外观缺陷', defectQuantity: 1, severity: 'GENERAL', remark: '' })
+  failDialog.value = true
+}
+
+async function doRecheckFail() {
+  if (!failForm.defectReason.trim()) { ElMessage.warning('请填写不良原因'); return }
+  acting.value = true
+  try {
+    await recheckFail({ inspectionId: selected.value.inspectionId, ...failForm, operator: userStore.userInfo?.username })
+    ElMessage.warning('复检不通过，已更新不良品记录')
+    failDialog.value = false
+    await loadData()
+    selected.value = null
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || e?.message || '操作失败')
+  } finally {
+    acting.value = false
+  }
+}
+
+onMounted(loadData)
+
+watch(routeCategory, (val) => {
+  categoryFilter.value = val
+  selected.value = null
+  loadData()
+})
 </script>
+
+<style scoped>
+.action-row { display: flex; gap: 8px; flex-wrap: wrap; }
+</style>

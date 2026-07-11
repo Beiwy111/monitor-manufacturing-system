@@ -21,9 +21,11 @@ computer/
 │       ├── components/      # 公共组件
 │       ├── utils/           # 工具（Axios 等）
 │       └── styles/
+├── sql/                     # 数据库脚本（init / migrations / fixes）
+│   ├── init/                # 初始化与种子数据
+│   ├── migrations/          # 模块升级
+│   └── fixes/               # 一次性修复
 ├── schema.tsv               # 表结构设计
-├── seed_data.sql            # 演示数据
-├── sys_menu.sql             # 菜单数据
 └── generate_code.py         # 代码生成脚本
 ```
 
@@ -54,13 +56,14 @@ npm run dev
 
 | 用户名 | 密码 | 角色 |
 |--------|------|------|
-| admin | password | 系统管理员 |
-| planner01 | password | 计划员 / 生产主管 |
-| operator01 | password | 操作员 |
-| qc01 | password | 质检员 |
-| purchase01 | password | 采购员 |
-| warehouse01 | password | 仓管员 |
-| service01 | password | 售后专员 |
+| admin | 123456 | 系统管理员 |
+| li_manager | 123456 | 生产主管 |
+| li_planner | 123456 | 计划员 |
+| liu_purchase | 123456 | 采购员 |
+| chen_qc | 123456 | 质检员 |
+| zhou_warehouse | 123456 | 仓管员 |
+
+（首次改密前旧密码可能仍为 `Mes@2026`；执行 `sql/fixes/fix_login_password.sql` 或 `reset_password_via_api.ps1` 后统一为 `123456`。）
 
 认证接口（返回 `Result` 包装）：
 
@@ -96,8 +99,8 @@ npm run dev
 MySQL 库名：`display_manufacturing`
 
 ```bash
-mysql -u root -p display_manufacturing < seed_data.sql
-mysql -u root -p display_manufacturing < sys_menu.sql
+mysql -u root -p display_manufacturing < sql/init/seed_data.sql
+mysql -u root -p display_manufacturing < sql/init/sys_menu.sql
 ```
 
 ## 已实现阶段

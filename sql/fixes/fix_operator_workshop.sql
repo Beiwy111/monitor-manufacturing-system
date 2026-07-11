@@ -9,7 +9,7 @@ WHERE username = 'qc01';
 
 -- 2. 补齐组装二/三车间专职操作员（原 operator01/operator02 为计划员/主管账号，不能派工）
 SET @operator_role_id = (SELECT role_id FROM role WHERE role_code = 'OPERATOR' LIMIT 1);
-SET @pwd = '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG';
+SET @pwd = '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm';
 
 INSERT INTO `user` (role_id, username, password_hash, real_name, employee_no, phone, email, department, status, created_at, updated_at)
 SELECT @operator_role_id, 'chen_operator', @pwd, '陈操作', 'EMP207', '13800001207', 'chen.op@display.com', '生产一部', 1, NOW(), NOW()

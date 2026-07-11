@@ -47,17 +47,17 @@ INSERT INTO role (role_code, role_name, role_description, status) VALUES
 ('COST', '财务成本人员', '工单成本与结算报表', 1);
 
 INSERT INTO `user` (role_id, username, password_hash, real_name, employee_no, phone, email, department, status, last_login_at) VALUES
-(1, 'admin', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '张管理', 'EMP001', '13800001001', 'admin@display.com', '信息部', 1, '2026-07-06 08:30:00'),
-(2, 'zhang_order', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '张订单', 'EMP101', '13800001101', 'order@display.com', '销售部', 1, NULL),
-(3, 'li_planner', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '李计划', 'EMP102', '13800001102', 'planner@display.com', '计划部', 1, NULL),
-(4, 'li_manager', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '李主管', 'EMP103', '13800001103', 'manager@display.com', '生产部', 1, NULL),
-(5, 'wang_operator', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '王操作', 'EMP104', '13800001104', 'operator@display.com', '生产一部', 1, NULL),
-(6, 'chen_qc', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '陈质检', 'EMP105', '13800001105', 'qc@display.com', '质量部', 1, NULL),
-(7, 'liu_purchase', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '刘采购', 'EMP106', '13800001106', 'purchase@display.com', '采购部', 1, NULL),
-(8, 'zhou_warehouse', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '周仓管', 'EMP107', '13800001107', 'warehouse@display.com', '仓储部', 1, NULL),
-(9, 'zhou_device', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '周设备', 'EMP108', '13800001108', 'device@display.com', '设备部', 1, NULL),
-(10, 'wu_service', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '吴售后', 'EMP109', '13800001109', 'service@display.com', '售后部', 1, NULL),
-(11, 'zheng_cost', '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG', '郑财务', 'EMP110', '13800001110', 'cost@display.com', '财务部', 1, NULL);
+(1, 'admin', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '张管理', 'EMP001', '13800001001', 'admin@display.com', '信息部', 1, '2026-07-06 08:30:00'),
+(2, 'zhang_order', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '张订单', 'EMP101', '13800001101', 'order@display.com', '销售部', 1, NULL),
+(3, 'li_planner', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '李计划', 'EMP102', '13800001102', 'planner@display.com', '计划部', 1, NULL),
+(4, 'li_manager', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '李主管', 'EMP103', '13800001103', 'manager@display.com', '生产部', 1, NULL),
+(5, 'wang_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '王操作', 'EMP104', '13800001104', 'operator@display.com', '生产一部', 1, NULL),
+(6, 'chen_qc', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '陈质检', 'EMP105', '13800001105', 'qc@display.com', '质量部', 1, NULL),
+(7, 'liu_purchase', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '刘采购', 'EMP106', '13800001106', 'purchase@display.com', '采购部', 1, NULL),
+(8, 'zhou_warehouse', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '周仓管', 'EMP107', '13800001107', 'warehouse@display.com', '仓储部', 1, NULL),
+(9, 'zhou_device', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '周设备', 'EMP108', '13800001108', 'device@display.com', '设备部', 1, NULL),
+(10, 'wu_service', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '吴售后', 'EMP109', '13800001109', 'service@display.com', '售后部', 1, NULL),
+(11, 'zheng_cost', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '郑财务', 'EMP110', '13800001110', 'cost@display.com', '财务部', 1, NULL);
 
 INSERT INTO permission (role_id, permission_code, permission_name, resource_type, resource_path, parent_id, sort_no, status) VALUES
 (1, 'system', '系统管理', 'MENU', '/system', NULL, 1, 1),

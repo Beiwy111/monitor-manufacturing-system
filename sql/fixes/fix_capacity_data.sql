@@ -1,6 +1,6 @@
 -- 产能基础数据修复：设备 + 操作员（在 display_manufacturing 库执行，可重复执行）
 -- Windows 推荐执行：
---   cmd /c "mysql --default-character-set=utf8mb4 -uroot -p display_manufacturing < fix_capacity_data.sql"
+--   cmd /c "mysql --default-character-set=utf8mb4 -uroot -p display_manufacturing < sql/fixes/fix_capacity_data.sql"
 -- 若通过 PowerShell 管道导入中文乱码，请用上面 cmd 方式，或执行文末「编码修复」段
 USE display_manufacturing;
 
@@ -29,9 +29,9 @@ ON DUPLICATE KEY UPDATE
   status = VALUES(status),
   updated_at = NOW();
 
--- 3. 补齐生产操作员（角色 OPERATOR，默认密码 Mes@2026，与 fix_login_password.sql 一致）
+-- 3. 补齐生产操作员（角色 OPERATOR，默认密码 123456，与 fix_login_password.sql 一致）
 SET @operator_role_id = (SELECT role_id FROM role WHERE role_code = 'OPERATOR' LIMIT 1);
-SET @pwd = '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG';
+SET @pwd = '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm';
 
 INSERT INTO `user` (role_id, username, password_hash, real_name, employee_no, phone, email, department, status, created_at, updated_at)
 SELECT @operator_role_id, 'zhao_operator', @pwd, '赵操作', 'EMP201', '13800001201', 'zhao.op@display.com', '生产一部', 1, NOW(), NOW()

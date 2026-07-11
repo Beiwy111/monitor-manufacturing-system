@@ -1,37 +1,70 @@
 <template>
-  <MesPageShell toolbar-title="设备台账" :detail-rows="rows" :logs="mes.operationLogs.slice(0,6)">
-    <template #table>
-      <el-table :data="mes.equipment" border stripe highlight-current-row @current-change="onRowClick">
-        <el-table-column prop="id" label="编号" width="100" />
-        <el-table-column prop="name" label="设备名称" min-width="140" />
-        <el-table-column prop="type" label="类型" width="120" />
-        <el-table-column prop="line" label="产线" width="100" />
-        <el-table-column prop="status" label="状态" width="90" />
-        <el-table-column prop="downtimeHours" label="停机(h)" width="90" />
-      </el-table>
-    </template>
-    <template #detail-actions>
-      <el-button v-if="selected?.status==='故障'" size="small" type="primary" @click="repair">维修完成</el-button>
-    </template>
-  </MesPageShell>
+  <ModulePageShell>
+    <div class="eq-header">
+      <span class="eq-title">设备台账</span>
+      <el-tag type="info" size="small">四道工序 · 11 个生产车间 · 数据库活数据</el-tag>
+      <el-button :loading="loading" style="margin-left:auto" @click="loadData">刷新</el-button>
+    </div>
+    <el-table v-loading="loading" :data="productionList" border stripe highlight-current-row @current-change="onRowClick">
+      <el-table-column prop="equipmentCode" label="设备编码" width="110" />
+      <el-table-column prop="equipmentName" label="设备名称" min-width="140" />
+      <el-table-column prop="parentStepName" label="工序" width="100" />
+      <el-table-column prop="workshop" label="车间" min-width="130" />
+      <el-table-column prop="equipmentType" label="类型" width="100" />
+      <el-table-column label="状态" width="90" align="center">
+        <template #default="{ row }">
+          <el-tag :type="statusType(row.status)" size="small">{{ row.statusCn }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="lastMaintenanceAt" label="最近维护" width="150" />
+    </el-table>
+    <div v-if="selected" class="eq-detail">
+      <el-descriptions :column="3" border size="small" title="设备详情">
+        <el-descriptions-item label="编码">{{ selected.equipmentCode }}</el-descriptions-item>
+        <el-descriptions-item label="名称">{{ selected.equipmentName }}</el-descriptions-item>
+        <el-descriptions-item label="工序">{{ selected.parentStepName }}</el-descriptions-item>
+        <el-descriptions-item label="车间">{{ selected.workshop }}</el-descriptions-item>
+        <el-descriptions-item label="工位">{{ selected.workstation || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">{{ selected.statusCn }}</el-descriptions-item>
+      </el-descriptions>
+    </div>
+  </ModulePageShell>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useMesStore } from '@/stores/mes'
-import { useUserStore } from '@/stores/user'
-import { useMesFilter, detailRows } from '@/composables/useMesPage'
-import MesPageShell from '@/components/mes/MesPageShell.vue'
+import ModulePageShell from '@/components/module/ModulePageShell.vue'
+import { fetchEquipmentViews } from '@/api/business'
+import { moduleStatusType } from '@/constants/moduleStatus'
 
-const mes = useMesStore()
-const userStore = useUserStore()
-const { selected, onRowClick } = useMesFilter(computed(() => mes.equipment), ['name'])
-const rows = computed(() => detailRows(selected.value, [
-  { key: 'name', label: '设备' }, { key: 'type', label: '类型' }, { key: 'status', label: '状态' }, { key: 'lastMaint', label: '上次维护' }
-]))
-function repair() {
-  mes.updateEquipment(selected.value.id, { status: '运行中', repairNote: '故障已修复', downtimeHours: 0 }, userStore.displayName, userStore.roleKey)
-  ElMessage.success('设备已恢复运行')
+const loading = ref(false)
+const list = ref([])
+const selected = ref(null)
+
+const productionList = computed(() => list.value.filter((e) => e.isProductionWorkshop !== false))
+
+function statusType(s) {
+  return moduleStatusType('equipmentStatus', s)
 }
+function onRowClick(row) {
+  selected.value = row
+}
+async function loadData() {
+  loading.value = true
+  try {
+    list.value = await fetchEquipmentViews() || []
+  } catch (e) {
+    ElMessage.error(e?.message || '加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(loadData)
 </script>
+
+<style scoped>
+.eq-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.eq-title { font-size: 18px; font-weight: 700; color: #001b3f; }
+.eq-detail { margin-top: 14px; }
+</style>

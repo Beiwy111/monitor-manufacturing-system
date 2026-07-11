@@ -51,6 +51,7 @@ import { useUserStore } from '@/stores/user'
 import { useMesStore } from '@/stores/mes'
 import { DISPATCH_REPORTABLE, DISPATCH_ACTIVE } from '@/mock/constants'
 import { operatorBinding, pickCurrentDispatch, stageProgressLabel } from '@/utils/operatorWorkshop'
+import { triggerAlarm } from '@/api/business'
 import RoleWorkbench from '@/components/workbench/RoleWorkbench.vue'
 
 const userStore = useUserStore()
@@ -112,16 +113,25 @@ async function start() {
 
 async function submitAlarm() {
   if (acting.value) return
+  const dispatch = currentDispatch.value
+  if (!dispatch?.equipmentId) {
+    ElMessage.warning('请先接收派工并关联设备后再触发安灯')
+    return
+  }
+  if (!alarmDesc.value.trim()) {
+    ElMessage.warning('请描述异常情况')
+    return
+  }
   acting.value = true
   try {
-    await mes.createAlarm({
-      type: '生产异常',
-      source: currentDispatch.value?.equipment || '工位',
-      workOrderId: currentDispatch.value?.workOrderId || '',
-      reporterName: userStore.displayName,
-      description: alarmDesc.value
-    }, username.value, 'operator')
-    ElMessage.success('安灯已上报')
+    await triggerAlarm({
+      equipmentId: dispatch.equipmentId,
+      alarmType: 'EQUIPMENT',
+      alarmLevel: 'IMPORTANT',
+      description: alarmDesc.value.trim(),
+      operator: username.value
+    })
+    ElMessage.success('安灯已上报，设备维护人员将收到报警')
     showAlarm.value = false
     alarmDesc.value = ''
   } catch (e) {

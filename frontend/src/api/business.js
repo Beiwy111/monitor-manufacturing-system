@@ -28,12 +28,81 @@ export function fetchInspectionList() {
   return request.get('/quality/inspection/list')
 }
 
+export function fetchNonconformingList() {
+  return request.get('/quality/nonconforming/list')
+}
+
 export function fetchInventoryList() {
   return request.get('/material/inventory/list')
 }
 
+export function fetchInventoryFullList() {
+  return request.get('/material/inventory/full')
+}
+
 export function fetchPurchaseOrderList() {
   return request.get('/purchase/purchaseOrder/list')
+}
+
+// ============ 采购工作台 ============
+
+export function calculatePurchaseRequirements(opts = {}) {
+  return request.post('/purchase/workbench/calculate', null, { silent: !!opts.silent })
+}
+
+export function fetchWorkbenchList(params) {
+  return request.get('/purchase/workbench/list', { params, silent: true })
+}
+
+export function fetchWorkbenchDetail(requirementId) {
+  return request.get('/purchase/workbench/detail', { params: { requirementId } })
+}
+
+export function fetchWorkbenchByOrder() {
+  return request.get('/purchase/workbench/byOrder')
+}
+
+export function fetchOrderDemandOverview() {
+  return request.get('/purchase/workbench/orderDemands', { silent: true })
+}
+
+export function generatePurchaseOrder(data) {
+  return request.post('/purchase/workbench/generate', data)
+}
+
+export function selectRequirement(requirementId) {
+  return request.post('/purchase/workbench/select', null, { params: { requirementId } })
+}
+
+export function cancelRequirement(requirementId) {
+  return request.post('/purchase/workbench/cancel', null, { params: { requirementId } })
+}
+
+export function confirmArrival(purchaseOrderId) {
+  return request.post('/purchase/order/confirmArrival', null, { params: { purchaseOrderId } })
+}
+
+export function revokePurchaseOrder(purchaseOrderId) {
+  return request.post('/purchase/order/revoke', null, { params: { purchaseOrderId } })
+}
+
+export function savePurchaseOrderDraft(data) {
+  return request.post('/purchase/order/saveDraft', data)
+}
+
+// ============ AI 采购单据解析 ============
+
+export function parseAiDocument(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post('/purchase/ai/document/parse', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 90000
+  })
+}
+
+export function confirmAiDocument(data) {
+  return request.post('/purchase/ai/document/confirm', data)
 }
 
 export function fetchDeliveryList() {
@@ -46,6 +115,47 @@ export function fetchEquipmentList() {
 
 export function fetchAlarmList() {
   return request.get('/equipment/alarm/list')
+}
+
+// ===== 设备维保：安灯报警 + 维保闭环 =====
+export function fetchEquipmentViews() {
+  return request.get('/equipment/equipment/views')
+}
+
+export function fetchEquipmentKpi() {
+  return request.get('/equipment/kpi')
+}
+
+export function fetchEquipmentWorkshopOverview() {
+  return request.get('/equipment/workshop/overview')
+}
+
+export function fetchAlarmViews() {
+  return request.get('/equipment/alarm/views')
+}
+
+export function fetchMaintenanceViews() {
+  return request.get('/equipment/maintenance/views')
+}
+
+export function triggerAlarm(data) {
+  return request.post('/equipment/triggerAlarm', data)
+}
+
+export function receiveAlarm(data) {
+  return request.post('/equipment/alarm/receive', data)
+}
+
+export function resolveAlarm(data) {
+  return request.post('/equipment/alarm/resolve', data)
+}
+
+export function startMaintenance(data) {
+  return request.post('/equipment/startMaintenance', data)
+}
+
+export function finishMaintenance(data) {
+  return request.post('/equipment/maintenance/finish', data)
 }
 
 export function fetchAfterSalesList() {
@@ -66,4 +176,26 @@ export function fetchRoleList() {
 
 export function fetchOperationLogList() {
   return request.get('/system/operationLog/list')
+}
+
+// ============ 供应商管理 ============
+
+export function fetchSupplierList() {
+  return request.get('/purchase/supplier/list')
+}
+
+export function fetchActiveSupplierList() {
+  return request.get('/purchase/supplier/active')
+}
+
+export function addSupplier(data) {
+  return request.post('/purchase/supplier/add', data)
+}
+
+export function updateSupplier(data) {
+  return request.put('/purchase/supplier/update', data)
+}
+
+export function deleteSupplier(supplierId) {
+  return request.delete('/purchase/supplier/delete', { params: { supplierId } })
 }

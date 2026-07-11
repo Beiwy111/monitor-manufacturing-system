@@ -47,20 +47,28 @@ export const roleMenus = {
     ]}
   ],
   quality: [
-    { menuId: 6, menuName: '质量管理', children: [
-      { menuId: 61, menuName: '待检任务', path: '/quality/inspection' },
-      { menuId: 62, menuName: '不合格品', path: '/quality/defect' },
-      { menuId: 63, menuName: '复检处理', path: '/quality/reinspect' },
-      { menuId: 64, menuName: '质检记录', path: '/quality/records' },
-      { menuId: 65, menuName: '质量追溯', path: '/quality/trace' }
+    { menuId: 6, menuName: '物料质量管理', children: [
+      { menuId: 61, menuName: '待检任务', path: '/quality/material/inspection' },
+      { menuId: 62, menuName: '不合格品', path: '/quality/material/defect' },
+      { menuId: 63, menuName: '复检处理', path: '/quality/material/reinspect' },
+      { menuId: 64, menuName: '质检记录', path: '/quality/material/records' },
+      { menuId: 65, menuName: '质量追溯', path: '/quality/material/trace' },
+      { menuId: 66, menuName: '报表打印', path: '/quality/material/print' }
+    ]},
+    { menuId: 118, menuName: '成品质量管理', children: [
+      { menuId: 119, menuName: '待检任务', path: '/quality/fp/inspection' },
+      { menuId: 120, menuName: '不合格品', path: '/quality/fp/defect' },
+      { menuId: 121, menuName: '复检处理', path: '/quality/fp/reinspect' },
+      { menuId: 122, menuName: '质检记录', path: '/quality/fp/records' },
+      { menuId: 123, menuName: '质量追溯', path: '/quality/fp/trace' },
+      { menuId: 124, menuName: '报表打印', path: '/quality/fp/print' }
     ]}
   ],
   purchase: [
     { menuId: 7, menuName: '采购管理', children: [
       { menuId: 71, menuName: '采购需求', path: '/purchase/demand' },
       { menuId: 72, menuName: '采购订单', path: '/purchase/order' },
-      { menuId: 73, menuName: '供应商管理', path: '/purchase/supplier' },
-      { menuId: 74, menuName: '到货进度', path: '/purchase/arrival' }
+      { menuId: 73, menuName: '供应商管理', path: '/purchase/supplier' }
     ]}
   ],
   warehouse: [
@@ -100,6 +108,16 @@ export const roleMenus = {
       { menuId: 114, menuName: '设备成本', path: '/cost/equipment' },
       { menuId: 115, menuName: '成本结算', path: '/cost/settlement' },
       { menuId: 116, menuName: '成本报表', path: '/cost/report' }
+    ]}
+  ],
+  customer: [
+    { menuId: 201, menuName: '客户门户', menuCode: 'customer', children: [
+      { menuId: 202, menuName: '新建订单', path: '/customer/order/new', menuCode: 'customer:newOrder' },
+      { menuId: 203, menuName: '我的订单', path: '/customer/orders', menuCode: 'customer:orders' },
+      { menuId: 204, menuName: '产品与规格', path: '/customer/products', menuCode: 'customer:products' },
+      { menuId: 205, menuName: '提交反馈', path: '/customer/feedback/submit', menuCode: 'customer:feedbackSubmit' },
+      { menuId: 206, menuName: '我的反馈', path: '/customer/feedback/list', menuCode: 'customer:feedbackList' },
+      { menuId: 207, menuName: '个人中心', path: '/customer/profile', menuCode: 'customer:profile' }
     ]}
   ]
 }

@@ -93,6 +93,8 @@ public class MesWorkflowService {
     private WorkOrderProgressService workOrderProgressService;
     @Autowired
     private WarehouseBarcodeService warehouseBarcodeService;
+    @Autowired
+    private PurchaseService purchaseService;
 
     @Transactional
     public Object execute(MesActionRequest req) {
@@ -177,6 +179,77 @@ public class MesWorkflowService {
             case "deleteIssueTask" -> deleteIssueTask(payload, operator, roleKey);
             default -> throw new BusinessException("未知动作: " + req.getAction());
         };
+    }
+
+    /**
+     * 质检模块判定通过后，为成品质检单生成成品入库任务并同步工单进度。
+     */
+    @Transactional
+    public void afterInspectionPassed(QualityInspection qi, String operator, String roleKey) {
+        if (qi == null || qi.getInspectionNo() == null) {
+            return;
+        }
+        boolean finishedProduct = "FINISHED_PRODUCT".equals(qi.getInspectionCategory())
+                || "FINAL".equalsIgnoreCase(qi.getInspectionType())
+                || "FINAL_INSPECTION".equalsIgnoreCase(qi.getInspectionType());
+        if (!finishedProduct) {
+            return;
+        }
+
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        Map<String, Object> inspExtra = runtime.getExtras()
+                .getOrDefault("inspection:" + qi.getInspectionNo(), Map.of());
+        boolean alreadyInbound = runtime.getInboundTasks().stream()
+                .anyMatch(t -> qi.getInspectionNo().equals(String.valueOf(t.get("refNo")))
+                        && !"已取消".equals(String.valueOf(t.get("status"))));
+        if (alreadyInbound) {
+            return;
+        }
+
+        int qualQty = intVal(qi.getQualifiedQuantity());
+        if (qualQty <= 0) {
+            qualQty = intVal(inspExtra.get("submitQty"));
+        }
+        if (qualQty <= 0) {
+            qualQty = intVal(qi.getSampleQuantity());
+        }
+        if (qualQty <= 0) {
+            qualQty = 1;
+        }
+
+        WorkOrder wo = workOrderMapper.getWorkOrderById(qi.getWorkOrderId());
+        addInboundTask(runtime, "质检合格", qi.getInspectionNo(), wo, qi, qualQty);
+
+        String dispatchNo = String.valueOf(inspExtra.getOrDefault("dispatchId", ""));
+        DispatchTask dispatch = findDispatchByNo(dispatchNo);
+        LocalDateTime now = LocalDateTime.now();
+        if (dispatch != null) {
+            dispatch.setStatus("COMPLETED");
+            dispatch.setUpdatedAt(now);
+            dispatchTaskMapper.updateDispatch(dispatch);
+        }
+        if (wo != null) {
+            BigDecimal current = wo.getQualifiedQuantity() != null ? wo.getQualifiedQuantity() : BigDecimal.ZERO;
+            wo.setQualifiedQuantity(current.add(BigDecimal.valueOf(qualQty)));
+            syncWorkOrderStatus(wo);
+            syncPlanProgress(wo, qualQty);
+            wo.setUpdatedAt(now);
+            workOrderMapper.updateWorkOrder(wo);
+        }
+        appendLog(runtime, "质量管理", "质检通过，生成入库任务 " + qualQty + " 台",
+                qi.getInspectionNo(), operator, roleKey != null ? roleKey : "quality");
+        mesRuntimeStore.save(runtime);
+    }
+
+    /** 读取操作员提交质检时的数量（Redis 运行时扩展字段）。 */
+    public int inspectionSubmitQty(String inspectionNo) {
+        if (inspectionNo == null || inspectionNo.isBlank()) {
+            return 0;
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        Map<String, Object> extra = runtime.getExtras()
+                .getOrDefault("inspection:" + inspectionNo, Map.of());
+        return intVal(extra.get("submitQty"));
     }
 
     // —— 订单 ——
@@ -291,13 +364,21 @@ public class MesWorkflowService {
                 : ("defer".equals(action) ? "暂缓审核" : ""));
         appendOrderAuditRecord(extra, action, reason, operator, user, now);
         String logAction = switch (action) {
-            case "pass" -> "审核通过并提交计划员";
+            case "pass" -> "审核通过，已同步计划员与采购员";
             case "reject" -> "审核驳回";
             case "supplement" -> "要求补充资料";
             case "defer" -> "暂缓审核";
             default -> "订单审核";
         };
         appendLog(runtime, "订单管理", logAction, orderNo, operator, roleKey);
+        if ("pass".equals(action)) {
+            try {
+                purchaseService.calculateRequirements();
+                appendLog(runtime, "采购管理", "订单审核触发缺料重算", orderNo, operator, "purchase");
+            } catch (Exception ex) {
+                appendLog(runtime, "采购管理", "缺料重算失败: " + ex.getMessage(), orderNo, operator, "purchase");
+            }
+        }
         mesRuntimeStore.save(runtime);
         return true;
     }
@@ -1197,6 +1278,8 @@ public class MesWorkflowService {
         qi.setWorkReportId(findLatestReportId(d.getDispatchId()));
         qi.setBatchNo("BATCH-" + (wo != null ? wo.getWorkOrderNo() : "") + "-" + System.currentTimeMillis() % 10000);
         qi.setInspectionType(inspectionTypeToDb(isRework ? "复检" : "终检"));
+        qi.setInspectionCategory(isRework ? "SEMI_FINISHED" : "FINISHED_PRODUCT");
+        qi.setInspectionStatus("PENDING");
         qi.setSampleQuantity(BigDecimal.valueOf(Math.min(10, qualifiedQty)));
         qi.setQualifiedQuantity(BigDecimal.ZERO);
         qi.setUnqualifiedQuantity(BigDecimal.ZERO);
@@ -1928,19 +2011,49 @@ public class MesWorkflowService {
         User reporter = findUserByUsername(operator);
         String alarmNo = nextNo("AL", andonAlarmMapper.alarmList(), AndonAlarm::getAlarmNo);
         WorkOrder wo = findWorkOrderByNo(str(p, "workOrderId"));
+        DispatchTask dispatch = findDispatchByNo(str(p, "dispatchNo"));
+        if (dispatch == null && wo != null) {
+            dispatch = dispatchTaskMapper.dispatchList().stream()
+                    .filter(d -> wo.getWorkOrderId().equals(d.getWorkOrderId()))
+                    .filter(d -> !"COMPLETED".equalsIgnoreCase(d.getStatus()))
+                    .findFirst().orElse(null);
+        }
+
+        Long equipmentId = null;
+        Object rawEqId = p.get("equipmentId");
+        if (rawEqId != null) {
+            long parsed = longVal(rawEqId);
+            if (parsed > 0) {
+                equipmentId = parsed;
+            }
+        }
+        if (equipmentId == null && dispatch != null) {
+            equipmentId = dispatch.getEquipmentId();
+        }
 
         AndonAlarm alarm = new AndonAlarm();
         alarm.setAlarmNo(alarmNo);
-        alarm.setWorkOrderId(wo != null ? wo.getWorkOrderId() : null);
+        alarm.setWorkOrderId(wo != null ? wo.getWorkOrderId() : (dispatch != null ? dispatch.getWorkOrderId() : null));
+        alarm.setDispatchId(dispatch != null ? dispatch.getDispatchId() : null);
+        alarm.setEquipmentId(equipmentId);
         alarm.setAlarmType(normalizeAlarmType(str(p, "type")));
         alarm.setAlarmLevel(alarmLevelDb(str(p, "level", "较重")));
         alarm.setAlarmDescription(str(p, "description"));
-        alarm.setAlarmStatus("REPORTED");
+        alarm.setAlarmStatus("OPEN");
         alarm.setReportedBy(reporter != null ? reporter.getUserId() : null);
         alarm.setReportedAt(now);
         alarm.setCreatedAt(now);
         alarm.setUpdatedAt(now);
         andonAlarmMapper.insertAlarm(alarm);
+
+        if (equipmentId != null) {
+            Equipment eq = equipmentMapper.getEquipmentById(equipmentId);
+            if (eq != null && !"MAINTAINING".equalsIgnoreCase(eq.getStatus()) && !"SCRAPPED".equalsIgnoreCase(eq.getStatus())) {
+                eq.setStatus("FAULT");
+                eq.setUpdatedAt(now);
+                equipmentMapper.updateEquipment(eq);
+            }
+        }
 
         MesRuntimeState runtime = mesRuntimeStore.load();
         Map<String, Object> extra = mesRuntimeStore.getExtra(runtime, "alarm:" + alarmNo);
@@ -1950,7 +2063,7 @@ public class MesWorkflowService {
         extra.put("reporterName", str(p, "reporterName", reporter != null ? reporter.getRealName() : ""));
         appendLog(runtime, "安灯报警", "触发安灯", alarmNo, operator, roleKey);
         mesRuntimeStore.save(runtime);
-        return Map.of("id", alarmNo);
+        return Map.of("id", alarmNo, "alarmNo", alarmNo);
     }
 
     private boolean handleAlarm(Map<String, Object> p, String operator, String roleKey) {
@@ -3158,12 +3271,12 @@ public class MesWorkflowService {
     }
 
     private String alarmLevelDb(String cn) {
-        if (cn == null) return "MEDIUM";
+        if (cn == null) return "IMPORTANT";
         return switch (cn) {
-            case "严重", "高" -> "HIGH";
-            case "一般", "低" -> "LOW";
-            case "较重", "中" -> "MEDIUM";
-            default -> List.of("HIGH", "LOW", "MEDIUM").contains(cn) ? cn : "MEDIUM";
+            case "严重", "高", "URGENT" -> "URGENT";
+            case "一般", "低", "GENERAL" -> "GENERAL";
+            case "较重", "中", "IMPORTANT" -> "IMPORTANT";
+            default -> List.of("URGENT", "GENERAL", "IMPORTANT").contains(cn) ? cn : "IMPORTANT";
         };
     }
 

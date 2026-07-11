@@ -16,7 +16,8 @@ const dashboardRoutes = [
   { path: 'dashboard/purchase', name: 'DashboardPurchase', component: () => import('@/views/dashboard/purchase/PurchaseDashboard.vue'), meta: { title: '采购员工作台', roleKey: 'purchase' } },
   { path: 'dashboard/device', name: 'DashboardDevice', component: () => import('@/views/dashboard/device/DeviceDashboard.vue'), meta: { title: '设备维护工作台', roleKey: 'device' } },
   { path: 'dashboard/aftersale', name: 'DashboardAftersale', component: () => import('@/views/dashboard/aftersale/AftersaleDashboard.vue'), meta: { title: '售后人员工作台', roleKey: 'aftersale' } },
-  { path: 'dashboard/cost', name: 'DashboardCost', component: () => import('@/views/dashboard/cost/CostDashboard.vue'), meta: { title: '财务/成本工作台', roleKey: 'cost' } }
+  { path: 'dashboard/cost', name: 'DashboardCost', component: () => import('@/views/dashboard/cost/CostDashboard.vue'), meta: { title: '财务/成本工作台', roleKey: 'cost' } },
+  { path: 'customer/home', name: 'CustomerHome', component: () => import('@/views/customer/CustomerHomeView.vue'), meta: { title: '客户首页', roleKey: 'customer' } }
 ]
 
 const businessRoutes = [
@@ -40,10 +41,29 @@ const businessRoutes = [
   { path: 'production/process-guide', component: () => import('@/views/production/ProcessGuideView.vue'), meta: { title: '工艺说明' } },
   { path: 'report/production-progress', component: () => import('@/views/report/ProductionProgressReportView.vue'), meta: { title: '生产制令单进度表', roleKey: 'operator' } },
   { path: 'quality/inspection', component: () => import('@/views/quality/InspectionView.vue'), meta: { title: '待检任务' } },
-  { path: 'quality/defect', component: () => import('@/views/quality/DefectView.vue'), meta: { title: '不合格品' } },
-  { path: 'quality/reinspect', component: () => import('@/views/quality/ReinspectView.vue'), meta: { title: '复检处理' } },
-  { path: 'quality/records', component: () => import('@/views/quality/RecordsView.vue'), meta: { title: '质检记录' } },
-  { path: 'quality/trace', component: () => import('@/views/quality/TraceView.vue'), meta: { title: '质量追溯' } },
+  { path: 'quality/defect', redirect: '/quality/material/defect' },
+  { path: 'quality/reinspect', redirect: '/quality/material/reinspect' },
+  { path: 'quality/records', redirect: '/quality/fp/records' },
+  { path: 'quality/trace', redirect: '/quality/fp/trace' },
+  { path: 'quality/print', redirect: '/quality/fp/print' },
+  { path: 'quality/material/inspection', component: () => import('@/views/quality/InspectionView.vue'), meta: { title: '物料待检任务', category: 'RAW_MATERIAL' } },
+  { path: 'quality/material/defect', component: () => import('@/views/quality/DefectView.vue'), meta: { title: '物料不合格品', category: 'RAW_MATERIAL' } },
+  { path: 'quality/material/reinspect', component: () => import('@/views/quality/ReinspectView.vue'), meta: { title: '物料复检处理', category: 'RAW_MATERIAL' } },
+  { path: 'quality/material/records', component: () => import('@/views/quality/RecordsView.vue'), meta: { title: '物料质检记录', category: 'RAW_MATERIAL' } },
+  { path: 'quality/material/trace', component: () => import('@/views/quality/TraceView.vue'), meta: { title: '物料质量追溯', category: 'RAW_MATERIAL' } },
+  { path: 'quality/material/print', component: () => import('@/views/quality/PrintView.vue'), meta: { title: '物料报表打印', category: 'RAW_MATERIAL' } },
+  { path: 'quality/semi/inspection', redirect: '/quality/material/inspection' },
+  { path: 'quality/semi/defect', redirect: '/quality/material/defect' },
+  { path: 'quality/semi/reinspect', redirect: '/quality/material/reinspect' },
+  { path: 'quality/semi/records', redirect: '/quality/material/records' },
+  { path: 'quality/semi/trace', redirect: '/quality/material/trace' },
+  { path: 'quality/semi/print', redirect: '/quality/material/print' },
+  { path: 'quality/fp/inspection', component: () => import('@/views/quality/InspectionView.vue'), meta: { title: '成品待检任务', category: 'FINISHED_PRODUCT', mode: 'finished' } },
+  { path: 'quality/fp/defect', component: () => import('@/views/quality/DefectView.vue'), meta: { title: '成品不合格品', category: 'FINISHED_PRODUCT' } },
+  { path: 'quality/fp/reinspect', component: () => import('@/views/quality/ReinspectView.vue'), meta: { title: '成品复检处理', category: 'FINISHED_PRODUCT' } },
+  { path: 'quality/fp/records', component: () => import('@/views/quality/RecordsView.vue'), meta: { title: '成品质检记录', category: 'FINISHED_PRODUCT' } },
+  { path: 'quality/fp/trace', component: () => import('@/views/quality/TraceView.vue'), meta: { title: '成品质量追溯', category: 'FINISHED_PRODUCT' } },
+  { path: 'quality/fp/print', component: () => import('@/views/quality/PrintView.vue'), meta: { title: '成品报表打印', category: 'FINISHED_PRODUCT' } },
   { path: 'warehouse/inventory', component: () => import('@/views/warehouse/InventoryView.vue'), meta: { title: '库存查询' } },
   { path: 'warehouse/inbound', component: () => import('@/views/warehouse/InboundView.vue'), meta: { title: '成品入库' } },
   { path: 'warehouse/purchase-in', component: () => import('@/views/warehouse/PurchaseInView.vue'), meta: { title: '采购入库' } },
@@ -53,11 +73,12 @@ const businessRoutes = [
   { path: 'purchase/demand', component: () => import('@/views/purchase/DemandView.vue'), meta: { title: '采购需求' } },
   { path: 'purchase/order', component: () => import('@/views/purchase/PurchaseOrderView.vue'), meta: { title: '采购订单' } },
   { path: 'purchase/supplier', component: () => import('@/views/purchase/SupplierView.vue'), meta: { title: '供应商管理' } },
-  { path: 'purchase/arrival', component: () => import('@/views/purchase/ArrivalView.vue'), meta: { title: '到货进度' } },
+  { path: 'purchase/arrival', redirect: '/purchase/order' },
+  { path: 'purchase/ai-document', component: () => import('@/views/purchase/AiDocumentView.vue'), meta: { title: 'AI 单据录入' } },
   { path: 'device/equipment', component: () => import('@/views/device/EquipmentView.vue'), meta: { title: '设备台账' } },
   { path: 'device/status', component: () => import('@/views/device/StatusView.vue'), meta: { title: '设备状态' } },
   { path: 'device/alarm', component: () => import('@/views/device/AlarmView.vue'), meta: { title: '安灯报警' } },
-  { path: 'device/maintenance', component: () => import('@/views/device/MaintenanceView.vue'), meta: { title: '维修处理' } },
+  { path: 'device/maintenance', component: () => import('@/views/device/EquipmentMaintenanceView.vue'), meta: { title: '维修处理' } },
   { path: 'device/records', component: () => import('@/views/device/RecordsView.vue'), meta: { title: '维护记录' } },
   { path: 'delivery/list', component: () => import('@/views/delivery/DeliveryView.vue'), meta: { title: '发货管理' } },
   { path: 'aftersale/case', component: () => import('@/views/aftersale/CaseView.vue'), meta: { title: '售后登记' } },
@@ -69,7 +90,13 @@ const businessRoutes = [
   { path: 'cost/labor', component: () => import('@/views/cost/LaborCostView.vue'), meta: { title: '人工成本' } },
   { path: 'cost/equipment', component: () => import('@/views/cost/EquipmentCostView.vue'), meta: { title: '设备成本' } },
   { path: 'cost/settlement', component: () => import('@/views/cost/SettlementView.vue'), meta: { title: '成本结算' } },
-  { path: 'cost/report', component: () => import('@/views/cost/ReportView.vue'), meta: { title: '成本报表' } }
+  { path: 'cost/report', component: () => import('@/views/cost/ReportView.vue'), meta: { title: '成本报表' } },
+  { path: 'customer/order/new', component: () => import('@/views/customer/CustomerNewOrderView.vue'), meta: { title: '新建订单', roleKey: 'customer' } },
+  { path: 'customer/orders', component: () => import('@/views/customer/CustomerOrdersView.vue'), meta: { title: '我的订单', roleKey: 'customer' } },
+  { path: 'customer/products', component: () => import('@/views/customer/CustomerProductsView.vue'), meta: { title: '产品与规格', roleKey: 'customer' } },
+  { path: 'customer/feedback/submit', component: () => import('@/views/customer/CustomerFeedbackSubmitView.vue'), meta: { title: '提交反馈', roleKey: 'customer' } },
+  { path: 'customer/feedback/list', component: () => import('@/views/customer/CustomerFeedbackListView.vue'), meta: { title: '我的反馈', roleKey: 'customer' } },
+  { path: 'customer/profile', component: () => import('@/views/customer/CustomerProfileView.vue'), meta: { title: '个人中心', roleKey: 'customer' } }
 ]
 
 const routes = [

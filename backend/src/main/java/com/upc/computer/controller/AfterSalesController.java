@@ -1,13 +1,28 @@
 package com.upc.computer.controller;
 
-import com.upc.computer.service.AfterSalesService;
+import com.upc.computer.common.BusinessException;
+import com.upc.computer.common.Result;
 import com.upc.computer.entity.AfterSalesCase;
 import com.upc.computer.entity.CostSettlement;
+import com.upc.computer.service.AfterSalesService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import java.util.ArrayList;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 售后管理接口
+ *
+ * GET  /afterSales/case/views              案例列表（含订单/物料/质检关联展示字段）
+ * GET  /afterSales/case/trace?caseNo=      追溯详情（订单→质检→不良品→售后完整链路）
+ * GET  /afterSales/kpi                     KPI 统计
+ * POST /afterSales/case/accept             受理：OPEN -> PROCESSING
+ * POST /afterSales/case/resolve            解决：PROCESSING -> RESOLVED
+ * POST /afterSales/case/close              关闭：RESOLVED/PROCESSING -> CLOSED
+ *
+ * 原始 CRUD 路径保留兼容
+ */
 @RestController
 @RequestMapping("/afterSales")
 public class AfterSalesController {
@@ -15,64 +30,110 @@ public class AfterSalesController {
     @Autowired
     private AfterSalesService afterSalesService;
 
-    // 查询售后案例列表
+    // ── 视图查询 ──────────────────────────────────────────────
+
+    @GetMapping("/case/views")
+    public Result<List<Map<String, Object>>> caseViews() {
+        return Result.success(afterSalesService.listCaseViews());
+    }
+
+    @GetMapping("/case/trace")
+    public Result<Map<String, Object>> traceDetail(@RequestParam String caseNo) {
+        if (caseNo == null || caseNo.isBlank())
+            throw new BusinessException("caseNo 不能为空");
+        return Result.success(afterSalesService.getTraceDetail(caseNo));
+    }
+
+    @GetMapping("/kpi")
+    public Result<Map<String, Object>> kpi() {
+        return Result.success(afterSalesService.caseKpi());
+    }
+
+    // ── 状态流转 ──────────────────────────────────────────────
+
+    @PostMapping("/case/accept")
+    public Result<AfterSalesCase> accept(@RequestBody Map<String, Object> body) {
+        String caseNo = str(body, "caseNo");
+        if (caseNo.isBlank()) throw new BusinessException("caseNo 不能为空");
+        return Result.success("受理成功", afterSalesService.acceptCase(caseNo, str(body, "operator")));
+    }
+
+    @PostMapping("/case/resolve")
+    public Result<AfterSalesCase> resolve(@RequestBody Map<String, Object> body) {
+        String caseNo = str(body, "caseNo");
+        if (caseNo.isBlank()) throw new BusinessException("caseNo 不能为空");
+        return Result.success("已标记解决", afterSalesService.resolveCase(
+                caseNo, str(body, "solution"), str(body, "traceResult"), str(body, "operator")));
+    }
+
+    @PostMapping("/case/close")
+    public Result<AfterSalesCase> close(@RequestBody Map<String, Object> body) {
+        String caseNo = str(body, "caseNo");
+        if (caseNo.isBlank()) throw new BusinessException("caseNo 不能为空");
+        return Result.success("案例已关闭", afterSalesService.closeCase(
+                caseNo, str(body, "remark"), str(body, "operator")));
+    }
+
+    // ── 原始 CRUD 兼容 ────────────────────────────────────────
+
     @RequestMapping("/afterSalesCase/list")
-    public ArrayList<AfterSalesCase> afterSalesCaseList() {
-        return afterSalesService.afterSalesCaseList();
+    public Result<List<AfterSalesCase>> afterSalesCaseList() {
+        return Result.success(afterSalesService.afterSalesCaseList());
     }
 
-    // 根据主键查询售后案例
     @RequestMapping("/afterSalesCase/get")
-    public AfterSalesCase getAfterSalesCaseById(String caseNo) {
-        return afterSalesService.getAfterSalesCaseById(caseNo);
+    public Result<AfterSalesCase> getAfterSalesCaseById(String caseNo) {
+        return Result.success(afterSalesService.getAfterSalesCaseById(caseNo));
     }
 
-    // 新增售后案例
     @RequestMapping("/afterSalesCase/insert")
-    public void insertAfterSalesCase(AfterSalesCase afterSalesCase) {
-        afterSalesService.insertAfterSalesCase(afterSalesCase);
+    public Result<Void> insertAfterSalesCase(@RequestBody AfterSalesCase c) {
+        afterSalesService.insertAfterSalesCase(c);
+        return Result.success();
     }
 
-    // 修改售后案例
     @RequestMapping("/afterSalesCase/update")
-    public void updateAfterSalesCase(AfterSalesCase afterSalesCase) {
-        afterSalesService.updateAfterSalesCase(afterSalesCase);
+    public Result<Void> updateAfterSalesCase(@RequestBody AfterSalesCase c) {
+        afterSalesService.updateAfterSalesCase(c);
+        return Result.success();
     }
 
-    // 删除售后案例
     @RequestMapping("/afterSalesCase/delete")
-    public void deleteAfterSalesCase(String caseNo) {
+    public Result<Void> deleteAfterSalesCase(String caseNo) {
         afterSalesService.deleteAfterSalesCase(caseNo);
+        return Result.success();
     }
 
-    // 查询成本结算列表
     @RequestMapping("/settlement/list")
-    public ArrayList<CostSettlement> settlementList() {
-        return afterSalesService.settlementList();
+    public Result<List<CostSettlement>> settlementList() {
+        return Result.success(afterSalesService.settlementList());
     }
 
-    // 根据主键查询成本结算
     @RequestMapping("/settlement/get")
-    public CostSettlement getSettlementById(Long settlementId) {
-        return afterSalesService.getSettlementById(settlementId);
+    public Result<CostSettlement> getSettlementById(Long settlementId) {
+        return Result.success(afterSalesService.getSettlementById(settlementId));
     }
 
-    // 新增成本结算
     @RequestMapping("/settlement/insert")
-    public void insertSettlement(CostSettlement settlement) {
-        afterSalesService.insertSettlement(settlement);
+    public Result<Void> insertSettlement(@RequestBody CostSettlement s) {
+        afterSalesService.insertSettlement(s);
+        return Result.success();
     }
 
-    // 修改成本结算
     @RequestMapping("/settlement/update")
-    public void updateSettlement(CostSettlement settlement) {
-        afterSalesService.updateSettlement(settlement);
+    public Result<Void> updateSettlement(@RequestBody CostSettlement s) {
+        afterSalesService.updateSettlement(s);
+        return Result.success();
     }
 
-    // 删除成本结算
     @RequestMapping("/settlement/delete")
-    public void deleteSettlement(Long settlementId) {
+    public Result<Void> deleteSettlement(Long settlementId) {
         afterSalesService.deleteSettlement(settlementId);
+        return Result.success();
     }
 
+    private String str(Map<String, Object> m, String k) {
+        Object v = m.get(k);
+        return v != null ? v.toString() : "";
+    }
 }

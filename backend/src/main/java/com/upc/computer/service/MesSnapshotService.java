@@ -418,7 +418,9 @@ public class MesSnapshotService {
             m.put("stageOrder", stage != null ? stage.stepOrder() : 0);
             m.put("totalStages", ProductionWorkshopCatalog.PRODUCTION_STAGES.size());
             m.put("equipment", extra.getOrDefault("equipment", eq != null ? eq.getEquipmentName() : ""));
-            m.put("operator", op != null ? op.getUsername() : extra.getOrDefault("operator", ""));
+            m.put("equipmentId", d.getEquipmentId());
+            m.put("dispatchId", d.getDispatchId());
+            m.put("dispatchNo", d.getDispatchNo());
             m.put("operatorName", extra.getOrDefault("operatorName", op != null ? op.getRealName() : ""));
             m.put("planQty", intVal(d.getAssignedQuantity()));
             m.put("completedQty", intVal(d.getCompletedQuantity()));

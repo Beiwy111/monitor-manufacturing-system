@@ -1,5 +1,5 @@
 -- 修复设备/用户中文乱码（????），请在 display_manufacturing 库执行
--- cmd /c "mysql --default-character-set=utf8mb4 -uroot -p display_manufacturing < fix_encoding_data.sql"
+-- cmd /c "mysql --default-character-set=utf8mb4 -uroot -p display_manufacturing < sql/fixes/fix_encoding_data.sql"
 USE display_manufacturing;
 SET NAMES utf8mb4;
 

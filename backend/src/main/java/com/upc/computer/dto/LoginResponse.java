@@ -12,6 +12,10 @@ public class LoginResponse {
     private Long roleId;
     private String roleCode;
     private String roleName;
+    private String customerName;
+    private String shippingAddress;
+    private String phone;
+    private String email;
 
     public String getToken() {
         return token;
@@ -67,5 +71,37 @@ public class LoginResponse {
 
     public void setRoleName(String roleName) {
         this.roleName = roleName;
+    }
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
+
+    public String getShippingAddress() {
+        return shippingAddress;
+    }
+
+    public void setShippingAddress(String shippingAddress) {
+        this.shippingAddress = shippingAddress;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 }

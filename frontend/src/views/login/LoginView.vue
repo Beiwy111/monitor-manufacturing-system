@@ -90,7 +90,7 @@ const form = reactive({
 
 function fillDemo() {
   form.username = 'li_manager'
-  form.password = 'Mes@2026'
+  form.password = '123456'
   ElMessage.info('已填入演示账号 li_manager，点击登录即可')
 }
 

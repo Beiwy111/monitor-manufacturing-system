@@ -23,12 +23,27 @@ export const MENU_PATH_MAP = {
   'production:progress': '/production/progress',
   'purchase:purchaseOrder': '/purchase/order',
   'purchase:purchaseOrderItem': '/purchase/order',
+  'purchase:aiDocument': '/purchase/ai-document',
   'quality:inspection': '/quality/inspection',
-  'quality:nonconforming': '/quality/defect',
-  'quality:defect': '/quality/defect',
-  'quality:reinspect': '/quality/reinspect',
-  'quality:records': '/quality/records',
-  'quality:trace': '/quality/trace',
+  'quality:nonconforming': '/quality/material/defect',
+  'quality:defect': '/quality/material/defect',
+  'quality:reinspect': '/quality/material/reinspect',
+  'quality:records': '/quality/material/records',
+  'quality:trace': '/quality/material/trace',
+  'quality:print': '/quality/material/print',
+  'quality:material:inspection': '/quality/material/inspection',
+  'quality:material:defect': '/quality/material/defect',
+  'quality:material:reinspect': '/quality/material/reinspect',
+  'quality:material:records': '/quality/material/records',
+  'quality:material:trace': '/quality/material/trace',
+  'quality:material:print': '/quality/material/print',
+  'quality:semi:print': '/quality/material/print',
+  'quality:fp:inspection': '/quality/fp/inspection',
+  'quality:fp:defect': '/quality/fp/defect',
+  'quality:fp:reinspect': '/quality/fp/reinspect',
+  'quality:fp:records': '/quality/fp/records',
+  'quality:fp:trace': '/quality/fp/trace',
+  'quality:fp:print': '/quality/fp/print',
   'warehouse:purchaseIn': '/warehouse/purchase-in',
   'warehouse:issue': '/warehouse/issue',
   'warehouse:inbound': '/warehouse/inbound',
@@ -66,7 +81,13 @@ export const MENU_PATH_MAP = {
   'equipment:alarm': '/device/alarm',
   'equipment:maintenance': '/device/maintenance',
   'afterSales:afterSalesCase': '/aftersale/case',
-  'afterSales:settlement': '/cost/settlement'
+  'afterSales:settlement': '/cost/settlement',
+  'customer:newOrder': '/customer/order/new',
+  'customer:orders': '/customer/orders',
+  'customer:products': '/customer/products',
+  'customer:feedbackSubmit': '/customer/feedback/submit',
+  'customer:feedbackList': '/customer/feedback/list',
+  'customer:profile': '/customer/profile'
 }
 
 export const BOARD_PATH = '/system/board'
@@ -77,6 +98,22 @@ export const MANAGER_ONLY_PATHS = new Set([
   '/production/work-order',
   '/production/dispatch'
 ])
+
+/** 已下线、需从导航中移除的菜单（按 path 或 menuCode 匹配） */
+const REMOVED_MENU_PATHS = new Set(['/purchase/arrival'])
+const REMOVED_MENU_CODES = new Set(['purchase:arrival'])
+
+/** 清理菜单树中的下线项，同时用于 localStorage 缓存兜底数据 */
+export function sanitizeMenus(menus) {
+  return (menus || [])
+    .map((m) => ({
+      ...m,
+      children: (m.children || []).filter(
+        (c) => !REMOVED_MENU_PATHS.has(c.path) && !REMOVED_MENU_CODES.has(c.menuCode)
+      )
+    }))
+    .filter((m) => m.children?.length)
+}
 
 /** 各角色在前端有、但 sys_menu 未单独建项的路由 */
 const ROLE_MENU_EXTRAS = {
@@ -110,11 +147,12 @@ const ROLE_MENU_EXTRAS = {
     ],
     equipment: [{ menuId: 9055, menuName: '安灯报警', path: '/device/alarm' }]
   },
-  quality: {
-    quality: [
-      { menuId: 9061, menuName: '复检处理', path: '/quality/reinspect' },
-      { menuId: 9062, menuName: '质检记录', path: '/quality/records' },
-      { menuId: 9063, menuName: '质量追溯', path: '/quality/trace' }
+  purchase: {
+    purchase: [
+      { menuId: 9061, menuName: '采购需求', path: '/purchase/demand' },
+      { menuId: 9062, menuName: '采购订单', path: '/purchase/order' },
+      { menuId: 9064, menuName: '供应商管理', path: '/purchase/supplier' },
+      { menuId: 9065, menuName: 'AI 单据录入', path: '/purchase/ai-document' }
     ]
   },
   warehouse: {
@@ -144,6 +182,7 @@ const MODULE_NAME_MAP = {
 
 export function resolveMenuPath(menu) {
   if (menu?.path) return menu.path
+  if (menu?.routePath) return menu.routePath
   if (menu?.menuCode && MENU_PATH_MAP[menu.menuCode]) {
     return MENU_PATH_MAP[menu.menuCode]
   }
@@ -168,7 +207,7 @@ export function normalizeMenus(apiMenus, roleKey, fallbackMenus) {
     return normalizeMenus(fallbackMenus, roleKey, null)
   }
 
-  return stripManagerOnlyFromMenus(menus, roleKey)
+  return sanitizeMenus(stripManagerOnlyFromMenus(menus, roleKey))
 }
 
 function mergeRoleExtras(menus, roleKey) {
@@ -222,6 +261,7 @@ function normalizeNode(node) {
     .map((c) => {
       const path = resolveMenuPath(c)
       if (!path) return null
+      if (REMOVED_MENU_PATHS.has(path) || REMOVED_MENU_CODES.has(c.menuCode)) return null
       return { ...c, path }
     })
     .filter(Boolean)
@@ -267,12 +307,13 @@ const ROLE_HOME_PATH = {
   order: '/order/list',
   planner: '/production/plan',
   operator: '/production/my-dispatch',
-  quality: '/quality/inspection',
-  purchase: '/purchase/order',
+  quality: '/dashboard/quality',
+  purchase: '/dashboard/purchase',
   warehouse: '/warehouse/inventory',
-  device: '/device/equipment',
+  device: '/dashboard/device',
   aftersale: '/aftersale/case',
-  cost: '/cost/report'
+  cost: '/cost/report',
+  customer: '/customer/home'
 }
 
 export function getHomePath(roleKey) {

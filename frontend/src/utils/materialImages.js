@@ -1,4 +1,4 @@
-/** 物料/成品图片：原材料使用 frontend/picture 本地图，成品使用网络图 */
+/** 物料/成品图片：仓库页用本地图，采购页用编码映射兜底 */
 import imgLcdPanel from '@picture/LCD面板图片.jpg'
 import imgBacklight from '@picture/背光模组.png'
 import imgDriverIc from '@picture/驱动IC.jpg'
@@ -7,6 +7,7 @@ import imgPcb from '@picture/PCB主板.jpg'
 import imgPower from '@picture/电源适配器.jpg'
 
 const IMG = (id) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=160&h=160`
+const unsplash = (id) => `https://images.unsplash.com/photo-${id}?w=96&h=96&fit=crop&q=80`
 
 const FINISHED_IMAGES = {
   'PRD-001': IMG('photo-1527443224154-c4a3942d3acf'),
@@ -15,37 +16,40 @@ const FINISHED_IMAGES = {
 }
 
 const RAW_IMAGES = {
-  // 显示面板
   'MAT-001': imgLcdPanel,
   'MAT-P01': imgLcdPanel,
   'MAT-P02': imgLcdPanel,
   'MAT-P03': imgLcdPanel,
-  // 背光模组
   'MAT-002': imgBacklight,
   'MAT-B01': imgBacklight,
   'MAT-B02': imgBacklight,
   'MAT-B03': imgBacklight,
-  // 驱动芯片
   'MAT-003': imgDriverIc,
   'MAT-M03': imgDriverIc,
-  // 结构边框
   'MAT-004': imgFrame,
   'MAT-S01': imgFrame,
   'MAT-S03': imgFrame,
-  // 主控板
   'MAT-005': imgPcb,
   'MAT-M01': imgPcb,
   'MAT-M02': imgPcb,
   'MAT-M04': imgPcb,
-  // 电源
   'MAT-006': imgPower,
   'MAT-S02': imgPower
+}
+
+/** 采购模块使用的 public 静态图映射 */
+export const MATERIAL_IMAGE_MAP = {
+  'MAT-001': '/materials/lcd.png',
+  'MAT-002': '/materials/backlight.png',
+  'MAT-003': '/materials/driver-ic.png',
+  'MAT-004': '/materials/frame.png',
+  'MAT-005': unsplash('1518770660439-4636190af475'),
+  'MAT-006': unsplash('1583863788434-e58a36330cf0')
 }
 
 const FINISHED_FALLBACK = FINISHED_IMAGES['PRD-001']
 const RAW_FALLBACK = imgLcdPanel
 
-/** 内联 SVG 占位图，加载失败时兜底 */
 export const MATERIAL_PLACEHOLDER =
   'data:image/svg+xml,' +
   encodeURIComponent(
@@ -57,11 +61,20 @@ export const MATERIAL_PLACEHOLDER =
       '</svg>'
   )
 
+/** 按物料编码取图（采购模块） */
+export function materialImageByCode(code) {
+  if (!code) return ''
+  if (MATERIAL_IMAGE_MAP[code]) return MATERIAL_IMAGE_MAP[code]
+  if (RAW_IMAGES[code]) return RAW_IMAGES[code]
+  return ''
+}
+
 function isFinished(row) {
   const code = row.materialCode || ''
   return row.warehouseCategory === 'FINISHED' || row.materialType === 'FINISHED' || code.startsWith('PRD')
 }
 
+/** 按行数据取图（仓库模块） */
 export function materialImageUrl(row = {}) {
   const code = row.materialCode || ''
   if (isFinished(row)) {
@@ -73,6 +86,8 @@ export function materialImageUrl(row = {}) {
   }
 
   if (RAW_IMAGES[code]) return RAW_IMAGES[code]
+  const mapped = materialImageByCode(code)
+  if (mapped) return mapped
 
   const name = row.materialName || ''
   if (name.includes('面板') || name.includes('LCD') || name.includes('OLED') || name.includes('IPS')) {

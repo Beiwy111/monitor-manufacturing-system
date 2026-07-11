@@ -34,6 +34,12 @@ public class User {
     /** department */
     private String department;
 
+    /** customer_name — 客户角色关联企业 */
+    private String customerName;
+
+    /** shipping_address — 默认收货地址 */
+    private String shippingAddress;
+
     /** status */
     private Integer status;
 
@@ -116,6 +122,22 @@ public class User {
 
     public void setDepartment(String department) {
         this.department = department;
+    }
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
+
+    public String getShippingAddress() {
+        return shippingAddress;
+    }
+
+    public void setShippingAddress(String shippingAddress) {
+        this.shippingAddress = shippingAddress;
     }
 
     public Integer getStatus() {

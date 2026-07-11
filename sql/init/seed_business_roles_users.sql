@@ -1,7 +1,7 @@
 SET NAMES utf8mb4;
--- 每角色一名可登录用户；初始密码 Mes@2026（请由管理员在用户管理中修改）
--- 执行：mysql --default-character-set=utf8mb4 -uroot -p display_manufacturing < seed_business_roles_users.sql
-SET @pwd = '$2b$10$uMXvLPZc/8QyK1T13GovwuxodZJlnVcnS0N.NeYkVWvsFs3D0rXnG';
+-- 每角色一名可登录用户；初始密码 123456（请由管理员在用户管理中修改）
+-- 执行：mysql --default-character-set=utf8mb4 -uroot -p display_manufacturing < sql/init/seed_business_roles_users.sql
+SET @pwd = '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm';
 
 UPDATE role SET role_name = '系统管理员', status = 1 WHERE role_code = 'ADMIN';
 UPDATE role SET role_name = '订单管理员', status = 1 WHERE role_code = 'ORDER';
