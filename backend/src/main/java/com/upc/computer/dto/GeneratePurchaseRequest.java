@@ -1,5 +1,6 @@
 package com.upc.computer.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,12 @@ public class GeneratePurchaseRequest {
     private Long purchaserId;
 
     /**
+     * 按需求ID覆盖采购数量，key=requirementId。
+     * 库存充足时采购员可自定义备库数量。
+     */
+    private Map<Long, BigDecimal> quantityOverrides;
+
+    /**
      * 指定供应商：设置后所有勾选需求合并为一张采购单，由采购员自选供应商。
      * 未设置时仍按物料默认供应商自动拆单。
      */
@@ -50,6 +57,9 @@ public class GeneratePurchaseRequest {
 
     public Long getForceSupplierId() { return forceSupplierId; }
     public void setForceSupplierId(Long forceSupplierId) { this.forceSupplierId = forceSupplierId; }
+
+    public Map<Long, BigDecimal> getQuantityOverrides() { return quantityOverrides; }
+    public void setQuantityOverrides(Map<Long, BigDecimal> quantityOverrides) { this.quantityOverrides = quantityOverrides; }
 
     public static class SupplierOverride {
         private String supplierName;

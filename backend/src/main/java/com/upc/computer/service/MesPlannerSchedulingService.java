@@ -67,6 +67,11 @@ public class MesPlannerSchedulingService {
         }
         CustomerOrderItem item = firstOrderItem(order.getOrderId());
         LocalDate delivery = order.getRequiredDeliveryDate();
+
+        if (!isAgentSchedulable(order)) {
+            return buildReadOnlyOrderContext(order, item, delivery);
+        }
+
         LocalDate planStart = LocalDate.now().plusDays(1);
         LocalDate planEnd = delivery != null ? delivery.minusDays(2) : planStart.plusDays(21);
         if (planEnd.isBefore(planStart)) {
@@ -88,7 +93,53 @@ public class MesPlannerSchedulingService {
         ctx.put("recommendedPlanQty", analysis.get("recommendedPlanQty"));
         ctx.put("recommendation", analysis.get("recommendation"));
         ctx.put("summary", analysis.get("summary"));
+        ctx.put("readOnly", false);
         return ctx;
+    }
+
+    /** 仅待计划/已审核订单可走 Agent 排产分析 */
+    private boolean isAgentSchedulable(CustomerOrder order) {
+        if (order == null || order.getAuditStatus() == null) {
+            return false;
+        }
+        String status = order.getAuditStatus().trim().toUpperCase();
+        return "PLAN_PENDING".equals(status) || "APPROVED".equals(status)
+                || "PASS".equals(status) || "PASSED".equals(status);
+    }
+
+    /** 已排产/生产中/已发货等订单：返回只读上下文，不触发 Agent 分析 */
+    private Map<String, Object> buildReadOnlyOrderContext(CustomerOrder order, CustomerOrderItem item, LocalDate delivery) {
+        Map<String, Object> ctx = new LinkedHashMap<>();
+        ctx.put("orderId", order.getOrderNo());
+        ctx.put("customerName", order.getCustomerName());
+        ctx.put("productModel", item != null ? item.getProductName() : "");
+        ctx.put("orderQuantity", item != null ? intVal(item.getQuantity()) : 0);
+        ctx.put("deliveryDate", delivery != null ? delivery.format(DATE_FMT) : "");
+        ctx.put("amount", order.getOrderAmount());
+        ctx.put("inventory", Map.of("materialChecks", List.of()));
+        ctx.put("materialGaps", List.of());
+        ctx.put("processRoute", loadProcessRouteForItem(item));
+        ctx.put("capacityRisks", List.of());
+        ctx.put("recommendedPlanQty", 0);
+        ctx.put("recommendation", "订单已进入后续流程，仅展示跟踪信息");
+        ctx.put("summary", "当前状态：" + auditStatusLabel(order.getAuditStatus()));
+        ctx.put("readOnly", true);
+        return ctx;
+    }
+
+    private String auditStatusLabel(String status) {
+        if (status == null || status.isBlank()) {
+            return "未知";
+        }
+        return switch (status.toUpperCase()) {
+            case "PLAN_PENDING" -> "待计划";
+            case "APPROVED", "PASS", "PASSED" -> "已审核";
+            case "PLANNED" -> "已计划";
+            case "PRODUCING" -> "生产中";
+            case "SHIPPED", "DELIVERED" -> "已发货";
+            case "COMPLETED" -> "已完成";
+            default -> status;
+        };
     }
 
     public Map<String, Object> compareSchemes(String orderNo, LocalDate planStart, LocalDate planEnd, int plannedQty) {
@@ -185,7 +236,7 @@ public class MesPlannerSchedulingService {
                     "计划结束 " + planEnd + " 晚于订单交期 " + order.getRequiredDeliveryDate() + "，请确认是否加急"));
         }
 
-        if (item != null && plannedQty > 0) {
+        if (item != null && plannedQty > 0 && order != null && isAgentSchedulable(order)) {
             Map<String, Object> analysis = plannerAgentService.analyze(orderNo,
                     parseDate(str(payload, "planStart", LocalDate.now().plusDays(1).toString())),
                     planEnd != null ? planEnd : LocalDate.now().plusDays(21));
@@ -286,6 +337,309 @@ public class MesPlannerSchedulingService {
         result.put("conflicts", validation.get("conflicts"));
         result.put("message", "计划已保存");
         return result;
+    }
+
+    /** 多订单智能排产：支持同型号联合批次（合计按上限拆分）或单订单独立拆分 */
+    @Transactional
+    public Map<String, Object> saveBatchPlans(Map<String, Object> payload, String operator) {
+        List<Map<String, Object>> orders = castList(payload.get("orders"));
+        if (orders.isEmpty()) {
+            throw new BusinessException("请至少勾选一个订单");
+        }
+        int batchSize = intVal(payload.get("batchSize"));
+        if (batchSize <= 0) {
+            batchSize = 500;
+        }
+        LocalDate planStart = parseDate(str(payload, "planStart"));
+        LocalDate planEnd = parseDate(str(payload, "planEnd"));
+        if (planStart == null || planEnd == null || planEnd.isBefore(planStart)) {
+            throw new BusinessException("请填写有效的计划周期");
+        }
+        String mode = str(payload, "schedulingMode", "DELIVERY");
+        String saveAction = str(payload, "saveAction", "submit");
+        boolean combinedBatch = Boolean.TRUE.equals(payload.get("combinedBatch")) && orders.size() > 1;
+        LocalDateTime now = LocalDateTime.now();
+        User planner = findUserByUsername(operator);
+
+        List<Map<String, Object>> created = new ArrayList<>();
+        if (combinedBatch) {
+            created.addAll(saveCombinedBatchPlans(orders, batchSize, planStart, planEnd, mode, saveAction, operator, planner, now, payload));
+        } else {
+            for (Map<String, Object> o : orders) {
+                created.addAll(saveSingleOrderBatchPlans(o, batchSize, planStart, planEnd, mode, saveAction, operator, planner, now, null, payload));
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("plans", created);
+        result.put("totalPlans", created.size());
+        result.put("orderCount", orders.size());
+        result.put("batchSize", batchSize);
+        result.put("combinedBatch", combinedBatch);
+        result.put("message", combinedBatch
+                ? "已生成 " + created.size() + " 个联合批次计划并提交生产主管"
+                : "已生成 " + created.size() + " 个批次计划");
+        return result;
+    }
+
+    private List<Map<String, Object>> saveCombinedBatchPlans(
+            List<Map<String, Object>> orders,
+            int batchSize,
+            LocalDate planStart,
+            LocalDate planEnd,
+            String mode,
+            String saveAction,
+            String operator,
+            User planner,
+            LocalDateTime now,
+            Map<String, Object> payload) {
+        List<OrderAlloc> allocs = new ArrayList<>();
+        String productModel = null;
+        for (Map<String, Object> o : orders) {
+            String orderNo = str(o, "orderId");
+            CustomerOrder order = findOrderByNo(orderNo);
+            if (order == null) {
+                throw new BusinessException("订单不存在：" + orderNo);
+            }
+            if (!List.of("PLAN_PENDING", "APPROVED").contains(order.getAuditStatus())) {
+                throw new BusinessException("订单 " + orderNo + " 状态不允许创建计划");
+            }
+            CustomerOrderItem item = firstOrderItem(order.getOrderId());
+            String model = item != null && item.getProductName() != null ? item.getProductName() : "";
+            if (productModel == null) {
+                productModel = model;
+            } else if (!productModel.equals(model)) {
+                throw new BusinessException("联合排产须选择相同型号的订单");
+            }
+            int totalQty = intVal(o.get("plannedQty"));
+            if (totalQty <= 0 && item != null) {
+                totalQty = intVal(item.getQuantity());
+            }
+            if (totalQty <= 0) {
+                throw new BusinessException("订单 " + orderNo + " 计划数量无效");
+            }
+            allocs.add(new OrderAlloc(order, item, orderNo, totalQty));
+        }
+
+        allocs.sort(Comparator.comparing(a -> a.order.getRequiredDeliveryDate(), Comparator.nullsLast(Comparator.naturalOrder())));
+
+        int totalQty = allocs.stream().mapToInt(a -> a.remaining).sum();
+        int batchCount = (totalQty + batchSize - 1) / batchSize;
+        long totalDays = Math.max(1, ChronoUnit.DAYS.between(planStart, planEnd) + 1);
+        long daysPerBatch = Math.max(1, totalDays / batchCount);
+
+        Map<String, Object> base = plannerAgentService.analyze(allocs.get(0).orderNo, planStart, planEnd);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> suggestions =
+                (List<Map<String, Object>>) base.getOrDefault("dispatchSuggestions", List.of());
+
+        List<Map<String, Object>> created = new ArrayList<>();
+        int globalLeft = totalQty;
+        int allocIdx = 0;
+        int allocRemain = allocs.get(0).remaining;
+
+        for (int b = 1; b <= batchCount; b++) {
+            int batchCapacity = Math.min(batchSize, globalLeft);
+            globalLeft -= batchCapacity;
+            LocalDate bStart = planStart.plusDays((long) (b - 1) * daysPerBatch);
+            if (bStart.isAfter(planEnd)) {
+                bStart = planEnd;
+            }
+            LocalDate bEnd = b == batchCount ? planEnd : bStart.plusDays(daysPerBatch - 1);
+            if (bEnd.isAfter(planEnd)) {
+                bEnd = planEnd;
+            }
+            if (bEnd.isBefore(bStart)) {
+                bEnd = bStart;
+            }
+
+            int capacityLeft = batchCapacity;
+            while (capacityLeft > 0 && allocIdx < allocs.size()) {
+                OrderAlloc alloc = allocs.get(allocIdx);
+                int take = Math.min(allocRemain, capacityLeft);
+                String remark = "同型号联合排产 · 联合批次 " + b + "/" + batchCount + "（单批上限 " + batchSize + " 台）";
+                created.add(createBatchPlan(
+                        alloc.order, alloc.item, alloc.orderNo, take, b, batchCount,
+                        bStart, bEnd, mode, saveAction, operator, planner, now, suggestions, remark, payload));
+                capacityLeft -= take;
+                allocRemain -= take;
+                if (allocRemain <= 0) {
+                    allocIdx++;
+                    allocRemain = allocIdx < allocs.size() ? allocs.get(allocIdx).remaining : 0;
+                }
+            }
+        }
+
+        for (OrderAlloc alloc : allocs) {
+            alloc.order.setAuditStatus("PLANNED");
+            alloc.order.setUpdatedAt(now);
+            customerOrderMapper.updateCustomerOrder(alloc.order);
+        }
+        return created;
+    }
+
+    private List<Map<String, Object>> saveSingleOrderBatchPlans(
+            Map<String, Object> o,
+            int batchSize,
+            LocalDate planStart,
+            LocalDate planEnd,
+            String mode,
+            String saveAction,
+            String operator,
+            User planner,
+            LocalDateTime now,
+            List<Map<String, Object>> sharedSuggestions,
+            Map<String, Object> payload) {
+        String orderNo = str(o, "orderId");
+        CustomerOrder order = findOrderByNo(orderNo);
+        if (order == null) {
+            throw new BusinessException("订单不存在：" + orderNo);
+        }
+        if (!List.of("PLAN_PENDING", "APPROVED").contains(order.getAuditStatus())) {
+            throw new BusinessException("订单 " + orderNo + " 状态不允许创建计划");
+        }
+        CustomerOrderItem item = firstOrderItem(order.getOrderId());
+        int totalQty = intVal(o.get("plannedQty"));
+        if (totalQty <= 0 && item != null) {
+            totalQty = intVal(item.getQuantity());
+        }
+        if (totalQty <= 0) {
+            throw new BusinessException("订单 " + orderNo + " 计划数量无效");
+        }
+
+        List<Map<String, Object>> suggestions = sharedSuggestions;
+        if (suggestions == null) {
+            Map<String, Object> base = plannerAgentService.analyze(orderNo, planStart, planEnd);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> fromBase =
+                    (List<Map<String, Object>>) base.getOrDefault("dispatchSuggestions", List.of());
+            suggestions = fromBase;
+        }
+
+        int batchCount = (totalQty + batchSize - 1) / batchSize;
+        long totalDays = Math.max(1, ChronoUnit.DAYS.between(planStart, planEnd) + 1);
+        long daysPerBatch = Math.max(1, totalDays / batchCount);
+
+        List<Map<String, Object>> created = new ArrayList<>();
+        int remaining = totalQty;
+        for (int b = 1; b <= batchCount; b++) {
+            int batchQty = Math.min(batchSize, remaining);
+            remaining -= batchQty;
+            LocalDate bStart = planStart.plusDays((long) (b - 1) * daysPerBatch);
+            if (bStart.isAfter(planEnd)) {
+                bStart = planEnd;
+            }
+            LocalDate bEnd = b == batchCount ? planEnd : bStart.plusDays(daysPerBatch - 1);
+            if (bEnd.isAfter(planEnd)) {
+                bEnd = planEnd;
+            }
+            if (bEnd.isBefore(bStart)) {
+                bEnd = bStart;
+            }
+            String remark = "智能排产 · 批次 " + b + "/" + batchCount + "（单批上限 " + batchSize + " 台）";
+            created.add(createBatchPlan(
+                    order, item, orderNo, batchQty, b, batchCount,
+                    bStart, bEnd, mode, saveAction, operator, planner, now, suggestions, remark, payload));
+        }
+
+        order.setAuditStatus("PLANNED");
+        order.setUpdatedAt(now);
+        customerOrderMapper.updateCustomerOrder(order);
+        return created;
+    }
+
+    private Map<String, Object> createBatchPlan(
+            CustomerOrder order,
+            CustomerOrderItem item,
+            String orderNo,
+            int batchQty,
+            int batchNo,
+            int batchCount,
+            LocalDate bStart,
+            LocalDate bEnd,
+            String mode,
+            String saveAction,
+            String operator,
+            User planner,
+            LocalDateTime now,
+            List<Map<String, Object>> suggestions,
+            String remark,
+            Map<String, Object> payload) {
+        List<Map<String, Object>> schedules = buildSchedulesFromSuggestions(
+                suggestions, batchQty, bStart, bEnd, mode);
+
+        String planNo = nextPlanNo();
+        ProductionPlan plan = new ProductionPlan();
+        plan.setPlanNo(planNo);
+        plan.setPlanName("计划-" + orderNo + (batchCount > 1 ? "-批次" + batchNo : ""));
+        plan.setSourceOrderId(order.getOrderId());
+        plan.setPlannedStartDate(bStart);
+        plan.setPlannedEndDate(bEnd);
+        plan.setPriority(str(payload, "priority", "NORMAL"));
+        plan.setPlanStatus("DRAFT");
+        plan.setPlannerId(planner != null ? planner.getUserId() : null);
+        plan.setRemark(remark);
+        plan.setVersionNo("V1");
+        plan.setSchedulingMode(mode);
+        plan.setCreatedAt(now);
+        plan.setUpdatedAt(now);
+        productionPlanMapper.insertPlan(plan);
+
+        if (item != null) {
+            ProductionPlanItem planItem = new ProductionPlanItem();
+            planItem.setPlanId(plan.getPlanId());
+            planItem.setOrderItemId(item.getOrderItemId());
+            planItem.setMaterialId(item.getMaterialId());
+            planItem.setPlannedQuantity(BigDecimal.valueOf(batchQty));
+            planItem.setCompletedQuantity(BigDecimal.ZERO);
+            planItem.setPlannedStartDate(bStart);
+            planItem.setPlannedEndDate(bEnd);
+            planItem.setItemStatus("PENDING");
+            planItem.setCreatedAt(now);
+            planItem.setUpdatedAt(now);
+            productionPlanItemMapper.insertPlanItem(planItem);
+        }
+
+        persistSchedules(plan.getPlanId(), schedules, now);
+        appendHistory(plan, "CREATE", remark, operator, payload, now);
+
+        if ("publish".equals(saveAction) || "submit".equals(saveAction)) {
+            plan.setPlanStatus("PUBLISHED");
+            plan.setUpdatedAt(now);
+            productionPlanMapper.updatePlan(plan);
+            appendHistory(plan, "PUBLISH", null, operator, payload, now);
+        }
+        if ("submit".equals(saveAction)) {
+            plan.setPlanStatus("SUBMITTED");
+            plan.setApprovedAt(now);
+            plan.setUpdatedAt(now);
+            productionPlanMapper.updatePlan(plan);
+            appendHistory(plan, "SUBMIT", null, operator, payload, now);
+        }
+
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("planId", planNo);
+        row.put("orderId", orderNo);
+        row.put("batchNo", batchNo);
+        row.put("batchCount", batchCount);
+        row.put("quantity", batchQty);
+        row.put("planStart", bStart.toString());
+        row.put("planEnd", bEnd.toString());
+        return row;
+    }
+
+    private static final class OrderAlloc {
+        private final CustomerOrder order;
+        private final CustomerOrderItem item;
+        private final String orderNo;
+        private final int remaining;
+
+        private OrderAlloc(CustomerOrder order, CustomerOrderItem item, String orderNo, int remaining) {
+            this.order = order;
+            this.item = item;
+            this.orderNo = orderNo;
+            this.remaining = remaining;
+        }
     }
 
     @Transactional

@@ -4,8 +4,8 @@ export function fetchMesSnapshot() {
   return request.get('/mes/snapshot')
 }
 
-export function postMesAction(body) {
-  return request.post('/mes/action', body)
+export function postMesAction(body, opts = {}) {
+  return request.post('/mes/action', body, { silent: !!opts.silent })
 }
 
 /** 智能生成生产计划 - 批量预览 */

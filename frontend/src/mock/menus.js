@@ -18,7 +18,7 @@ export const roleMenus = {
   ],
   planner: [
     { menuId: 12, menuName: '计划管理', children: [
-      { menuId: 121, menuName: '生产计划', path: '/production/plan' },
+      { menuId: 121, menuName: '生产计划工作台', path: '/production/plan' },
       { menuId: 122, menuName: '工序设置', path: '/production/process-setup' },
       { menuId: 123, menuName: '订单跟踪', path: '/order/track' }
     ]}
@@ -38,7 +38,7 @@ export const roleMenus = {
   operator: [
     { menuId: 5, menuName: '现场作业', children: [
       { menuId: 51, menuName: '我的派工', path: '/production/my-dispatch' },
-      { menuId: 53, menuName: '生产报工', path: '/production/report' },
+      { menuId: 53, menuName: '工序报工', path: '/production/report' },
       { menuId: 54, menuName: '安灯报警', path: '/device/alarm' },
       { menuId: 55, menuName: '工艺说明', path: '/production/process-guide' }
     ]},

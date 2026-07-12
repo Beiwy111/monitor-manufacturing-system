@@ -1,6 +1,11 @@
 <template>
   <div class="plan-gantt" :class="{ 'plan-gantt--fs': fullscreen }">
     <div class="plan-gantt__toolbar">
+      <el-radio-group :model-value="viewMode" size="small" @update:model-value="$emit('update:view-mode', $event)">
+        <el-radio-button label="plan">按计划</el-radio-button>
+        <el-radio-button label="equipment">按设备</el-radio-button>
+        <el-radio-button label="workshop">按车间</el-radio-button>
+      </el-radio-group>
       <el-radio-group v-model="scale" size="small" @change="render">
         <el-radio-button label="day">日</el-radio-button>
         <el-radio-button label="week">周</el-radio-button>
@@ -10,13 +15,13 @@
         <el-button @click="zoomIn">放大</el-button>
         <el-button @click="scrollToday">定位今日</el-button>
       </el-button-group>
-      <span class="plan-gantt__hint">悬停任务条查看详情，滚轮左右滑动时间轴</span>
       <span class="plan-gantt__legend">
         <i class="lg lg--idle" />未开始
         <i class="lg lg--run" />执行中
         <i class="lg lg--done" />已完成
         <i class="lg lg--late" />延期
         <i class="lg lg--urgent" />紧急
+        <i class="lg lg--conflict" />冲突
       </span>
       <el-button v-if="fullscreen" size="small" type="primary" plain class="plan-gantt__exit" @click="$emit('exit-fullscreen')">
         退出全屏
@@ -26,20 +31,20 @@
     <div v-loading="loading" class="plan-gantt__body">
       <div ref="leftRef" class="plan-gantt__left" @scroll="onLeftScroll">
         <div class="plan-gantt__left-head">
-          <span>计划编号</span><span>产品型号</span><span>工序名称</span>
+          <span>{{ leftCols[0] }}</span><span>{{ leftCols[1] }}</span><span>{{ leftCols[2] }}</span>
         </div>
         <div
           v-for="(row, idx) in rows"
           :key="rowKey(row, idx)"
           class="plan-gantt__left-row"
-          :class="{ 'plan-gantt__left-row--active': hoverIndex === idx }"
+          :class="{ 'plan-gantt__left-row--active': hoverIndex === idx, 'plan-gantt__left-row--conflict': hasConflict(idx) }"
           :style="{ height: `${rowHeight}px` }"
           @mouseenter="setHover(idx)"
           @mouseleave="clearHover"
         >
-          <span :title="row.planId">{{ row.planId }}</span>
-          <span :title="row.productModel">{{ row.productModel }}</span>
-          <span :title="row.stepName">{{ row.stepName }}</span>
+          <span :title="leftVal(row, 0)">{{ leftVal(row, 0) }}</span>
+          <span :title="leftVal(row, 1)">{{ leftVal(row, 1) }}</span>
+          <span :title="leftVal(row, 2)">{{ leftVal(row, 2) }}</span>
         </div>
         <div v-if="!rows.length" class="plan-gantt__empty">暂无甘特数据。请先在计划表中创建生产计划并保存工序排程，然后点击刷新。</div>
       </div>
@@ -56,18 +61,42 @@ import * as echarts from 'echarts'
 
 const STATUS_COLOR = {
   未开始: '#9ca3af',
-  执行中: '#3b82f6',
-  已完成: '#22c55e',
-  延期: '#ef4444'
+  执行中: '#3d7a5f',
+  已完成: '#217346',
+  延期: '#c4564c'
 }
 
 const props = defineProps({
   rows: { type: Array, default: () => [] },
+  dependencies: { type: Array, default: () => [] },
+  conflictIndices: { type: Object, default: () => new Set() },
+  viewMode: { type: String, default: 'plan' },
   loading: { type: Boolean, default: false },
   fullscreen: { type: Boolean, default: false }
 })
 
-defineEmits(['exit-fullscreen'])
+defineEmits(['exit-fullscreen', 'update:view-mode'])
+
+const leftCols = computed(() => {
+  if (props.viewMode === 'equipment') return ['设备', '计划', '工序']
+  if (props.viewMode === 'workshop') return ['车间', '计划', '工序']
+  return ['计划编号', '产品型号', '工序']
+})
+
+function leftVal(row, col) {
+  if (props.viewMode === 'equipment') {
+    return [row.equipment || '—', row.planId, row.stepName][col]
+  }
+  if (props.viewMode === 'workshop') {
+    return [row.workshop || '—', row.planId, row.stepName][col]
+  }
+  return [row.planId, row.productModel, row.stepName][col]
+}
+
+function hasConflict(idx) {
+  const set = props.conflictIndices
+  return set?.has?.(idx) || (Array.isArray(set) && set.includes(idx))
+}
 
 const scale = ref('day')
 const zoom = ref(1)
@@ -240,22 +269,23 @@ function render() {
         const w = Math.max(endPt[0] - startPt[0], 12)
         const color = STATUS_COLOR[status] || STATUS_COLOR['未开始']
         const active = hoverIndex.value === idx
+        const conflict = hasConflict(idx)
         const meta = props.rows[idx]
         const children = [
           {
             type: 'rect',
-            shape: { x: startPt[0] - 2, y: y - 6, width: w + 4, height: barH + 12, r: 3 },
-            style: { fill: active ? 'rgba(37,99,235,0.08)' : 'transparent' },
+            shape: { x: startPt[0] - 2, y: y - 6, width: w + 4, height: barH + 12, r: 2 },
+            style: { fill: active ? 'rgba(61,122,95,0.08)' : 'transparent' },
             silent: false
           },
           {
             type: 'rect',
-            shape: { x: startPt[0], y, width: w, height: barH, r: 3 },
+            shape: { x: startPt[0], y, width: w, height: barH, r: 2 },
             style: {
               fill: color,
-              opacity: active ? 1 : 0.9,
-              stroke: active ? '#1d4ed8' : 'transparent',
-              lineWidth: active ? 1 : 0
+              opacity: active ? 1 : 0.92,
+              stroke: conflict ? '#dc2626' : (active ? '#217346' : 'transparent'),
+              lineWidth: conflict ? 2 : (active ? 1 : 0)
             }
           },
           {
@@ -268,7 +298,20 @@ function render() {
           children.splice(1, 0, {
             type: 'rect',
             shape: { x: startPt[0] - 5, y: y + 5, width: 3, height: barH - 10, r: 1 },
-            style: { fill: '#f97316' }
+            style: { fill: '#d97706' }
+          })
+        }
+        if (conflict) {
+          children.push({
+            type: 'text',
+            style: {
+              text: '⚠',
+              x: startPt[0] + w - 14,
+              y: y + 4,
+              fill: '#dc2626',
+              fontSize: 12,
+              fontWeight: 700
+            }
           })
         }
         if (meta) {
@@ -301,17 +344,57 @@ function render() {
         silent: true,
         data: [
           {
-            xAxis: now,
-            lineStyle: { color: '#2563eb', width: 1.5, type: 'solid' },
-            label: { formatter: '现在', color: '#2563eb', fontSize: 11, position: 'end' }
-          },
-          {
             xAxis: new Date().setHours(0, 0, 0, 0),
-            lineStyle: { color: '#94a3b8', width: 1, type: 'dashed' },
-            label: { formatter: '今日', color: '#64748b', fontSize: 11, position: 'insideEndTop' }
+            lineStyle: { color: '#3d7a5f', width: 1.5, type: 'solid' },
+            label: { formatter: '今日', color: '#3d7a5f', fontSize: 11, position: 'end' }
           }
         ]
       }
+    },
+    {
+      type: 'custom',
+      name: '工序依赖',
+      silent: true,
+      z: 1,
+      renderItem(params, api) {
+        const dep = props.dependencies[params.dataIndex]
+        if (!dep) return null
+        const fromRow = props.rows[dep.fromIdx]
+        const toRow = props.rows[dep.toIdx]
+        if (!fromRow || !toRow) return null
+        const fromEnd = barEndTs(fromRow)
+        const toStart = parseTs(toRow.plannedStart)
+        const fromPt = api.coord([fromEnd, dep.fromIdx])
+        const toPt = api.coord([toStart, dep.toIdx])
+        const midX = (fromPt[0] + toPt[0]) / 2
+        return {
+          type: 'group',
+          children: [
+            {
+              type: 'line',
+              shape: { x1: fromPt[0], y1: fromPt[1], x2: midX, y2: fromPt[1] },
+              style: { stroke: '#9ca3af', lineWidth: 1 }
+            },
+            {
+              type: 'line',
+              shape: { x1: midX, y1: fromPt[1], x2: midX, y2: toPt[1] },
+              style: { stroke: '#9ca3af', lineWidth: 1 }
+            },
+            {
+              type: 'line',
+              shape: { x1: midX, y1: toPt[1], x2: toPt[0] - 4, y2: toPt[1] },
+              style: { stroke: '#9ca3af', lineWidth: 1 }
+            },
+            {
+              type: 'polygon',
+              shape: { points: [[toPt[0] - 4, toPt[1]], [toPt[0] - 10, toPt[1] - 4], [toPt[0] - 10, toPt[1] + 4]] },
+              style: { fill: '#9ca3af' }
+            }
+          ]
+        }
+      },
+      encode: { x: -1, y: -1 },
+      data: props.dependencies.map((d, i) => ({ value: i, ...d }))
     }]
   }, true)
   bindChartEvents()
@@ -393,6 +476,7 @@ watch(() => props.rows, () => {
   clearHover()
   nextTick(render)
 }, { deep: true })
+watch(() => [props.dependencies, props.viewMode, props.conflictIndices], () => nextTick(render), { deep: true })
 watch(() => props.loading, (v) => { if (!v) nextTick(render) })
 watch(() => props.fullscreen, () => nextTick(() => { chart?.resize(); render() }))
 
@@ -454,10 +538,11 @@ onBeforeUnmount(() => {
   vertical-align: -1px;
 }
 .lg--idle { background: #9ca3af; }
-.lg--run { background: #3b82f6; }
-.lg--done { background: #22c55e; }
-.lg--late { background: #ef4444; }
-.lg--urgent { background: #f97316; width: 3px; border-radius: 1px; }
+.lg--run { background: #3d7a5f; }
+.lg--done { background: #217346; }
+.lg--late { background: #c4564c; }
+.lg--urgent { background: #d97706; width: 3px; border-radius: 1px; }
+.lg--conflict { background: #fff; border: 2px solid #dc2626; width: 8px; height: 8px; border-radius: 50%; }
 
 .plan-gantt__exit { margin-left: 8px; }
 
@@ -506,7 +591,11 @@ onBeforeUnmount(() => {
 }
 
 .plan-gantt__left-row--active {
-  background: #eff6ff;
+  background: #e8f5e9;
+}
+
+.plan-gantt__left-row--conflict {
+  border-left: 3px solid #dc2626;
 }
 
 .plan-gantt__left-row span {

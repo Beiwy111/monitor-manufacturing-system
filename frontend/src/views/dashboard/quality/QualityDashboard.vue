@@ -118,6 +118,42 @@
 
     <section class="qc-dashboard-section qc-dashboard-section--full">
       <header class="qc-dashboard-section__hd">
+        最近质检完成记录
+        <span class="qc-link" @click="go('/quality/fp/records')">查看全部 ›</span>
+      </header>
+      <div class="ruoyi-table-wrap" style="padding: 0;">
+        <el-table
+          v-if="recentCompleted.length"
+          :data="recentCompleted"
+          size="small"
+          max-height="280"
+          class="clickable"
+          @row-click="(row) => go('/quality/fp/records')"
+        >
+          <el-table-column prop="inspectionNo" label="质检单号" width="140" />
+          <el-table-column prop="materialName" label="产品/物料" min-width="150" show-overflow-tooltip />
+          <el-table-column prop="batchNo" label="批次" min-width="130" show-overflow-tooltip />
+          <el-table-column label="品类" width="76" align="center">
+            <template #default="{ row }">{{ categoryCn(row.inspectionCategory) }}</template>
+          </el-table-column>
+          <el-table-column prop="sampleQuantity" label="抽检台数" width="88" align="right" />
+          <el-table-column prop="qualifiedQuantity" label="合格台数" width="88" align="right" />
+          <el-table-column prop="unqualifiedQuantity" label="不合格台数" width="96" align="right" />
+          <el-table-column label="结论" width="88" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.inspectionStatus === 'PASSED' ? 'success' : 'danger'" size="small">
+                {{ statusCn(row.inspectionStatus) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="inspectedAt" label="完成时间" width="160" />
+        </el-table>
+        <p v-else class="qc-empty">暂无已完成质检记录，完成检验后将在此展示</p>
+      </div>
+    </section>
+
+    <section class="qc-dashboard-section qc-dashboard-section--full">
+      <header class="qc-dashboard-section__hd">
         不良品台账
         <span class="qc-link" @click="go('/quality/fp/defect')">去处置 ›</span>
       </header>
@@ -160,7 +196,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import BoardChart from '@/components/board/BoardChart.vue'
-import { fetchInspectionList, fetchNonconformingList } from '@/api/business'
+import { fetchInspectionViews, fetchNonconformingViews, fetchQualityKpi } from '@/api/quality'
 
 const router = useRouter()
 const go = (path) => router.push(path)
@@ -168,6 +204,7 @@ const go = (path) => router.push(path)
 const loading = ref(false)
 const inspections = ref([])
 const nc = ref([])
+const kpi = ref({})
 const updatedAt = ref(null)
 let timer = null
 
@@ -183,9 +220,11 @@ const categoryCn = (s) => CATEGORY_CN[s] || s || '—'
 const typeCn = (s) => TYPE_CN[s] || s || '—'
 const sevCn = (s) => SEV_CN[s] || s || '—'
 const methodCn = (s) => METHOD_CN[s] || s || '—'
-const handleCn = (s) => HANDLE_CN[s] || s || '—'
+const normHandleStatus = (s) => (s === 'COMPLETED' ? 'DONE' : s)
+const normHandleMethod = (s) => (s === 'CONCESSION' ? 'CONCESSION_ACCEPT' : s)
+const handleCn = (s) => HANDLE_CN[normHandleMethod(s)] || s || '—'
 const sevType = (s) => ({ MINOR: 'info', GENERAL: '', MAJOR: 'warning', CRITICAL: 'danger' }[s] || 'info')
-const handleType = (s) => ({ PENDING: 'warning', PROCESSING: 'primary', DONE: 'success' }[s] || 'info')
+const handleType = (s) => ({ PENDING: 'warning', PROCESSING: 'primary', DONE: 'success' }[normHandleStatus(s)] || 'info')
 const pct = (v, t) => (t ? Math.round((v / t) * 100) : 0)
 
 const updatedText = computed(() => {
@@ -208,18 +247,42 @@ const counts = computed(() => {
 })
 
 const passRate = computed(() => {
+  const { sample, qual } = unitStats.value
+  if (sample > 0) return Math.round((qual / sample) * 100)
   const judged = inspections.value.filter((i) => i.inspectionResult)
   if (!judged.length) return 0
   const ok = judged.filter((i) => i.inspectionResult === 'QUALIFIED').length
   return Math.round((ok / judged.length) * 100)
 })
 
-const ncOpen = computed(() => nc.value.filter((n) => n.handleStatus !== 'DONE').length)
-const ncClosed = computed(() => nc.value.filter((n) => n.handleStatus === 'DONE').length)
+const unitStats = computed(() => {
+  const judged = inspections.value.filter((i) => ['PASSED', 'FAILED', 'CLOSED'].includes(i.inspectionStatus))
+  let sample = 0
+  let qual = 0
+  let unqual = 0
+  for (const i of judged) {
+    sample += Number(i.sampleQuantity) || 0
+    qual += Number(i.qualifiedQuantity) || 0
+    unqual += Number(i.unqualifiedQuantity) || 0
+  }
+  return { sample, qual, unqual }
+})
+
+const recentCompleted = computed(() =>
+  [...inspections.value]
+    .filter((i) => ['PASSED', 'FAILED', 'CLOSED'].includes(i.inspectionStatus))
+    .sort((a, b) => String(b.inspectedAt || b.updatedAt || '').localeCompare(String(a.inspectedAt || a.updatedAt || '')))
+    .slice(0, 12)
+)
+
+const ncOpen = computed(() => nc.value.filter((n) => normHandleStatus(n.handleStatus) !== 'DONE').length)
+const ncClosed = computed(() => nc.value.filter((n) => normHandleStatus(n.handleStatus) === 'DONE').length)
 
 const metrics = computed(() => [
   { key: 'pending', num: counts.value.pending, label: '待检任务', to: '/quality/fp/inspection' },
-  { key: 'rate', num: passRate.value, suffix: '%', label: '一次交检合格率', to: '/quality/fp/records' },
+  { key: 'sample', num: unitStats.value.sample, label: '累计抽检台数', to: '/quality/fp/records' },
+  { key: 'qual', num: unitStats.value.qual, label: '累计合格台数', to: '/quality/fp/records' },
+  { key: 'rate', num: passRate.value, suffix: '%', label: '台数合格率', to: '/quality/fp/records' },
   { key: 'recheck', num: counts.value.recheck, label: '需复检', cls: counts.value.recheck ? 'warn' : '', to: '/quality/fp/reinspect' },
   { key: 'ncOpen', num: ncOpen.value, label: '不良品待处置', cls: ncOpen.value ? 'danger' : '', to: '/quality/fp/defect' },
   { key: 'ncClosed', num: `${ncClosed.value} / ${nc.value.length}`, label: '不良品已闭环', to: '/quality/fp/defect' }
@@ -299,7 +362,10 @@ const donutOption = computed(() => {
 
 const dispositionSegs = computed(() => {
   const g = { PENDING: 0, PROCESSING: 0, DONE: 0 }
-  for (const n of nc.value) g[n.handleStatus] = (g[n.handleStatus] || 0) + 1
+  for (const n of nc.value) {
+    const st = normHandleStatus(n.handleStatus)
+    g[st] = (g[st] || 0) + 1
+  }
   return [
     { key: 'PENDING', name: '待处置', value: g.PENDING || 0, color: '#e6a23c' },
     { key: 'PROCESSING', name: '处理中', value: g.PROCESSING || 0, color: '#409eff' },
@@ -309,7 +375,10 @@ const dispositionSegs = computed(() => {
 
 const methodRows = computed(() => {
   const g = {}
-  for (const n of nc.value) g[n.handleMethod] = (g[n.handleMethod] || 0) + 1
+  for (const n of nc.value) {
+    const m = normHandleMethod(n.handleMethod)
+    g[m] = (g[m] || 0) + 1
+  }
   const order = [
     { key: 'REWORK', color: '#409eff' }, { key: 'CONCESSION_ACCEPT', color: '#e6a23c' },
     { key: 'SCRAP', color: '#f56c6c' }, { key: 'RETURNED', color: '#7c8ba1' }, { key: 'PENDING', color: '#c0c4cc' }
@@ -320,9 +389,14 @@ const methodRows = computed(() => {
 async function loadAll() {
   loading.value = true
   try {
-    const [ins, ncList] = await Promise.all([fetchInspectionList(), fetchNonconformingList()])
+    const [ins, ncList, kpiRes] = await Promise.all([
+      fetchInspectionViews().catch(() => null),
+      fetchNonconformingViews().catch(() => null),
+      fetchQualityKpi().catch(() => null)
+    ])
     inspections.value = ins || []
     nc.value = ncList || []
+    if (kpiRes) kpi.value = kpiRes
     updatedAt.value = new Date()
   } catch (e) {
     ElMessage.error(e?.message || '加载质检数据失败')

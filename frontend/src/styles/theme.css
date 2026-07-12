@@ -2,7 +2,7 @@
  * MES 全局主题 — 黑色侧栏 + 细体 + 墨绿强调色（全角色统一）
  */
 :root {
-  --layout-font: 'Inter', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --layout-font: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
   --layout-accent: #2d8a66;
   --layout-accent-hover: #256f52;
   --layout-accent-light: #4ade80;
@@ -33,12 +33,14 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
-/* —— 管理后台内容区全局细体 —— */
+/* 管理后台内容区全局 — 与用户管理一致 */
 .ruoyi-app-main,
 .ruoyi-page,
 .mes-page,
 .mes-workbench,
-.role-dashboard {
+.role-dashboard,
+.layout-main.ruoyi-app-main > * {
+  font-family: var(--layout-font);
   font-weight: 400;
 }
 
@@ -56,6 +58,18 @@ body,
   --el-button-border-color: var(--layout-accent);
   --el-button-hover-bg-color: var(--layout-accent-hover);
   --el-button-hover-border-color: var(--layout-accent-hover);
+  --el-button-text-color: #fff;
+}
+
+.ruoyi-app-main .el-button--primary.is-plain,
+.ruoyi-page .el-button--primary.is-plain,
+.mes-page .el-button--primary.is-plain {
+  --el-button-bg-color: var(--el-color-primary-light-9);
+  --el-button-border-color: var(--el-color-primary-light-5);
+  --el-button-text-color: var(--layout-accent);
+  --el-button-hover-bg-color: var(--layout-accent);
+  --el-button-hover-border-color: var(--layout-accent);
+  --el-button-hover-text-color: #fff;
 }
 
 .ruoyi-app-main .el-button.is-link,

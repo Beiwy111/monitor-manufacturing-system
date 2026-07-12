@@ -1,257 +1,285 @@
 <template>
-  <MesPageShell toolbar-title="生产报工" :detail-rows="rows" :logs="mes.operationLogs.slice(0,8)">
-    <template #table>
-      <div v-if="binding" class="report-context">
-        <div class="report-context__main">
-          <span class="report-context__tag">固定车间</span>
-          <strong>{{ binding.workshopName }}</strong>
-          <el-divider direction="vertical" />
-          <span class="report-context__tag">负责工序</span>
-          <strong>{{ binding.stageName }}</strong>
-        </div>
-        <div v-if="currentTask" class="report-context__current">
-          <span class="report-context__tag report-context__tag--active">当前生产</span>
-          <strong>{{ currentTask.workOrderNo || currentTask.workOrderId }}</strong>
-          <span class="report-context__sep">·</span>
-          <span>{{ stageProgressLabel(currentTask) }}</span>
-          <span class="report-context__sep">·</span>
-          <span>进度 {{ currentTask.completedQty }}/{{ currentTask.planQty }}</span>
-          <StatusBadge :status="currentTask.status" />
-        </div>
-        <el-alert
-          v-else
-          type="info"
-          :closable="false"
-          title="当前没有可报工的派工任务，请先在「我的派工」接收并开始生产。"
-          style="margin-top: 8px"
-        />
+  <div class="op-report-page">
+    <!-- 工序选择 -->
+    <section v-if="flowStep === 0" class="op-report-page__section">
+      <h2 class="op-report-page__heading">选择报工工序</h2>
+      <p class="op-report-page__sub">
+        四道生产工序独立报工窗口，点击进入对应工序进行生产报工
+        <span v-if="binding">（您负责：{{ binding.stageName }} · {{ binding.workshopName }}）</span>
+      </p>
+
+      <div class="op-station-grid">
+        <button
+          v-for="s in stations"
+          :key="s.id"
+          type="button"
+          class="op-station-card"
+          :class="{
+            'is-mine': isMyStation(s),
+            'is-locked': !canEnterStation(s),
+            'is-active': activeStationId === s.id
+          }"
+          :disabled="!canEnterStation(s)"
+          @click="enterStation(s)"
+        >
+          <div class="op-station-card__img">
+            <img :src="s.image" :alt="s.title" />
+            <span class="op-station-card__order">{{ s.order }}</span>
+          </div>
+          <div class="op-station-card__body">
+            <h3>{{ s.title }}</h3>
+            <p>{{ s.subtitle }}</p>
+            <div class="op-station-card__meta">
+              <el-tag v-if="isMyStation(s)" type="success" size="small">我的工序</el-tag>
+              <el-tag v-else-if="!canEnterStation(s)" type="info" size="small">非本工序</el-tag>
+              <el-tag size="small" :type="taskCount(s) > 0 ? 'warning' : 'info'">
+                待报工 {{ taskCount(s) }}
+              </el-tag>
+            </div>
+          </div>
+        </button>
       </div>
+    </section>
 
-      <el-alert
-        type="info"
-        :closable="false"
-        title="每名操作员固定在一个车间，同一时间只能承担一道工序。请先完成计划数量报工，最后一道工序再提交质检。"
-        style="margin: 12px 0"
-      />
-
-      <el-table
-        :data="activeDispatches"
-        border
-        stripe
-        highlight-current-row
-        :row-class-name="rowClassName"
-        @current-change="onRowClick"
-      >
-        <el-table-column prop="id" label="派工单" width="130" />
-        <el-table-column prop="workshopName" label="车间" min-width="130" />
-        <el-table-column prop="processStep" label="工序" width="110" />
-        <el-table-column label="工序进度" width="150">
-          <template #default="{ row }">{{ stageProgressLabel(row) }}</template>
-        </el-table-column>
-        <el-table-column prop="planQty" label="计划" width="70" />
-        <el-table-column prop="completedQty" label="已报" width="70" />
-        <el-table-column label="进度" width="100">
-          <template #default="{ row }">{{ progressText(row) }}</template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="90">
-          <template #default="{ row }"><StatusBadge :status="row.status" /></template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              v-if="canSubmitQc(row)"
-              link
-              type="primary"
-              @click="selectAndSubmitQc(row)"
-            >
-              提交质检
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </template>
-    <template #detail-extra>
-      <el-form v-if="selected && canReport" label-width="90px" style="margin-top:12px">
-        <el-alert
-          type="success"
-          :closable="false"
-          :title="`正在报工：${selected.workshopName || binding?.workshopName} · ${stageProgressLabel(selected)}`"
-          style="margin-bottom: 12px"
-        />
-        <el-form-item label="报工数量"><el-input-number v-model="form.reportQty" :min="1" /></el-form-item>
-        <el-form-item label="合格数量"><el-input-number v-model="form.qualifiedQty" :min="0" /></el-form-item>
-        <el-form-item label="不合格"><el-input-number v-model="form.unqualifiedQty" :min="0" /></el-form-item>
-        <el-form-item label="工时(h)"><el-input-number v-model="form.workHours" :min="0.5" :step="0.5" /></el-form-item>
-        <el-form-item label="备注"><el-input v-model="form.remark" /></el-form-item>
-        <el-button type="primary" @click="submit">提交报工</el-button>
-      </el-form>
-      <el-alert
-        v-else-if="selected?.status === '待质检'"
-        type="success"
-        :closable="false"
-        title="已提交质检，请等待质检员检验。合格品将流转至仓储入库。"
-      />
-    </template>
-    <template #detail-actions>
-      <el-button
-        v-if="selected && canSubmitQc(selected)"
-        type="warning"
-        size="small"
-        @click="submitQc"
-      >
-        提交质检
-      </el-button>
-    </template>
-  </MesPageShell>
+    <!-- 工序报工窗口 -->
+    <section v-else class="op-report-page__section">
+      <div class="op-report-page__bar">
+        <el-button link type="primary" @click="backToHub">← 返回工序选择</el-button>
+        <el-tag type="primary">第 {{ activeStation?.order }}/4 道工序</el-tag>
+        <strong>{{ activeStation?.title }}</strong>
+      </div>
+      <OperatorProcessWorkbench v-if="activeStation" :station="activeStation" />
+    </section>
+  </div>
 </template>
 
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
-import { useMesFilter, detailRows } from '@/composables/useMesPage'
-import { DISPATCH_REPORTABLE, DISPATCH_ACTIVE } from '@/mock/constants'
-import { operatorBinding, pickCurrentDispatch, stageProgressLabel } from '@/utils/operatorWorkshop'
-import MesPageShell from '@/components/mes/MesPageShell.vue'
-import StatusBadge from '@/components/mes/StatusBadge.vue'
+import { DISPATCH_ACTIVE } from '@/mock/constants'
+import { operatorBinding } from '@/utils/operatorWorkshop'
+import {
+  OPERATOR_PROCESS_STATIONS,
+  stationById,
+  stationByStageName,
+  dispatchMatchesStage
+} from '@/config/operatorProcessStations'
+import OperatorProcessWorkbench from '@/components/production/OperatorProcessWorkbench.vue'
 
+const route = useRoute()
+const router = useRouter()
 const mes = useMesStore()
 const userStore = useUserStore()
+
+const flowStep = ref(0)
+const activeStationId = ref('')
+
+const stations = OPERATOR_PROCESS_STATIONS
 const username = computed(() => userStore.userInfo?.username)
 const binding = computed(() => operatorBinding(username.value))
+const activeStation = computed(() => stationById(activeStationId.value))
 
-const activeDispatches = computed(() =>
-  mes.myDispatches(username.value).filter((d) => DISPATCH_ACTIVE.includes(d.status))
-)
-const currentTask = computed(() => pickCurrentDispatch(activeDispatches.value, true))
-const { selected, onRowClick } = useMesFilter(activeDispatches, ['id'])
-const form = reactive({ reportQty: 10, qualifiedQty: 10, unqualifiedQty: 0, workHours: 2, remark: '' })
+const myDispatches = computed(() => mes.myDispatches(username.value))
 
-watch(
-  currentTask,
-  (task) => {
-    if (task && DISPATCH_REPORTABLE.includes(task.status)) {
-      selected.value = task
-    }
-  },
-  { immediate: true }
-)
-
-const rows = computed(() => detailRows(selected.value, [
-  { key: 'workOrderNo', label: '工单' },
-  { key: 'workshopName', label: '车间' },
-  { key: 'processStep', label: '工序' },
-  { key: 'planQty', label: '计划量' },
-  { key: 'completedQty', label: '已报工' },
-  { key: 'status', label: '状态' }
-]))
-
-const canReport = computed(() =>
-  selected.value && DISPATCH_REPORTABLE.includes(selected.value.status) && selected.value.completedQty < selected.value.planQty
-)
-
-function rowClassName({ row }) {
-  return row.id === currentTask.value?.id ? 'is-current-task' : ''
+function isMyStation(station) {
+  if (!binding.value) return true
+  return binding.value.stageName === station.stageName
 }
 
-function canSubmitQc(row) {
-  return DISPATCH_REPORTABLE.includes(row.status) &&
-    row.completedQty >= row.planQty &&
-    (row.finalProductionStep || row.processStep === '返修')
+function canEnterStation(station) {
+  if (!binding.value) return true
+  return binding.value.stageName === station.stageName
 }
 
-function progressText(row) {
-  if (row.completedQty < row.planQty) return '生产中'
-  if (row.finalProductionStep || row.processStep === '返修') return '可提交质检'
-  return '工序完成'
+function taskCount(station) {
+  return myDispatches.value.filter((d) =>
+    DISPATCH_ACTIVE.includes(d.status) && dispatchMatchesStage(d, station)
+  ).length
 }
 
-async function submit() {
-  if (!selected.value) return
-  try {
-    const rpt = await mes.submitReport(
-      { ...form, dispatchId: selected.value.id, operatorName: userStore.displayName },
-      username.value,
-      'operator'
-    )
-    if (rpt) {
-      ElMessage.success('报工已提交')
-      if (selected.value.completedQty >= selected.value.planQty) {
-        ElMessage.info(canSubmitQc(selected.value)
-          ? '最后一道工序已完成，请点击「提交质检」送交质检员'
-          : '当前工序已完成，等待后续工序继续生产')
-      }
-    } else {
-      ElMessage.warning('报工失败，请确认派工状态')
-    }
-  } catch (e) {
-    ElMessage.error(e?.message || '报工失败')
+function enterStation(station) {
+  if (!canEnterStation(station)) {
+    ElMessage.warning(`您负责「${binding.value?.stageName}」，请进入对应工序窗口报工`)
+    return
   }
+  activeStationId.value = station.id
+  flowStep.value = 1
+  router.replace({ query: { stage: station.id } })
 }
 
-async function submitQc() {
-  if (!selected.value) return
+function backToHub() {
+  flowStep.value = 0
+  activeStationId.value = ''
+  router.replace({ query: {} })
+}
+
+onMounted(async () => {
   try {
-    const qcId = await mes.submitToInspection(selected.value.id, username.value, 'operator')
-    if (qcId) {
-      ElMessage.success('已提交质检，质检员可在「待检任务」中处理')
-    } else {
-      ElMessage.warning('提交失败：请确认计划数量已全部报工且尚未重复提交')
-    }
-  } catch (e) {
-    ElMessage.error(e?.message || '提交质检失败')
-  }
-}
+    await mes.hydrateFromApi()
+  } catch { /* ignore */ }
 
-function selectAndSubmitQc(row) {
-  selected.value = row
-  submitQc()
-}
+  const qStage = route.query.stage
+  if (qStage) {
+    const s = stationById(String(qStage))
+    if (s && canEnterStation(s)) {
+      activeStationId.value = s.id
+      flowStep.value = 1
+      return
+    }
+  }
+
+  // 已绑定操作员直接进入本工序窗口
+  if (binding.value) {
+    const s = stationByStageName(binding.value.stageName)
+    if (s) {
+      activeStationId.value = s.id
+      flowStep.value = 1
+      router.replace({ query: { stage: s.id } })
+    }
+  }
+})
 </script>
 
 <style scoped>
-.report-context {
-  margin-bottom: 12px;
-  padding: 14px 16px;
-  border: 1px solid #d9ecff;
-  border-radius: 8px;
-  background: linear-gradient(180deg, #f5f9ff 0%, #fff 100%);
+.op-report-page {
+  padding: 0;
 }
 
-.report-context__main,
-.report-context__current {
+.op-report-page__section {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.op-report-page__heading {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.op-report-page__sub {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: #909399;
+}
+
+.op-station-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1400px) {
+  .op-station-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .op-station-grid { grid-template-columns: 1fr; }
+}
+
+.op-station-card {
+  text-align: left;
+  border: 2px solid #e4e7ed;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  cursor: pointer;
+  padding: 0;
+  transition: transform .2s, border-color .2s, box-shadow .2s;
+}
+
+.op-station-card:hover:not(:disabled) {
+  transform: translateY(-3px);
+  border-color: #409eff;
+  box-shadow: 0 10px 28px rgba(64, 158, 255, .18);
+}
+
+.op-station-card.is-mine {
+  border-color: #67c23a;
+}
+
+.op-station-card.is-mine:hover:not(:disabled) {
+  border-color: #67c23a;
+  box-shadow: 0 10px 28px rgba(103, 194, 58, .2);
+}
+
+.op-station-card:disabled {
+  opacity: 1;
+}
+
+.op-station-card.is-locked {
+  cursor: not-allowed;
+}
+
+.op-station-card.is-locked .op-station-card__img img {
+  filter: none;
+  opacity: 1;
+}
+
+.op-station-card__img {
+  position: relative;
+  height: 200px;
+  background: #0d1117;
+  overflow: hidden;
+}
+
+.op-station-card__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.op-station-card__order {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(45, 138, 102, .92);
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  justify-content: center;
 }
 
-.report-context__current {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed #e4e7ed;
+.op-station-card__body {
+  padding: 14px 16px 18px;
 }
 
-.report-context__tag {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
+.op-station-card__body h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #303133;
+}
+
+.op-station-card__body p {
+  margin: 0 0 12px;
   font-size: 12px;
+  line-height: 1.55;
   color: #909399;
-  background: #f4f4f5;
+  min-height: 38px;
 }
 
-.report-context__tag--active {
-  color: #409eff;
-  background: #ecf5ff;
+.op-station-card__meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.report-context__sep {
-  color: #c0c4cc;
-}
-
-:deep(.is-current-task > td) {
-  background: #f0f9eb !important;
+.op-report-page__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  font-size: 15px;
 }
 </style>

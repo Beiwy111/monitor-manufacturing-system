@@ -14,17 +14,54 @@
 
     <div v-if="detail" class="qc-report-panel__summary">
       <div class="qc-report-panel__stat">
-        <em>{{ detail.sampleQuantity ?? 0 }}</em><span>抽样数</span>
+        <em>{{ detail.sampleQuantity ?? 0 }}</em><span>抽检数</span>
       </div>
       <div class="qc-report-panel__stat qc-report-panel__stat--ok">
-        <em>{{ detail.qualifiedQuantity ?? 0 }}</em><span>合格</span>
+        <em>{{ detail.qualifiedQuantity ?? 0 }}</em><span>合格台数</span>
       </div>
       <div class="qc-report-panel__stat qc-report-panel__stat--bad">
-        <em>{{ detail.unqualifiedQuantity ?? 0 }}</em><span>不良</span>
+        <em>{{ detail.unqualifiedQuantity ?? 0 }}</em><span>不合格台数</span>
       </div>
       <div class="qc-report-panel__stat">
         <em>{{ yieldPct }}%</em><span>合格率</span>
       </div>
+    </div>
+
+    <div v-if="unitMatrix?.rows?.length" class="qc-report-panel__matrix">
+      <div class="qc-report-panel__matrix-hd">逐台五步检测明细（任一道工序不合格则该台不合格）</div>
+      <el-table :data="unitMatrix.rows" border size="small" style="width:100%">
+        <el-table-column prop="unitNo" label="#" width="48" align="center" />
+        <el-table-column prop="serialNo" label="序列号" width="140" />
+        <el-table-column
+          v-for="(title, idx) in unitMatrix.stationTitles"
+          :key="unitMatrix.stationIds[idx]"
+          :label="title"
+          width="100"
+          align="center"
+        >
+          <template #default="{ row }">
+            <el-tag
+              v-if="row[unitMatrix.stationIds[idx]] === true"
+              type="success"
+              size="small"
+            >合格</el-tag>
+            <el-tag
+              v-else-if="row[unitMatrix.stationIds[idx]] === false"
+              type="danger"
+              size="small"
+            >不合格</el-tag>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="综合" width="88" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-tag
+              :type="row.overall === 'PASS' ? 'success' : row.overall === 'FAIL' ? 'danger' : 'info'"
+              size="small"
+            >{{ row.overall === 'PASS' ? '合格' : row.overall === 'FAIL' ? '不合格' : '未完成' }}</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
 
     <div v-if="items.length" class="qc-report-panel__charts">
@@ -51,7 +88,9 @@
       </template>
       <p v-else class="qc-report-panel__ai-text">{{ aiReport.aiAnalysis || aiReport.conclusion }}</p>
     </div>
-    <p v-else-if="canGenerateAi" class="qc-report-panel__hint">检验完成后，点击「生成 AI 质检报告」获取千问智能分析</p>
+    <p v-else-if="canGenerateAi" class="qc-report-panel__hint">
+      {{ props.optionalAi ? 'AI 质检报告为可选项，无需生成也可直接质检通过' : '检验完成后，点击「生成 AI 质检报告」获取千问智能分析' }}
+    </p>
   </div>
 </template>
 
@@ -66,16 +105,16 @@ import { useUserStore } from '@/stores/user'
 
 const props = defineProps({
   detail: { type: Object, default: null },
-  items: { type: Array, default: () => [] }
+  items: { type: Array, default: () => [] },
+  unitMatrix: { type: Object, default: null },
+  optionalAi: { type: Boolean, default: false }
 })
 
 const userStore = useUserStore()
 const aiReport = ref(null)
 const aiLoading = ref(false)
 
-const canGenerateAi = computed(() =>
-  props.detail && !['PENDING', 'RECHECK_REQUIRED'].includes(props.detail.inspectionStatus)
-)
+const canGenerateAi = computed(() => !!props.detail?.inspectionNo)
 
 const yieldPct = computed(() => {
   const s = Number(props.detail?.sampleQuantity)
@@ -130,8 +169,22 @@ const aiSections = computed(() => {
 })
 
 function doExportExcel() {
-  exportInspectionReportExcel({ detail: props.detail, items: props.items, aiReport: aiReport.value })
-  ElMessage.success('质检报告已导出 Excel')
+  try {
+    if (!props.detail) {
+      ElMessage.warning('暂无报告数据可导出')
+      return
+    }
+    exportInspectionReportExcel({
+      detail: props.detail,
+      items: props.items,
+      aiReport: aiReport.value,
+      unitMatrix: props.unitMatrix
+    })
+    ElMessage.success('质检报告已导出 Excel')
+  } catch (e) {
+    console.error('export excel failed:', e)
+    ElMessage.error(e?.message || '导出 Excel 失败')
+  }
 }
 
 async function doGenerateAi() {
@@ -181,6 +234,17 @@ watch(() => props.detail?.inspectionId, () => { aiReport.value = null })
   display: flex;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.qc-report-panel__matrix {
+  margin-bottom: 12px;
+}
+
+.qc-report-panel__matrix-hd {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
 }
 
 .qc-report-panel__stat {

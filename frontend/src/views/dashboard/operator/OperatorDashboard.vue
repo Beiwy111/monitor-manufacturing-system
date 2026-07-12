@@ -27,7 +27,7 @@
       <div class="ruoyi-operator-bar__actions">
         <el-button v-if="currentDispatch.status==='已分配'" type="primary" size="small" :loading="acting" @click="accept">接收工单</el-button>
         <el-button v-if="currentDispatch.status==='已接收'" type="success" size="small" :loading="acting" @click="start">开始生产</el-button>
-        <el-button v-if="DISPATCH_REPORTABLE.includes(currentDispatch.status)" size="small" @click="$router.push('/production/report')">提交报工</el-button>
+        <el-button v-if="DISPATCH_REPORTABLE.includes(currentDispatch.status)" size="small" @click="$router.push(reportPath)">提交报工</el-button>
         <el-button type="danger" size="small" @click="showAlarm=true">触发安灯</el-button>
       </div>
     </div>
@@ -50,7 +50,7 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useMesStore } from '@/stores/mes'
 import { DISPATCH_REPORTABLE, DISPATCH_ACTIVE } from '@/mock/constants'
-import { operatorBinding, pickCurrentDispatch, stageProgressLabel } from '@/utils/operatorWorkshop'
+import { operatorBinding, pickCurrentDispatch, stageProgressLabel, operatorReportPath } from '@/utils/operatorWorkshop'
 import { triggerAlarm } from '@/api/business'
 import RoleWorkbench from '@/components/workbench/RoleWorkbench.vue'
 
@@ -69,13 +69,15 @@ const currentDispatch = computed(() => pickCurrentDispatch(
   myDispatches.value.filter((d) => DISPATCH_ACTIVE.includes(d.status))
 ))
 
-const shortcuts = [
+const reportPath = computed(() => operatorReportPath(username.value))
+
+const shortcuts = computed(() => [
   { label: '我的派工', path: '/production/my-dispatch' },
-  { label: '生产报工', path: '/production/report' },
+  { label: '工序报工', path: reportPath.value },
   { label: '生产报表', path: '/report/production-progress' },
   { label: '工艺说明', path: '/production/process-guide' },
   { label: '安灯报警', path: '/device/alarm' }
-]
+])
 
 onMounted(async () => {
   try {

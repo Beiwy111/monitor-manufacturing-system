@@ -176,5 +176,48 @@ INSERT INTO supplier (supplier_no, supplier_name, contact_person, contact_phone,
 SELECT 'SUP001', '华南显示科技', '张供应', '13800002001', 'ACTIVE', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM supplier WHERE supplier_no = 'SUP001');
 
+INSERT INTO supplier (supplier_no, supplier_name, contact_person, contact_phone, supply_materials, status, created_at, updated_at)
+SELECT 'SUP002', '深圳光电材料有限公司', '孙经理', '13700001001', 'LCD/OLED 显示面板', 'ACTIVE', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM supplier WHERE supplier_no = 'SUP002');
+
+INSERT INTO supplier (supplier_no, supplier_name, contact_person, contact_phone, supply_materials, status, created_at, updated_at)
+SELECT 'SUP003', '东莞背光科技股份', '钱工', '13700001002', 'LED 背光模组', 'ACTIVE', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM supplier WHERE supplier_no = 'SUP003');
+
+INSERT INTO supplier (supplier_no, supplier_name, contact_person, contact_phone, supply_materials, status, created_at, updated_at)
+SELECT 'SUP004', '苏州芯片代理商', '郑销售', '13700001003', '驱动 IC / TCON 芯片', 'ACTIVE', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM supplier WHERE supplier_no = 'SUP004');
+
+INSERT INTO supplier (supplier_no, supplier_name, contact_person, contact_phone, supply_materials, status, created_at, updated_at)
+SELECT 'SUP005', '惠州电路板厂', '冯厂长', '13700001004', 'PCB 主板 / 主控板', 'ACTIVE', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM supplier WHERE supplier_no = 'SUP005');
+
+INSERT INTO supplier (supplier_no, supplier_name, contact_person, contact_phone, supply_materials, status, created_at, updated_at)
+SELECT 'SUP006', '惠州精密五金', '周采购', '13700001005', '铝合金边框 / 结构件', 'ACTIVE', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM supplier WHERE supplier_no = 'SUP006');
+
+INSERT INTO supplier (supplier_no, supplier_name, contact_person, contact_phone, supply_materials, status, created_at, updated_at)
+SELECT 'SUP007', '东莞电源科技', '吴经理', '13700001006', '电源适配器', 'ACTIVE', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM supplier WHERE supplier_no = 'SUP007');
+
+UPDATE material SET supplier_id = (SELECT supplier_id FROM supplier WHERE supplier_no = 'SUP002' LIMIT 1)
+WHERE material_type = 'RAW' AND (material_code LIKE 'MAT-P%' OR material_name LIKE '%面板%');
+
+UPDATE material SET supplier_id = (SELECT supplier_id FROM supplier WHERE supplier_no = 'SUP003' LIMIT 1)
+WHERE material_type = 'RAW' AND (material_code LIKE 'MAT-B%' OR material_name LIKE '%背光%');
+
+UPDATE material SET supplier_id = (SELECT supplier_id FROM supplier WHERE supplier_no = 'SUP004' LIMIT 1)
+WHERE material_type = 'RAW' AND (material_code IN ('MAT-M03', 'MAT-003') OR material_name LIKE '%芯片%' OR material_name LIKE '%驱动%');
+
+UPDATE material SET supplier_id = (SELECT supplier_id FROM supplier WHERE supplier_no = 'SUP005' LIMIT 1)
+WHERE material_type = 'RAW' AND (material_code LIKE 'MAT-M0%' OR material_code = 'MAT-005' OR material_name LIKE '%主控%' OR material_name LIKE '%PCB%')
+  AND material_code NOT IN ('MAT-M03', 'MAT-003');
+
+UPDATE material SET supplier_id = (SELECT supplier_id FROM supplier WHERE supplier_no = 'SUP006' LIMIT 1)
+WHERE material_type = 'RAW' AND (material_code LIKE 'MAT-S0%' AND material_code != 'MAT-S02' OR material_code = 'MAT-004' OR material_name LIKE '%边框%');
+
+UPDATE material SET supplier_id = (SELECT supplier_id FROM supplier WHERE supplier_no = 'SUP007' LIMIT 1)
+WHERE material_type = 'RAW' AND (material_code = 'MAT-S02' OR material_code = 'MAT-006' OR material_name LIKE '%电源%');
+
 UPDATE material SET supplier_id = (SELECT supplier_id FROM supplier WHERE supplier_no = 'SUP001' LIMIT 1)
 WHERE material_type = 'RAW' AND supplier_id IS NULL;

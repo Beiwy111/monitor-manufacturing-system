@@ -9,9 +9,9 @@
       </div>
       <div class="wb-header__right">
         <el-button @click="openPrintDialog">打印报表</el-button>
-        <el-button :loading="calculating" type="primary" @click="doCalculate">重新计算缺料</el-button>
+        <el-button :loading="calculating" type="primary" @click="doCalculate">刷新采购清单</el-button>
         <el-button type="success" :disabled="selection.length === 0" @click="generateVisible = true">
-          一键生成采购单（{{ selection.length }}）
+          批量生成采购单（{{ selection.length }}）
         </el-button>
       </div>
     </div>
@@ -20,6 +20,10 @@
       <el-radio-group v-model="viewMode" size="small" style="margin-right:16px">
         <el-radio-button value="material">物料视图</el-radio-button>
         <el-radio-button value="order">订单视图</el-radio-button>
+      </el-radio-group>
+      <el-radio-group v-if="viewMode==='material'" v-model="listScope" size="small" style="margin-right:16px" @change="loadList">
+        <el-radio-button value="all">全部可采购</el-radio-button>
+        <el-radio-button value="shortage">仅缺料</el-radio-button>
       </el-radio-group>
       <el-input v-if="viewMode==='material'" v-model="filterName" placeholder="物料名称" clearable
         style="width:180px;margin-right:8px" @input="loadList" />
@@ -66,10 +70,31 @@
         <el-table-column prop="onPurchaseQuantity" label="在途" width="80" align="right" />
         <el-table-column prop="shortageQuantity" label="净缺料" width="88" align="right">
           <template #default="{ row }">
-            <span style="color:#e6a23c;font-weight:600">{{ row.shortageQuantity }}</span>
+            <el-tag v-if="Number(row.shortageQuantity) > 0" type="danger" size="small">{{ row.shortageQuantity }}</el-tag>
+            <el-tag v-else type="success" size="small">充足</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="suggestedPurchaseQuantity" label="建议采购" width="90" align="right" />
+        <el-table-column prop="suggestedPurchaseQuantity" label="建议采购" width="96" align="right">
+          <template #default="{ row }">
+            <span style="color:#d46b08;font-weight:600">{{ row.suggestedPurchaseQuantity }}</span>
+            <el-tooltip v-if="Number(row.shortageQuantity) <= 0" content="库存充足，建议量为备库参考，生成时可修改" placement="top">
+              <span class="backup-hint">备库</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column label="采购数量" width="118" align="center">
+          <template #default="{ row }">
+            <el-input-number
+              v-model="rowQtyMap[row.requirementId]"
+              :min="1"
+              :step="1"
+              size="small"
+              controls-position="right"
+              style="width:100px"
+              @click.stop
+            />
+          </template>
+        </el-table-column>
         <el-table-column prop="priority" label="优先级" width="76" align="center">
           <template #default="{ row }">
             <el-tag :type="row.priority===1?'danger':row.priority===2?'warning':'info'" size="small">
@@ -83,14 +108,21 @@
             <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="72">
+        <el-table-column label="操作" width="130" fixed="right">
           <template #default="{ row }">
+            <el-button
+              v-if="canSelect(row)"
+              link
+              type="success"
+              size="small"
+              @click="openSinglePurchase(row)"
+            >采购</el-button>
             <el-button link type="primary" size="small" @click="viewDetail(row)">来源</el-button>
           </template>
         </el-table-column>
       </el-table>
       <div v-if="!loading && requirements.length===0" class="wb-empty">
-        暂无缺料需求，点击「重新计算缺料」生成工作台
+        {{ listScope === 'shortage' ? '当前无缺料物料' : '暂无可采购物料，请点击「刷新采购清单」' }}
       </div>
     </div>
 
@@ -165,13 +197,56 @@
       </template>
     </el-dialog>
 
-    <!-- 一键生成采购单弹窗（按供应商分组预览） -->
-    <el-dialog v-model="generateVisible" title="生成采购订单" width="680px" @open="onGenerateOpen">
+    <!-- 单物料创建采购单 -->
+    <el-dialog v-model="singleVisible" title="创建采购单" width="520px" @open="onSingleOpen">
+      <div v-if="singleForm.row" class="single-mat-preview">
+        <img v-if="materialImage(singleForm.row)" class="material-thumb" :src="materialImage(singleForm.row)" :alt="singleForm.row.materialName" />
+        <div v-else class="material-thumb material-thumb--fallback" :style="materialThumbStyle(singleForm.row)">
+          {{ materialInitial(singleForm.row) }}
+        </div>
+        <div>
+          <div class="single-mat-preview__name">{{ singleForm.row.materialName }}</div>
+          <div class="single-mat-preview__meta">
+            {{ singleForm.row.materialCode }} · 库存 {{ singleForm.row.stockQuantity ?? 0 }} · 在途 {{ singleForm.row.onPurchaseQuantity ?? 0 }}
+          </div>
+        </div>
+      </div>
+      <el-form :model="singleForm" label-width="96px" size="default" style="margin-top:12px">
+        <el-form-item label="采购数量" required>
+          <el-input-number v-model="singleForm.quantity" :min="1" :step="1" style="width:200px" />
+          <span class="form-hint">可自定义数量，不限于建议采购量</span>
+        </el-form-item>
+        <el-form-item label="供应商" required>
+          <el-select v-model="singleForm.supplierId" placeholder="请选择供应商" filterable style="width:100%">
+            <el-option v-for="s in suppliers" :key="s.supplierId" :label="s.supplierName" :value="s.supplierId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="期望到货">
+          <el-date-picker v-model="singleForm.expectedArrivalDate" type="date" value-format="YYYY-MM-DD" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="singleForm.remark" type="textarea" :rows="2" placeholder="选填" />
+        </el-form-item>
+        <el-form-item label="预估金额">
+          <span class="single-amount">¥{{ singleLineAmount }}</span>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="singleVisible = false">取消</el-button>
+        <el-button type="primary" :loading="singleGenerating" :disabled="!singleForm.supplierId" @click="doSinglePurchase">
+          生成采购单
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量生成采购单弹窗（按供应商分组预览） -->
+    <el-dialog v-model="generateVisible" title="批量生成采购订单" width="680px" @open="onGenerateOpen">
       <el-form label-width="100px" size="small" style="margin-bottom:12px">
         <el-form-item label="拆单方式">
           <el-radio-group v-model="generateMode">
             <el-radio value="split">按默认供应商自动拆单</el-radio>
-            <el-radio value="single">指定单一供应商（合并一张单）</el-radio>
+            <el-radio value="single">指定供应商（合并一张单）</el-radio>
+            <el-radio value="individual">每项物料各生成一张单</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item v-if="generateMode === 'single'" label="选择供应商" required>
@@ -197,12 +272,20 @@
           </div>
           <el-table :data="grp.items" border size="small" style="margin:6px 0 10px">
             <el-table-column prop="materialCode" label="编码" width="110" />
-            <el-table-column prop="materialName" label="物料名称" min-width="130" />
-            <el-table-column prop="shortageQuantity" label="缺料量" width="90" align="right">
+            <el-table-column prop="materialName" label="物料名称" min-width="120" />
+            <el-table-column label="采购数量" width="120" align="right">
               <template #default="{ row }">
-                <span style="color:#e6a23c;font-weight:600">{{ row.shortageQuantity }}</span>
+                <el-input-number
+                  v-model="purchaseQtyMap[row.requirementId]"
+                  :min="1"
+                  :step="1"
+                  size="small"
+                  controls-position="right"
+                  style="width:108px"
+                />
               </template>
             </el-table-column>
+            <el-table-column prop="stockQuantity" label="库存" width="72" align="right" />
           </el-table>
           <el-form :model="grp" label-width="90px" size="small">
             <el-form-item label="期望到货">
@@ -212,19 +295,53 @@
           </el-form>
         </div>
       </div>
+      <div v-else-if="generateMode === 'individual'">
+        <el-alert type="info" :closable="false" style="margin-bottom:12px">
+          已勾选 <strong>{{ selection.length }}</strong> 条需求，将分别生成 <strong>{{ selection.length }}</strong> 张独立采购单
+        </el-alert>
+        <el-table :data="selection" border size="small" max-height="280">
+          <el-table-column prop="materialCode" label="编码" width="110" />
+          <el-table-column prop="materialName" label="物料名称" min-width="120" />
+          <el-table-column prop="supplierName" label="供应商" min-width="120" show-overflow-tooltip />
+          <el-table-column label="采购数量" width="120" align="right">
+            <template #default="{ row }">
+              <el-input-number
+                v-model="purchaseQtyMap[row.requirementId]"
+                :min="1"
+                :step="1"
+                size="small"
+                controls-position="right"
+                style="width:108px"
+              />
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
       <div v-else-if="generateMode === 'single'">
         <el-alert type="info" :closable="false" style="margin-bottom:12px">
           已勾选 <strong>{{ selection.length }}</strong> 条需求，将合并为 <strong>1</strong> 张采购单
         </el-alert>
-        <el-table :data="selection" border size="small" max-height="240">
+        <el-table :data="selection" border size="small" max-height="280">
           <el-table-column prop="materialCode" label="编码" width="110" />
-          <el-table-column prop="materialName" label="物料名称" min-width="130" />
-          <el-table-column prop="shortageQuantity" label="缺料量" width="90" align="right" />
+          <el-table-column prop="materialName" label="物料名称" min-width="120" />
+          <el-table-column label="采购数量" width="120" align="right">
+            <template #default="{ row }">
+              <el-input-number
+                v-model="purchaseQtyMap[row.requirementId]"
+                :min="1"
+                :step="1"
+                size="small"
+                controls-position="right"
+                style="width:108px"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column prop="stockQuantity" label="库存" width="72" align="right" />
           <el-table-column label="单价(元)" width="90" align="right">
             <template #default="{ row }">{{ unitPriceOf(row) }}</template>
           </el-table-column>
           <el-table-column label="行金额" width="100" align="right">
-            <template #default="{ row }">{{ lineAmountOf(row) }}</template>
+            <template #default="{ row }">{{ lineAmountOf(row, purchaseQtyMap[row.requirementId]) }}</template>
           </el-table-column>
         </el-table>
         <el-form :model="globalForm" label-width="90px" size="small" style="margin-top:10px">
@@ -241,7 +358,7 @@
       <template #footer>
         <el-button @click="generateVisible=false">取消</el-button>
         <el-button type="primary" :loading="generating" :disabled="generateMode === 'single' && !selectedSupplierId" @click="doGenerate">
-          确认生成 {{ generateMode === 'single' ? 1 : (supplierGroups.length || 1) }} 张采购单
+          确认生成 {{ generateMode === 'individual' ? selection.length : (generateMode === 'single' ? 1 : (supplierGroups.length || 1)) }} 张采购单
         </el-button>
       </template>
     </el-dialog>
@@ -251,7 +368,8 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   calculatePurchaseRequirements,
   fetchWorkbenchList,
@@ -265,7 +383,9 @@ import { materialImageByCode } from '@/utils/materialImages'
 import ModulePageShell from '@/components/module/ModulePageShell.vue'
 import { moduleStatusType } from '@/constants/moduleStatus'
 
+const router = useRouter()
 const viewMode = ref('material')
+const listScope = ref('all')
 const filterName = ref('')
 const filterPriority = ref(null)
 
@@ -285,6 +405,18 @@ const generating = ref(false)
 const generateMode = ref('split')
 const selectedSupplierId = ref(null)
 const suppliers = ref([])
+const purchaseQtyMap = reactive({})
+const rowQtyMap = reactive({})
+
+const singleVisible = ref(false)
+const singleGenerating = ref(false)
+const singleForm = reactive({
+  row: null,
+  quantity: 1,
+  supplierId: null,
+  expectedArrivalDate: '',
+  remark: ''
+})
 
 const MATERIAL_PRICE = {
   'MAT-001': 280, 'MAT-002': 85, 'MAT-003': 12.5,
@@ -326,6 +458,7 @@ function onGenerateOpen() {
   generateMode.value = 'split'
   selectedSupplierId.value = null
   buildSupplierGroups()
+  initPurchaseQtyMap(selection.value)
   fetchActiveSupplierList().then(list => {
     suppliers.value = list || []
     if (suppliers.value.length === 1) selectedSupplierId.value = suppliers.value[0].supplierId
@@ -336,10 +469,29 @@ function unitPriceOf(row) {
   return MATERIAL_PRICE[row.materialCode] ?? '—'
 }
 
-function lineAmountOf(row) {
-  const qty = Number(row.suggestedPurchaseQuantity ?? row.shortageQuantity ?? 0)
+function lineAmountOf(row, qtyOverride) {
+  const qty = Number(qtyOverride ?? row.suggestedPurchaseQuantity ?? row.shortageQuantity ?? 0)
   const price = Number(MATERIAL_PRICE[row.materialCode] ?? 0)
   return (qty * price).toLocaleString(undefined, { minimumFractionDigits: 2 })
+}
+
+function initRowQtyMap(rows = []) {
+  for (const row of rows) {
+    if (!row.requirementId) continue
+    if (rowQtyMap[row.requirementId] == null) {
+      const suggested = Number(row.suggestedPurchaseQuantity ?? row.shortageQuantity ?? 0)
+      rowQtyMap[row.requirementId] = suggested > 0 ? suggested : 100
+    }
+  }
+}
+
+function initPurchaseQtyMap(rows = []) {
+  Object.keys(purchaseQtyMap).forEach(k => delete purchaseQtyMap[k])
+  for (const row of rows) {
+    if (!row.requirementId) continue
+    const suggested = Number(row.suggestedPurchaseQuantity ?? row.shortageQuantity ?? 0)
+    purchaseQtyMap[row.requirementId] = rowQtyMap[row.requirementId] ?? (suggested > 0 ? suggested : 100)
+  }
 }
 
 function statusLabel(status) {
@@ -409,13 +561,14 @@ function isBetterRequirement(candidate, existing) {
 async function loadList() {
   loading.value = true
   try {
-    const params = {}
+    const params = { scope: listScope.value }
     if (filterName.value) params.materialName = filterName.value
     if (filterPriority.value != null) params.priority = filterPriority.value
     requirements.value = normalizeRequirements(await fetchWorkbenchList(params) || [])
+    initRowQtyMap(requirements.value)
     selection.value = []
   } catch {
-    ElMessage.error('加载缺料清单失败')
+    ElMessage.error('加载采购清单失败')
   } finally {
     loading.value = false
   }
@@ -435,15 +588,15 @@ async function loadOrderView() {
 async function doCalculate(showMessage = true) {
   calculating.value = true
   try {
-    const result = await calculatePurchaseRequirements()
-    requirements.value = normalizeRequirements(result || [])
-    selection.value = []
+    await calculatePurchaseRequirements()
+    await loadList()
     if (showMessage) {
-      ElMessage.success(`计算完成，共 ${requirements.value.length} 种缺料物料`)
+      const shortageCount = requirements.value.filter(r => Number(r.shortageQuantity) > 0).length
+      ElMessage.success(`刷新完成，共 ${requirements.value.length} 种可采购物料（缺料 ${shortageCount} 种）`)
     }
     if (viewMode.value === 'order') await loadOrderView()
   } catch (e) {
-    ElMessage.error(e?.message || '缺料计算失败')
+    ElMessage.error(e?.message || '刷新采购清单失败')
   } finally {
     calculating.value = false
   }
@@ -635,6 +788,78 @@ function printReport(reportType, externalRows = null) {
   setTimeout(() => win.print(), 300)
 }
 
+const singleLineAmount = computed(() => {
+  if (!singleForm.row) return '0.00'
+  return lineAmountOf(singleForm.row, singleForm.quantity)
+})
+
+function openSinglePurchase(row) {
+  singleForm.row = row
+  singleForm.quantity = Number(rowQtyMap[row.requirementId]) || Number(row.suggestedPurchaseQuantity) || 100
+  singleForm.supplierId = row.supplierId || null
+  singleForm.expectedArrivalDate = row.expectedArrivalDate || ''
+  singleForm.remark = ''
+  singleVisible.value = true
+}
+
+function onSingleOpen() {
+  fetchActiveSupplierList().then(list => {
+    suppliers.value = list || []
+    if (!singleForm.supplierId && suppliers.value.length === 1) {
+      singleForm.supplierId = suppliers.value[0].supplierId
+    }
+  }).catch(() => { suppliers.value = [] })
+}
+
+async function doSinglePurchase() {
+  const row = singleForm.row
+  if (!row?.requirementId) return
+  const qty = Number(singleForm.quantity)
+  if (!qty || qty <= 0) {
+    ElMessage.warning('采购数量必须大于 0')
+    return
+  }
+  if (!singleForm.supplierId) {
+    ElMessage.warning('请选择供应商')
+    return
+  }
+  const supplier = suppliers.value.find(s => s.supplierId === singleForm.supplierId)
+  singleGenerating.value = true
+  try {
+    const created = await generatePurchaseOrder({
+      requirementIds: [row.requirementId],
+      forceSupplierId: singleForm.supplierId,
+      quantityOverrides: { [row.requirementId]: qty },
+      supplierOverrides: {
+        [String(singleForm.supplierId)]: {
+          supplierName: supplier?.supplierName,
+          supplierContact: supplier?.contactPerson,
+          supplierPhone: supplier?.contactPhone,
+          expectedArrivalDate: singleForm.expectedArrivalDate || undefined
+        }
+      },
+      remark: singleForm.remark || undefined
+    })
+    const order = Array.isArray(created) ? created[0] : created
+    rowQtyMap[row.requirementId] = qty
+    singleVisible.value = false
+    ElMessage.success(`已生成采购单 ${order?.purchaseOrderNo || ''}`)
+    await doCalculate(false)
+    try {
+      await ElMessageBox.confirm('是否前往采购订单页查看？', '创建成功', {
+        confirmButtonText: '去查看',
+        cancelButtonText: '留在此页',
+        type: 'success'
+      })
+      router.push('/purchase/order')
+    } catch { /* 留在此页 */ }
+  } catch (e) {
+    ElMessage.error(e?.message || '生成采购单失败')
+  } finally {
+    singleGenerating.value = false
+  }
+}
+
 async function doGenerate() {
   if (selection.value.length === 0) {
     ElMessage.warning('请先勾选采购需求')
@@ -644,8 +869,54 @@ async function doGenerate() {
     ElMessage.warning('请选择供应商')
     return
   }
+  const quantityOverrides = {}
+  for (const row of selection.value) {
+    const qty = Number(purchaseQtyMap[row.requirementId])
+    if (!qty || qty <= 0) {
+      ElMessage.warning(`请为「${row.materialName}」填写大于 0 的采购数量`)
+      return
+    }
+    quantityOverrides[row.requirementId] = qty
+  }
   generating.value = true
   try {
+    if (generateMode.value === 'individual') {
+      const createdNos = []
+      for (const row of selection.value) {
+        const qty = Number(purchaseQtyMap[row.requirementId])
+        if (!qty || qty <= 0) {
+          ElMessage.warning(`请为「${row.materialName}」填写大于 0 的采购数量`)
+          return
+        }
+        const supplierId = row.supplierId || selectedSupplierId.value
+        if (!supplierId) {
+          ElMessage.warning(`物料「${row.materialName}」未绑定供应商，请先指定默认供应商`)
+          return
+        }
+        const supplier = suppliers.value.find(s => s.supplierId === supplierId)
+        const created = await generatePurchaseOrder({
+          requirementIds: [row.requirementId],
+          forceSupplierId: supplierId,
+          quantityOverrides: { [row.requirementId]: qty },
+          supplierOverrides: {
+            [String(supplierId)]: {
+              supplierName: supplier?.supplierName || row.supplierName,
+              supplierContact: supplier?.contactPerson,
+              supplierPhone: supplier?.contactPhone,
+              expectedArrivalDate: globalForm.expectedArrivalDate || undefined
+            }
+          },
+          remark: globalForm.remark || undefined
+        })
+        const order = Array.isArray(created) ? created[0] : created
+        if (order?.purchaseOrderNo) createdNos.push(order.purchaseOrderNo)
+      }
+      ElMessage.success(`成功生成 ${createdNos.length} 张采购单：${createdNos.join('、')}`)
+      generateVisible.value = false
+      await doCalculate(false)
+      return
+    }
+
     const overrides = {}
     if (generateMode.value === 'split') {
       for (const grp of supplierGroups.value) {
@@ -665,6 +936,7 @@ async function doGenerate() {
     const payload = {
       requirementIds: selection.value.map(r => r.requirementId),
       supplierOverrides: overrides,
+      quantityOverrides,
       remark: globalForm.remark || undefined
     }
     if (generateMode.value === 'single') {
@@ -684,14 +956,51 @@ async function doGenerate() {
 }
 
 watch(viewMode, (val) => {
-  if (val === 'order') doCalculate(false)
-  else doCalculate(false)
+  if (val === 'order') loadOrderView()
+  else loadList()
 })
 
 onMounted(() => { doCalculate(false) })
 </script>
 
 <style scoped>
+.backup-hint {
+  margin-left: 4px;
+  font-size: 10px;
+  color: #8c8c8c;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.form-hint {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+.single-mat-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+.single-mat-preview__name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #001b3f;
+}
+.single-mat-preview__meta {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-top: 4px;
+}
+.single-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: #cf1322;
+}
 .wb-header {
   display: flex;
   align-items: center;

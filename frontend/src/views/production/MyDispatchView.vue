@@ -34,7 +34,7 @@
           <template #default="{ row }">
             <el-button v-if="row.status === '已分配'" link type="primary" @click="selectAndAccept(row)">接收</el-button>
             <el-button v-if="row.status === '已接收'" link type="success" @click="selectAndStart(row)">开始生产</el-button>
-            <el-button v-if="DISPATCH_REPORTABLE.includes(row.status)" link type="primary" @click="$router.push('/production/report')">去报工</el-button>
+            <el-button v-if="DISPATCH_REPORTABLE.includes(row.status)" link type="primary" @click="$router.push(reportPath)">去报工</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -42,7 +42,7 @@
     <template #detail-actions>
       <el-button v-if="selected?.status === '已分配'" type="primary" size="small" @click="accept">接收派工</el-button>
       <el-button v-if="selected?.status === '已接收'" type="success" size="small" @click="start">开始生产</el-button>
-      <el-button v-if="selected && DISPATCH_REPORTABLE.includes(selected.status)" type="primary" size="small" @click="$router.push('/production/report')">提交报工</el-button>
+      <el-button v-if="selected && DISPATCH_REPORTABLE.includes(selected.status)" type="primary" size="small" @click="$router.push(reportPath)">提交报工</el-button>
     </template>
   </MesPageShell>
 </template>
@@ -54,7 +54,7 @@ import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { DISPATCH_STATUS, DISPATCH_REPORTABLE } from '@/mock/constants'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
-import { operatorBinding, stageProgressLabel } from '@/utils/operatorWorkshop'
+import { operatorBinding, stageProgressLabel, operatorReportPath } from '@/utils/operatorWorkshop'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 
@@ -62,6 +62,7 @@ const mes = useMesStore()
 const userStore = useUserStore()
 const username = computed(() => userStore.userInfo?.username)
 const binding = computed(() => operatorBinding(username.value))
+const reportPath = computed(() => operatorReportPath(username.value))
 const myList = computed(() => mes.myDispatches(username.value))
 const { selected, onRowClick } = useMesFilter(myList, ['id'])
 const rows = computed(() => detailRows(selected.value, [

@@ -38,7 +38,8 @@ public interface QualityService {
     Map<String, Object> evaluate(Long inspectionId);
 
     // ── 质检状态流转 ──────────────────────────────────────────
-    QualityInspection passInspection(Long inspectionId, String remark, String operator);
+    QualityInspection passInspection(Long inspectionId, String remark, String operator,
+                                     Integer sampleQty, Integer qualifiedQty, Integer unqualifiedQty);
     QualityInspection failInspection(Long inspectionId, String defectType, String defectReason,
                                      BigDecimal defectQuantity, String severity, String remark, String operator);
     QualityInspection requireRecheck(Long inspectionId, String reason, String operator);

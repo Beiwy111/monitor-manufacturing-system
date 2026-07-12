@@ -10,6 +10,13 @@ export const MES_STORAGE_KEY = 'mes-store-data'
 let idSeq = 1000
 const nextId = (prefix) => `${prefix}-${++idSeq}`
 
+function calcWorkHours(startTime, endTime) {
+  if (!startTime || !endTime) return 1
+  const ms = new Date(endTime).getTime() - new Date(startTime).getTime()
+  if (!Number.isFinite(ms) || ms <= 0) return 1
+  return Math.max(0.5, Math.round((ms / 3600000) * 10) / 10)
+}
+
 const LIST_KEYS = [
   'sysUsers', 'sysRoles', 'sysPermissions', 'sysMenus', 'customers', 'orders', 'plans',
   'workOrders', 'dispatches', 'workReports', 'inspections', 'defects', 'purchaseDemands',
@@ -132,7 +139,8 @@ export const useMesStore = defineStore('mes', {
     pendingInspections: (s) => s.inspections.filter((i) => i.status === '待检'),
     pendingInbound: (s) => s.inboundTasks.filter((t) => t.status === '待入库'),
     openAlarms: (s) => s.alarms.filter((a) => a.status !== '已关闭'),
-    myDispatches: (s) => (username) => s.dispatches.filter((d) => d.operator === username),
+    myDispatches: (s) => (username) =>
+      s.dispatches.filter((d) => (d.operator || d.operatorUsername) === username),
     stats: (s) => ({
       orderCount: s.orders.length,
       planCount: s.plans.length,
@@ -526,11 +534,14 @@ export const useMesStore = defineStore('mes', {
       const d = this.dispatches.find((x) => x.id === payload.dispatchId)
       if (!d || !['已接收', '生产中'].includes(d.status)) return null
       const id = nextId('RPT-2026')
+      const qty = payload.reportQty || 0
       const rpt = {
         id, dispatchId: d.id, workOrderId: d.workOrderId, processStep: d.processStep,
-        operator, operatorName: payload.operatorName, reportQty: payload.reportQty,
-        qualifiedQty: payload.qualifiedQty, unqualifiedQty: payload.unqualifiedQty || 0,
-        workHours: payload.workHours, status: '已提交', remark: payload.remark || '',
+        operator, operatorName: payload.operatorName, reportQty: qty,
+        qualifiedQty: qty, unqualifiedQty: 0,
+        startTime: payload.startTime, endTime: payload.endTime,
+        workHours: calcWorkHours(payload.startTime, payload.endTime),
+        status: '已提交', remark: payload.remark || '',
         createdAt: now()
       }
       this.workReports.unshift(rpt)

@@ -25,6 +25,24 @@ export function operatorBinding(username) {
   return OPERATOR_BINDINGS[username] || null
 }
 
+/** 操作员绑定工序对应的报工窗口 id */
+export function operatorStageId(username) {
+  const bind = operatorBinding(username)
+  if (!bind) return null
+  const map = {
+    显示屏加工: 'display',
+    主板装配: 'motherboard',
+    面板贴附: 'attach',
+    整机组装: 'assembly'
+  }
+  return map[bind.stageName] || null
+}
+
+export function operatorReportPath(username) {
+  const stage = operatorStageId(username)
+  return stage ? `/production/report?stage=${stage}` : '/production/report'
+}
+
 export function operatorLabel(user) {
   if (!user) return ''
   const bind = operatorBinding(user.username)

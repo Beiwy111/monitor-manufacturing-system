@@ -19,6 +19,20 @@ public class QualityActionRequest {
     // 不良品处置
     private String handleMethod;
 
+    // 通过/不通过时由前端传入的实际抽检数量（与五步检测一致）
+    private Integer sampleQuantity;
+    private Integer qualifiedQuantity;
+    private Integer unqualifiedQuantity;
+
+    public Integer getSampleQuantity() { return sampleQuantity; }
+    public void setSampleQuantity(Integer sampleQuantity) { this.sampleQuantity = sampleQuantity; }
+
+    public Integer getQualifiedQuantity() { return qualifiedQuantity; }
+    public void setQualifiedQuantity(Integer qualifiedQuantity) { this.qualifiedQuantity = qualifiedQuantity; }
+
+    public Integer getUnqualifiedQuantity() { return unqualifiedQuantity; }
+    public void setUnqualifiedQuantity(Integer unqualifiedQuantity) { this.unqualifiedQuantity = unqualifiedQuantity; }
+
     public Long getInspectionId() { return inspectionId; }
     public void setInspectionId(Long inspectionId) { this.inspectionId = inspectionId; }
 

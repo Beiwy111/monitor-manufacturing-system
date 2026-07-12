@@ -483,9 +483,9 @@
 
 .ruoyi-sidebar-user__name {
   color: rgba(255, 255, 255, 0.92);
-  font-size: 13px;
-  font-weight: 300;
-  letter-spacing: 0.02em;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .ruoyi-sidebar-user__links {
@@ -521,8 +521,8 @@
   gap: 4px;
   padding: 5px 12px;
   font-size: 12px;
-  font-weight: 300;
-  color: #6b7280;
+  font-weight: 400;
+  color: #606266;
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -630,4 +630,145 @@
   border-color: var(--layout-accent);
   color: var(--layout-accent);
   background: #ecf5ff;
+}
+
+/* —— 全站后台字体统一（与用户管理 ruoyi-page 一致） —— */
+.layout-main.ruoyi-app-main {
+  font-family: var(--layout-font);
+  font-size: 14px;
+  font-weight: 400;
+  color: #606266;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.layout-main.ruoyi-app-main h1,
+.layout-main.ruoyi-app-main h2,
+.layout-main.ruoyi-app-main h3,
+.layout-main.ruoyi-app-main h4,
+.layout-main.ruoyi-app-main h5,
+.layout-main.ruoyi-app-main h6 {
+  font-family: inherit;
+  font-weight: 500;
+  color: #303133;
+}
+
+.layout-main.ruoyi-app-main p,
+.layout-main.ruoyi-app-main span,
+.layout-main.ruoyi-app-main label,
+.layout-main.ruoyi-app-main td,
+.layout-main.ruoyi-app-main th,
+.layout-main.ruoyi-app-main li {
+  font-family: inherit;
+}
+
+.layout-main.ruoyi-app-main .el-button,
+.layout-main.ruoyi-app-main .el-input,
+.layout-main.ruoyi-app-main .el-input__wrapper,
+.layout-main.ruoyi-app-main .el-input__inner,
+.layout-main.ruoyi-app-main .el-textarea__inner,
+.layout-main.ruoyi-app-main .el-select,
+.layout-main.ruoyi-app-main .el-form-item__label,
+.layout-main.ruoyi-app-main .el-table,
+.layout-main.ruoyi-app-main .el-tabs__item,
+.layout-main.ruoyi-app-main .el-pagination,
+.layout-main.ruoyi-app-main .el-tag,
+.layout-main.ruoyi-app-main .el-dialog,
+.layout-main.ruoyi-app-main .el-dialog__title,
+.layout-main.ruoyi-app-main .el-drawer,
+.layout-main.ruoyi-app-main .el-drawer__title,
+.layout-main.ruoyi-app-main .el-descriptions__label,
+.layout-main.ruoyi-app-main .el-descriptions__content,
+.layout-main.ruoyi-app-main .el-tree,
+.layout-main.ruoyi-app-main .el-breadcrumb,
+.layout-main.ruoyi-app-main .el-alert,
+.layout-main.ruoyi-app-main .el-steps,
+.layout-main.ruoyi-app-main .el-collapse-item__header {
+  font-family: inherit !important;
+}
+
+.layout-main.ruoyi-app-main .el-button {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+.layout-main.ruoyi-app-main .el-button.is-link {
+  font-weight: 400 !important;
+}
+
+.layout-main.ruoyi-app-main .el-form-item__label {
+  font-size: 13px !important;
+  color: #606266 !important;
+  font-weight: 400 !important;
+}
+
+.layout-main.ruoyi-app-main .el-input__inner,
+.layout-main.ruoyi-app-main .el-textarea__inner {
+  font-size: 13px !important;
+  color: #606266 !important;
+}
+
+.layout-main.ruoyi-app-main .el-table {
+  font-size: 13px !important;
+  color: #606266 !important;
+}
+
+.layout-main.ruoyi-app-main .el-table th.el-table__cell {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #515a6e !important;
+  background: #f8f8f9 !important;
+}
+
+.layout-main.ruoyi-app-main .el-table td.el-table__cell {
+  font-size: 13px !important;
+  color: #606266 !important;
+}
+
+.layout-main.ruoyi-app-main .el-tabs__item {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+.layout-main.ruoyi-app-main .el-tag {
+  font-size: 12px !important;
+}
+
+.layout-main.ruoyi-app-main .el-pagination {
+  font-size: 13px !important;
+}
+
+/* 各业务页自定义标题类 — 收敛为若依标题风格 */
+.layout-main.ruoyi-app-main .ruoyi-page__title,
+.layout-main.ruoyi-app-main .page-title,
+.layout-main.ruoyi-app-main .wb__title,
+.layout-main.ruoyi-app-main .wb-title,
+.layout-main.ruoyi-app-main .po-title,
+.layout-main.ruoyi-app-main .dm-title,
+.layout-main.ruoyi-app-main .eq-title,
+.layout-main.ruoyi-app-main .alarm-title,
+.layout-main.ruoyi-app-main .pdb-toolbar__title,
+.layout-main.ruoyi-app-main .op-report-page__heading,
+.layout-main.ruoyi-app-main .planner-plan-page__title,
+.layout-main.ruoyi-app-main [class$="__title"]:not(.el-dialog__title):not(.el-drawer__title),
+.layout-main.ruoyi-app-main [class*="-title"]:not(.el-step__title):not(.el-collapse-item__header) {
+  font-family: inherit !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: #303133 !important;
+  line-height: 1.4 !important;
+}
+
+.layout-main.ruoyi-app-main .section-title,
+.layout-main.ruoyi-app-main .po-section-title,
+.layout-main.ruoyi-app-main .stage-block__title,
+.layout-main.ruoyi-app-main .panel__title {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #303133 !important;
+}
+
+.layout-main.ruoyi-app-main .ruoyi-breadcrumb,
+.layout-main.ruoyi-app-main .ruoyi-tags__item {
+  font-family: inherit !important;
 }

@@ -113,8 +113,9 @@ public class PurchaseController {
     public Result<List<PurchaseRequirement>> workbenchList(
             @RequestParam(required = false) String materialName,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) Integer priority) {
-        return Result.success(purchaseService.workbenchList(materialName, status, priority));
+            @RequestParam(required = false) Integer priority,
+            @RequestParam(required = false, defaultValue = "all") String scope) {
+        return Result.success(purchaseService.workbenchList(materialName, status, priority, scope));
     }
 
     // 物料维度：查看某物料需求的来源订单明细

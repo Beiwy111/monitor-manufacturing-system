@@ -125,6 +125,7 @@ public class MesWorkflowService {
                     intVal(payload.get("plannedQty")));
             case "validateProductionPlan" -> plannerSchedulingService.validatePlan(payload);
             case "saveProductionPlan" -> plannerSchedulingService.savePlanWithSchedule(payload, operator);
+            case "saveBatchProductionPlans" -> plannerSchedulingService.saveBatchPlans(payload, operator);
             case "copyProductionPlan" -> plannerSchedulingService.copyPlan(str(payload, "planId"), operator);
             case "loadManualPlanWizard" -> plannerSchedulingService.loadManualWizardContext(
                     str(payload, "orderId"), intVal(payload.get("plannedQty")));
@@ -1191,25 +1192,38 @@ public class MesWorkflowService {
         LocalDateTime now = LocalDateTime.now();
         String reportNo = nextNo("WR", workReportMapper.reportList(), WorkReport::getReportNo);
 
+        LocalDateTime startTime = parseDateTime(str(p, "startTime"), now.minusHours(2));
+        LocalDateTime endTime = parseDateTime(str(p, "endTime"), now);
+        if (!endTime.isAfter(startTime)) {
+            throw new BusinessException("结束时间须晚于开始时间");
+        }
+        BigDecimal reportQty = decimal(p.get("reportQty"));
+        if (reportQty.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("生产数量须大于 0");
+        }
+        long minutes = java.time.Duration.between(startTime, endTime).toMinutes();
+        BigDecimal workHours = BigDecimal.valueOf(Math.max(1, minutes))
+                .divide(BigDecimal.valueOf(60), 1, java.math.RoundingMode.HALF_UP);
+
         WorkReport r = new WorkReport();
         r.setReportNo(reportNo);
         r.setWorkOrderId(d.getWorkOrderId());
         r.setDispatchId(d.getDispatchId());
         r.setStepId(d.getStepId());
         r.setOperatorId(op != null ? op.getUserId() : d.getOperatorId());
-        r.setReportDate(LocalDate.now());
-        r.setCompletedQuantity(decimal(p.get("reportQty")));
-        r.setQualifiedQuantity(decimal(p.get("qualifiedQty")));
-        r.setUnqualifiedQuantity(decimal(p.get("unqualifiedQty")));
-        r.setWorkHours(decimal(p.get("workHours")).compareTo(BigDecimal.ZERO) > 0
-                ? decimal(p.get("workHours")) : BigDecimal.ONE);
+        r.setReportDate(endTime.toLocalDate());
+        r.setStartTime(startTime);
+        r.setEndTime(endTime);
+        r.setCompletedQuantity(reportQty);
+        r.setQualifiedQuantity(reportQty);
+        r.setUnqualifiedQuantity(BigDecimal.ZERO);
+        r.setWorkHours(workHours);
         r.setReportStatus("SUBMITTED");
         r.setRemark(str(p, "remark"));
         r.setCreatedAt(now);
         r.setUpdatedAt(now);
         workReportMapper.insertReport(r);
 
-        BigDecimal reportQty = decimal(p.get("reportQty"));
         d.setCompletedQuantity(d.getCompletedQuantity().add(reportQty));
         if ("ACCEPTED".equals(d.getStatus()) || "RUNNING".equals(d.getStatus())) {
             d.setStatus("PRODUCING");
@@ -3381,6 +3395,25 @@ public class MesWorkflowService {
             return LocalDate.parse(s.length() > 10 ? s.substring(0, 10) : s);
         } catch (Exception e) {
             return LocalDate.now();
+        }
+    }
+
+    private LocalDateTime parseDateTime(String s, LocalDateTime fallback) {
+        if (s == null || s.isBlank()) {
+            return fallback != null ? fallback : LocalDateTime.now();
+        }
+        try {
+            String norm = s.trim().replace('T', ' ');
+            if (norm.length() == 16) {
+                norm += ":00";
+            }
+            return LocalDateTime.parse(norm, DT_FMT);
+        } catch (Exception e) {
+            try {
+                return LocalDateTime.parse(s.trim().replace('T', ' '));
+            } catch (Exception ignored) {
+                return fallback != null ? fallback : LocalDateTime.now();
+            }
         }
     }
 

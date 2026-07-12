@@ -47,7 +47,21 @@ public class QualityServiceImpl implements QualityService {
     @Override
     public List<Map<String, Object>> listInspectionViews() {
         List<Map<String, Object>> list = inspectionMapper.listInspectionViews();
-        list.forEach(this::enrichInspection);
+        list.forEach(row -> {
+            enrichInspection(row);
+            Object matId = row.get("materialId");
+            if (matId != null) {
+                try {
+                    Material mat = materialMapper.getMaterialById(Long.parseLong(matId.toString()));
+                    if (mat != null) {
+                        row.put("materialName", mat.getMaterialName());
+                        row.put("materialCode", mat.getMaterialCode());
+                    }
+                } catch (NumberFormatException ignored) {
+                    // skip
+                }
+            }
+        });
         return list;
     }
 
@@ -100,7 +114,7 @@ public class QualityServiceImpl implements QualityService {
         Map<String, Object> kpi = inspectionMapper.inspectionKpi();
         if (kpi == null) kpi = new HashMap<>();
         long pendingNc = nonconformingMapper.nonconformingList().stream()
-                .filter(n -> !"DONE".equals(n.getHandleStatus())).count();
+                .filter(n -> !"DONE".equals(n.getHandleStatus()) && !"COMPLETED".equals(n.getHandleStatus())).count();
         kpi.put("pendingNonconforming", pendingNc);
         return kpi;
     }
@@ -137,6 +151,9 @@ public class QualityServiceImpl implements QualityService {
             QualityInspectionItem item = items.get(i);
             item.setInspectionId(inspectionId);
             item.setSortOrder(i + 1);
+            if (item.getMeasuredValue() != null && item.getMeasuredValue().length() > 100) {
+                item.setMeasuredValue(item.getMeasuredValue().substring(0, 97) + "...");
+            }
             if (item.getCreatedAt() == null) item.setCreatedAt(now);
             item.setUpdatedAt(now);
             itemMapper.insert(item);
@@ -254,12 +271,11 @@ public class QualityServiceImpl implements QualityService {
     }
     // ── 质检状态流转 ──────────────────────────────────────────
     @Override @Transactional
-    public QualityInspection passInspection(Long id, String remark, String operator) {
+    public QualityInspection passInspection(Long id, String remark, String operator,
+                                            Integer sampleQty, Integer qualifiedQty, Integer unqualifiedQty) {
         QualityInspection i = requireInspection(id);
         if ("CLOSED".equals(i.getInspectionStatus())) throw new BusinessException("质检单已关闭");
-        int qualQty = resolveQualifiedQty(i);
-        i.setQualifiedQuantity(BigDecimal.valueOf(qualQty));
-        i.setUnqualifiedQuantity(BigDecimal.ZERO);
+        applySamplingQuantities(i, sampleQty, qualifiedQty, unqualifiedQty, true);
         i.setInspectionStatus("PASSED"); i.setInspectionResult("QUALIFIED");
         i.setInspectedAt(LocalDateTime.now()); i.setRemark(remark); i.setUpdatedAt(LocalDateTime.now());
         inspectionMapper.updateInspection(i);
@@ -398,6 +414,27 @@ public class QualityServiceImpl implements QualityService {
         int submitQty = mesWorkflowService.inspectionSubmitQty(inspection.getInspectionNo());
         if (submitQty > 0) return submitQty;
         return sample > 0 ? sample : 1;
+    }
+
+    /** 优先使用前端五步检测传入的抽检台数，避免回退到单据原始送检数 */
+    private void applySamplingQuantities(QualityInspection i, Integer sampleQty,
+                                         Integer qualifiedQty, Integer unqualifiedQty, boolean passMode) {
+        if (sampleQty != null && sampleQty > 0) {
+            i.setSampleQuantity(BigDecimal.valueOf(sampleQty));
+        }
+        if (qualifiedQty != null && qualifiedQty >= 0) {
+            i.setQualifiedQuantity(BigDecimal.valueOf(qualifiedQty));
+            int sample = sampleQty != null && sampleQty > 0 ? sampleQty
+                    : (i.getSampleQuantity() != null ? i.getSampleQuantity().intValue() : 0);
+            int unqual = unqualifiedQty != null ? unqualifiedQty : Math.max(0, sample - qualifiedQty);
+            i.setUnqualifiedQuantity(BigDecimal.valueOf(unqual));
+            return;
+        }
+        if (passMode) {
+            int qual = resolveQualifiedQty(i);
+            i.setQualifiedQuantity(BigDecimal.valueOf(qual));
+            i.setUnqualifiedQuantity(BigDecimal.ZERO);
+        }
     }
 
     private void createNonconforming(QualityInspection insp, String defectType, String defectReason,
@@ -613,7 +650,8 @@ public class QualityServiceImpl implements QualityService {
     private String handleStatusCn(String s) {
         if (s == null) return "待处置";
         return switch (s) {
-            case "PENDING"->"待处置"; case "PROCESSING"->"处理中"; case "DONE"->"已处置"; default->s;
+            case "PENDING"->"待处置"; case "PROCESSING"->"处理中";
+            case "DONE","COMPLETED"->"已处置"; default->s;
         };
     }
 
@@ -621,7 +659,7 @@ public class QualityServiceImpl implements QualityService {
         if (s == null) return "待确认";
         return switch (s) {
             case "PENDING"->"待确认"; case "REWORK"->"返修"; case "SCRAP"->"报废";
-            case "CONCESSION_ACCEPT"->"让步接收"; case "RETURNED"->"退货"; default->s;
+            case "CONCESSION_ACCEPT","CONCESSION"->"让步接收"; case "RETURNED"->"退货"; default->s;
         };
     }
 

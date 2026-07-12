@@ -153,7 +153,7 @@ function toggleFullscreen() {
 <style scoped>
 .layout-container {
   height: 100vh;
-  font-family: var(--layout-font, 'Inter', 'Noto Sans SC', 'PingFang SC', sans-serif);
+  font-family: var(--layout-font, "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif);
 }
 
 .layout-aside {
@@ -260,8 +260,8 @@ function toggleFullscreen() {
 .layout-menu :deep(.el-sub-menu__title) {
   height: 44px;
   line-height: 44px;
-  font-size: 13px;
-  font-weight: 300;
+  font-size: 14px;
+  font-weight: 400;
   color: var(--sidebar-text) !important;
   margin: 2px 10px;
   border-radius: 10px;
@@ -315,13 +315,13 @@ function toggleFullscreen() {
 }
 
 .layout-breadcrumb {
-  color: #6b7280;
-  font-size: 13px;
-  font-weight: 300;
+  color: #606266;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .layout-breadcrumb :deep(.ruoyi-breadcrumb__link) {
-  color: #6b7280;
+  color: #606266;
   text-decoration: none;
 }
 
@@ -330,7 +330,7 @@ function toggleFullscreen() {
 }
 
 .layout-breadcrumb :deep(.ruoyi-breadcrumb__current) {
-  color: #111827;
+  color: #303133;
   font-weight: 400;
 }
 

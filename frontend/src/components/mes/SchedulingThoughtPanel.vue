@@ -1,6 +1,6 @@
 <template>
-  <div class="thought-shell">
-    <div class="thought-shell__hero">
+  <div class="thought-shell" :class="{ 'thought-shell--embedded': embedded }">
+    <div v-if="!embedded" class="thought-shell__hero">
       <div class="thought-shell__hero-left">
         <h3>{{ title }}</h3>
         <p>{{ subtitle }}</p>
@@ -17,7 +17,19 @@
       </div>
     </div>
 
-    <div class="thought-layout">
+    <div v-else class="thought-shell__bar">
+      <div>
+        <h3>{{ title }}</h3>
+        <p>{{ subtitle }}</p>
+      </div>
+      <div class="thought-shell__bar-meta">
+        <span>{{ running ? '推演中' : thoughtStream.length ? '分析完成' : '待开始' }}</span>
+        <el-progress :percentage="progressPercent" :stroke-width="6" :show-text="false" style="width:120px" />
+        <span class="thought-shell__bar-pct">{{ progressPercent }}%</span>
+      </div>
+    </div>
+
+    <div class="thought-layout" :class="{ 'thought-layout--embedded': embedded }">
       <div class="thought-stream">
         <div class="thought-stream__header">
           <span class="thought-stream__title">
@@ -163,6 +175,7 @@ import { ArrowDown, Loading } from '@element-plus/icons-vue'
 const props = defineProps({
   title: { type: String, default: '智能排产引擎' },
   subtitle: { type: String, default: '订单 → 库存 → 物料 → 设备 → 人员 → 车间分配 → 生产计划' },
+  embedded: { type: Boolean, default: false },
   thoughtStream: { type: Array, default: () => [] },
   evidenceList: { type: Array, default: () => [] },
   allEvidence: { type: Array, default: () => [] },
@@ -295,6 +308,51 @@ function metricEntries(ev) {
 </script>
 
 <style scoped>
+.thought-shell--embedded {
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
+  background: #fff;
+}
+.thought-shell__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+.thought-shell__bar h3 {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+.thought-shell__bar p {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+.thought-shell__bar-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.thought-shell__bar-pct {
+  font-weight: 600;
+  color: #3d7a5f;
+  min-width: 36px;
+}
+.thought-layout--embedded {
+  min-height: 420px;
+}
+.thought-shell--embedded .thought-list,
+.thought-shell--embedded .evidence-list {
+  max-height: 420px;
+}
 .thought-shell {
   border-radius: 14px;
   overflow: hidden;

@@ -26,7 +26,7 @@ public interface PurchaseService {
     void deletePurchaseOrderItem(Long purchaseOrderItemId);
 
     List<PurchaseRequirement> calculateRequirements();
-    List<PurchaseRequirement> workbenchList(String materialName, String status, Integer priority);
+    List<PurchaseRequirement> workbenchList(String materialName, String status, Integer priority, String scope);
     PurchaseRequirementDetailVO workbenchDetail(Long requirementId);
     List<PurchaseByOrderVO> workbenchByOrder();
 

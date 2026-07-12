@@ -4,13 +4,16 @@
       <div class="order-track-header">
         <h2 class="order-track-header__title">订单跟踪</h2>
         <div class="order-track-header__actions">
+          <span v-if="selectedRows.length > 1" class="order-track-header__hint">
+            已选 {{ selectedRows.length }} 个同型号订单 · {{ lockedModel }}
+          </span>
           <el-button
             type="primary"
             size="small"
-            :disabled="!sel"
+            :disabled="!scheduleTargets.length"
             @click="handleSmartSchedule"
           >
-            智能排产
+            智能排产{{ selectedRows.length > 1 ? `（${selectedRows.length}单）` : '' }}
           </el-button>
           <el-button size="small" :disabled="!sel" @click="goGantt">查看甘特图</el-button>
         </div>
@@ -42,6 +45,7 @@
 
         <div class="order-track-table-wrap">
           <el-table
+            ref="tableRef"
             v-loading="tableLoading"
             :data="filteredOrders"
             border
@@ -50,7 +54,14 @@
             highlight-current-row
             size="small"
             @current-change="onSelectOrder"
+            @selection-change="onSelectionChange"
           >
+            <el-table-column
+              type="selection"
+              width="42"
+              fixed="left"
+              :selectable="rowSelectable"
+            />
             <el-table-column prop="id" label="订单号" width="130" fixed="left" />
             <el-table-column prop="customerName" label="客户" min-width="110" show-overflow-tooltip />
             <el-table-column prop="productModel" label="型号" min-width="120" show-overflow-tooltip />
@@ -138,9 +149,9 @@
                     <template #default="{ row }">
                       <span class="ot-tag" :class="equipStatusClass(row.status)">{{ row.status }}</span>
                     </template>
-                  </el-table-column>
+        </el-table-column>
                   <el-table-column prop="risk" label="产能风险" min-width="120" show-overflow-tooltip />
-                </el-table>
+      </el-table>
                 <div class="ot-section-title">人员配置</div>
                 <el-table :data="personnelRows" border stripe size="small" class="ot-compact-table">
                   <el-table-column prop="role" label="岗位" width="120" />
@@ -149,7 +160,7 @@
                   <el-table-column prop="status" label="状态" width="80" align="center">
                     <template #default="{ row }">
                       <span class="ot-tag" :class="row.status === '充足' ? 'ot-tag--ok' : 'ot-tag--danger'">{{ row.status }}</span>
-                    </template>
+    </template>
                   </el-table-column>
                   <el-table-column prop="remark" label="说明" min-width="160" show-overflow-tooltip />
                 </el-table>
@@ -196,20 +207,28 @@
               </div>
             </el-tab-pane>
           </el-tabs>
-        </template>
+    </template>
         <div v-else class="order-track-empty">请在上方表格选择订单查看详情</div>
       </div>
     </div>
+
+    <PlannerAgentDialog
+      v-model="plannerVisible"
+      :default-order-ids="plannerOrderIds"
+      combined-batch
+      @success="onPlannerSuccess"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, reactive, watch, onMounted } from 'vue'
+import { ref, computed, reactive, watch, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { ORDER_STATUS } from '@/mock/constants'
 import { fetchOrderPlanningContext } from '@/api/planner'
+import PlannerAgentDialog from '@/components/mes/PlannerAgentDialog.vue'
 
 const router = useRouter()
 const mes = useMesStore()
@@ -219,6 +238,11 @@ const statusFilter = ref('')
 const appliedKeyword = ref('')
 const appliedStatus = ref('')
 const sel = ref(null)
+const tableRef = ref(null)
+const selectedRows = ref([])
+const lockedModel = ref('')
+const plannerVisible = ref(false)
+const plannerOrderIds = ref([])
 const detailTab = ref('basic')
 const tableLoading = ref(false)
 const ctxLoading = ref(false)
@@ -226,6 +250,12 @@ const planningCtx = ref(null)
 const metricsMap = reactive({})
 
 const chain = computed(() => (sel.value ? mes.traceChain(sel.value.id) : null))
+
+const scheduleTargets = computed(() => {
+  if (selectedRows.value.length) return selectedRows.value
+  if (sel.value && canSchedule(sel.value)) return [sel.value]
+  return []
+})
 
 const filteredOrders = computed(() => {
   const kw = appliedKeyword.value.trim().toLowerCase()
@@ -473,11 +503,11 @@ function updateMetrics(orderId, ctx, order) {
   }
 }
 
-async function loadContext(orderId) {
+async function loadContext(orderId, { silent = false } = {}) {
   const order = mes.orders.find((o) => o.id === orderId)
   if (!order) return null
   try {
-    const ctx = await fetchOrderPlanningContext(orderId)
+    const ctx = await fetchOrderPlanningContext(orderId, { silent: silent || !canSchedule(order) })
     updateMetrics(orderId, ctx, order)
     return ctx
   } catch {
@@ -487,10 +517,10 @@ async function loadContext(orderId) {
 }
 
 async function prefetchMetrics() {
-  const orders = mes.orders
+  const orders = mes.orders.filter(canSchedule)
   await Promise.allSettled(orders.map(async (o) => {
     if (metricsMap[o.id]) return
-    await loadContext(o.id)
+    await loadContext(o.id, { silent: true })
   }))
 }
 
@@ -524,6 +554,50 @@ function resetFilter() {
 function canSchedule(order) {
   if (!order) return false
   return ['待计划', '已审核'].includes(order.status) && !order.planId
+}
+
+function rowSelectable(row) {
+  if (!canSchedule(row)) return false
+  if (!lockedModel.value) return true
+  return row.productModel === lockedModel.value
+}
+
+function onSelectionChange(rows) {
+  const schedulable = rows.filter(canSchedule)
+  if (!schedulable.length) {
+    selectedRows.value = []
+    lockedModel.value = ''
+    return
+  }
+
+  const byModel = {}
+  schedulable.forEach((r) => {
+    const m = r.productModel || ''
+    if (!byModel[m]) byModel[m] = []
+    byModel[m].push(r)
+  })
+  const groups = Object.values(byModel)
+  if (groups.length > 1) {
+    const largest = groups.sort((a, b) => b.length - a.length)[0]
+    ElMessage.warning(`联合排产须同型号，已保留「${largest[0].productModel}」的 ${largest.length} 个订单`)
+    nextTick(() => {
+      tableRef.value?.clearSelection()
+      largest.forEach((r) => tableRef.value?.toggleRowSelection(r, true))
+    })
+    selectedRows.value = largest
+    lockedModel.value = largest[0].productModel || ''
+    return
+  }
+
+  selectedRows.value = schedulable
+  lockedModel.value = schedulable[0].productModel || ''
+}
+
+function onPlannerSuccess() {
+  selectedRows.value = []
+  lockedModel.value = ''
+  tableRef.value?.clearSelection()
+  prefetchMetrics()
 }
 
 async function validateBeforeSchedule(order) {
@@ -578,14 +652,28 @@ async function validateBeforeSchedule(order) {
 }
 
 async function handleSmartSchedule() {
-  if (!sel.value) return
-  const order = sel.value
-  if (!canSchedule(order)) {
-    await ElMessageBox.alert('当前订单已有关联计划或状态不允许排产，请从生产计划页查看。', '无法排产', { type: 'warning' })
+  const targets = scheduleTargets.value
+  if (!targets.length) {
+    ElMessage.warning('请勾选待排产订单（相同型号可联合排产）')
     return
   }
 
-  const { issues, blocked } = await validateBeforeSchedule(order)
+  for (const order of targets) {
+    if (!canSchedule(order)) {
+      await ElMessageBox.alert('所选订单中存在已关联计划或状态不允许排产的订单。', '无法排产', { type: 'warning' })
+      return
+    }
+  }
+
+  if (targets.length > 1) {
+    const model = targets[0].productModel
+    if (!targets.every((t) => t.productModel === model)) {
+      ElMessage.warning('联合排产须选择相同型号的订单')
+      return
+    }
+  }
+
+  const { issues, blocked } = await validateBeforeSchedule(targets[0])
   if (blocked) {
     const html = issues.map((i) => `• ${i.text}`).join('<br/>')
     await ElMessageBox.alert(`<div style="line-height:1.6">${html}</div>`, '排产前检查未通过', {
@@ -609,7 +697,8 @@ async function handleSmartSchedule() {
     }
   }
 
-  router.push({ path: '/production/plan', query: { orderId: order.id, action: 'schedule' } })
+  plannerOrderIds.value = targets.map((t) => t.id)
+  plannerVisible.value = true
 }
 
 function goGantt() {
@@ -659,6 +748,18 @@ onMounted(async () => {
   padding: 0 16px;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
+}
+
+.order-track-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-track-header__hint {
+  font-size: 12px;
+  color: #409eff;
+  margin-right: 4px;
 }
 
 .order-track-header__title {

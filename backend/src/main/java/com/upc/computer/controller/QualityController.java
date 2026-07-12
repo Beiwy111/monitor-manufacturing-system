@@ -7,6 +7,8 @@ import com.upc.computer.entity.NonconformingProduct;
 import com.upc.computer.entity.QualityInspection;
 import com.upc.computer.entity.QualityInspectionItem;
 import com.upc.computer.service.QualityService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,6 +42,9 @@ public class QualityController {
 
     @Autowired
     private QualityService qualityService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     // ── 查询视图 ──────────────────────────────────────────────
 
@@ -86,9 +91,14 @@ public class QualityController {
     public Result<Void> saveItems(@RequestBody Map<String, Object> body) {
         Long id = toLong(body.get("inspectionId"));
         if (id == null) throw new BusinessException("inspectionId 不能为空");
-        @SuppressWarnings("unchecked")
-        List<QualityInspectionItem> items = (List<QualityInspectionItem>) body.get("items");
-        if (items == null) throw new BusinessException("items 不能为空");
+        Object rawItems = body.get("items");
+        if (rawItems == null) throw new BusinessException("items 不能为空");
+        List<QualityInspectionItem> items;
+        try {
+            items = objectMapper.convertValue(rawItems, new TypeReference<List<QualityInspectionItem>>() {});
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException("检测项数据格式无效");
+        }
         qualityService.saveItems(id, items);
         return Result.success();
     }
@@ -106,12 +116,19 @@ public class QualityController {
     public Result<QualityInspection> pass(@RequestBody QualityActionRequest req) {
         validate(req.getInspectionId(), "inspectionId");
         return Result.success("质检通过", qualityService.passInspection(
-                req.getInspectionId(), req.getRemark(), req.getOperator()));
+                req.getInspectionId(), req.getRemark(), req.getOperator(),
+                req.getSampleQuantity(), req.getQualifiedQuantity(), req.getUnqualifiedQuantity()));
     }
 
     @PostMapping("/inspection/fail")
     public Result<QualityInspection> fail(@RequestBody QualityActionRequest req) {
         validate(req.getInspectionId(), "inspectionId");
+        if (req.getSampleQuantity() != null && req.getSampleQuantity() > 0) {
+            qualityService.updateSampling(req.getInspectionId(),
+                    req.getSampleQuantity(),
+                    req.getQualifiedQuantity() != null ? req.getQualifiedQuantity() : 0,
+                    req.getUnqualifiedQuantity() != null ? req.getUnqualifiedQuantity() : 0);
+        }
         BigDecimal qty = req.getDefectQuantity() != null ? req.getDefectQuantity() : BigDecimal.ONE;
         return Result.success("质检不通过，已生成不良品记录", qualityService.failInspection(
                 req.getInspectionId(), req.getDefectType(), req.getDefectReason(),

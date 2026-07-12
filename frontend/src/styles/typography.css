@@ -1,62 +1,62 @@
 /**
- * 全站字体与排版变量（Siemens 企业官网风格：克制、清晰、不粗重）
+ * 全站字体与排版变量（与若依「用户管理」一致）
  */
 :root {
-  --font-sans: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-sans: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
 
-  /* 文字颜色 */
-  --text-main: #111827;
-  --text-muted: #6b7280;
-  --text-subtle: #6b7280;
-  --text-placeholder: #9ca3af;
+  /* 文字颜色 — 若依标准色 */
+  --text-main: #303133;
+  --text-muted: #606266;
+  --text-subtle: #909399;
+  --text-placeholder: #c0c4cc;
   --text-inverse: #ffffff;
-  --heading-color: #111827;
+  --heading-color: #303133;
   --accent-color: #2d8a66;
   --accent-bright: #4ade80;
   --accent-hover: #256f52;
 
-  /* 字重 — 全局细体 */
+  /* 字重 */
   --heading-weight: 500;
   --body-weight: 400;
   --body-weight-medium: 500;
-  --brand-weight: 400;
-  --nav-weight: 300;
+  --brand-weight: 500;
+  --nav-weight: 400;
   --btn-weight: 500;
   --table-head-weight: 500;
-  --label-weight: 500;
+  --label-weight: 400;
 
-  /* 字号 */
-  --fs-base: 16px;
-  --fs-body-sm: 15px;
-  --fs-nav: 15px;
-  --fs-nav-brand: 17px;
+  /* 字号 — 后台 14px 正文 / 13px 表格 */
+  --fs-base: 14px;
+  --fs-body-sm: 13px;
+  --fs-nav: 14px;
+  --fs-nav-brand: 15px;
   --fs-hero-breadcrumb: 13px;
-  --fs-hero-label: 14px;
+  --fs-hero-label: 13px;
   --fs-hero-title: 46px;
-  --fs-hero-desc: 18px;
-  --fs-section-title: 36px;
-  --fs-section-lead: 17px;
-  --fs-card-title: 22px;
-  --fs-card-label: 14px;
-  --fs-card-desc: 16px;
-  --fs-card-link: 15px;
-  --fs-btn: 15px;
-  --fs-page-title: 20px;
-  --fs-dashboard-title: 22px;
-  --fs-kpi-value: 32px;
-  --fs-kpi-label: 14px;
-  --fs-table-head: 14px;
-  --fs-table-body: 15px;
-  --fs-tag: 13px;
-  --fs-caption: 13px;
+  --fs-hero-desc: 16px;
+  --fs-section-title: 15px;
+  --fs-section-lead: 14px;
+  --fs-card-title: 15px;
+  --fs-card-label: 13px;
+  --fs-card-desc: 14px;
+  --fs-card-link: 13px;
+  --fs-btn: 13px;
+  --fs-page-title: 15px;
+  --fs-dashboard-title: 15px;
+  --fs-kpi-value: 24px;
+  --fs-kpi-label: 13px;
+  --fs-table-head: 13px;
+  --fs-table-body: 13px;
+  --fs-tag: 12px;
+  --fs-caption: 12px;
 
   /* 行高 */
   --lh-hero: 1.15;
-  --lh-heading: 1.25;
-  --lh-card-title: 1.35;
-  --lh-body: 1.6;
-  --lh-lead: 1.8;
-  --lh-card-desc: 1.75;
+  --lh-heading: 1.4;
+  --lh-card-title: 1.4;
+  --lh-body: 1.5;
+  --lh-lead: 1.6;
+  --lh-card-desc: 1.6;
 
   /* 字间距 */
   --ls-hero-label: 2px;
@@ -127,7 +127,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .el-menu-item,
 .el-sub-menu__title {
-  font-weight: var(--nav-weight) !important;
+  font-weight: 400 !important;
+  font-size: 14px !important;
 }
 
 .el-table th.el-table__cell {

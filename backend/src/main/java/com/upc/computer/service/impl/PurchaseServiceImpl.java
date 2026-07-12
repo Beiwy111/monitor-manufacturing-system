@@ -216,13 +216,14 @@ public class PurchaseServiceImpl implements PurchaseService {
             BigDecimal stock = availableStock.getOrDefault(materialId, BigDecimal.ZERO);
             BigDecimal inTransit = onPurchase.getOrDefault(materialId, BigDecimal.ZERO);
             BigDecimal shortage = required.subtract(stock).subtract(inTransit);
-
-            if (shortage.compareTo(BigDecimal.ZERO) <= 0) {
-                continue;
+            if (shortage.compareTo(BigDecimal.ZERO) < 0) {
+                shortage = BigDecimal.ZERO;
+            } else {
+                shortage = shortage.setScale(0, java.math.RoundingMode.CEILING);
             }
-            shortage = shortage.setScale(0, java.math.RoundingMode.CEILING);
 
             Material material = materialMapper.getMaterialById(materialId);
+            BigDecimal suggested = computeSuggestedPurchase(shortage, material, stock, inTransit);
             Long supplierId = materialSupplierIdMap.get(materialId);
             String supplierName = supplierId != null ? supplierNameMap.get(supplierId) : null;
 
@@ -234,12 +235,13 @@ public class PurchaseServiceImpl implements PurchaseService {
             req.setStockQuantity(stock);
             req.setOnPurchaseQuantity(inTransit);
             req.setShortageQuantity(shortage);
-            req.setSuggestedPurchaseQuantity(shortage);
+            req.setSuggestedPurchaseQuantity(suggested);
             req.setStatus(REQ_PENDING);
             req.setPriority(demand.priority);
             req.setExpectedArrivalDate(demand.earliestDeliveryDate);
             req.setSupplierId(supplierId);
             req.setSupplierName(supplierName);
+            req.setRemark(shortage.compareTo(BigDecimal.ZERO) > 0 ? "ORDER_SHORTAGE" : "STOCK_SUFFICIENT");
             req.setCreatedAt(now);
             req.setUpdatedAt(now);
             requirementMapper.insertRequirement(req);
@@ -263,7 +265,61 @@ public class PurchaseServiceImpl implements PurchaseService {
             result.add(req);
         }
 
+        // 4) 其余原材料：库存充足也可主动备库采购
+        Set<Long> coveredMaterialIds = new HashSet<>(demandMap.keySet());
+        for (Material material : materialMapper.materialList()) {
+            if (material.getMaterialId() == null || !"RAW".equalsIgnoreCase(material.getMaterialType())) {
+                continue;
+            }
+            if (coveredMaterialIds.contains(material.getMaterialId())) {
+                continue;
+            }
+            Long materialId = material.getMaterialId();
+            BigDecimal stock = availableStock.getOrDefault(materialId, BigDecimal.ZERO);
+            BigDecimal inTransit = onPurchase.getOrDefault(materialId, BigDecimal.ZERO);
+            BigDecimal suggested = computeSuggestedPurchase(BigDecimal.ZERO, material, stock, inTransit);
+            Long supplierId = materialSupplierIdMap.get(materialId);
+            String supplierName = supplierId != null ? supplierNameMap.get(supplierId) : null;
+
+            PurchaseRequirement req = new PurchaseRequirement();
+            req.setMaterialId(materialId);
+            req.setMaterialCode(material.getMaterialCode());
+            req.setMaterialName(material.getMaterialName());
+            req.setRequiredQuantity(BigDecimal.ZERO);
+            req.setStockQuantity(stock);
+            req.setOnPurchaseQuantity(inTransit);
+            req.setShortageQuantity(BigDecimal.ZERO);
+            req.setSuggestedPurchaseQuantity(suggested);
+            req.setStatus(REQ_PENDING);
+            req.setPriority(5);
+            req.setSupplierId(supplierId);
+            req.setSupplierName(supplierName);
+            req.setRemark("BACKUP_STOCK");
+            req.setCreatedAt(now);
+            req.setUpdatedAt(now);
+            requirementMapper.insertRequirement(req);
+            result.add(req);
+        }
+
         return result;
+    }
+
+    /** 建议采购量：缺料优先；库存充足时按安全库存建议备库量 */
+    private BigDecimal computeSuggestedPurchase(BigDecimal shortage, Material material,
+                                                BigDecimal stock, BigDecimal inTransit) {
+        if (shortage != null && shortage.compareTo(BigDecimal.ZERO) > 0) {
+            return shortage;
+        }
+        BigDecimal safety = material != null && material.getSafetyStock() != null
+                ? material.getSafetyStock() : BigDecimal.ZERO;
+        BigDecimal replenish = safety.subtract(stock).subtract(inTransit);
+        if (replenish.compareTo(BigDecimal.ZERO) > 0) {
+            return replenish.setScale(0, java.math.RoundingMode.CEILING);
+        }
+        if (safety.compareTo(BigDecimal.ZERO) > 0) {
+            return safety.setScale(0, java.math.RoundingMode.CEILING);
+        }
+        return BigDecimal.valueOf(100);
     }
 
     /**
@@ -371,32 +427,22 @@ public class PurchaseServiceImpl implements PurchaseService {
     @Override
     public List<Map<String, Object>> listOrderDemandOverview() {
         Map<Long, BigDecimal> stock = loadAvailableStock();
+        Map<Long, BigDecimal> onPurchase = loadOnPurchaseQuantity();
         Map<Long, Material> materialById = new HashMap<>();
+        Map<Long, String> materialTypeMap = new HashMap<>();
+        Map<Long, Long> materialSupplierIdMap = new HashMap<>();
         for (Material m : materialMapper.materialList()) {
             materialById.put(m.getMaterialId(), m);
-        }
-
-        Map<Long, Integer> shortageCountByOrder = new HashMap<>();
-        Map<Long, BigDecimal> purchaseQtyByOrder = new HashMap<>();
-        Map<Long, PurchaseRequirement> pendingReqMap = new HashMap<>();
-        for (PurchaseRequirement req : requirementMapper.requirementList()) {
-            if (REQ_PENDING.equals(req.getStatus()) && req.getRequirementId() != null) {
-                pendingReqMap.put(req.getRequirementId(), req);
+            materialTypeMap.put(m.getMaterialId(), m.getMaterialType());
+            if (m.getSupplierId() != null) {
+                materialSupplierIdMap.put(m.getMaterialId(), m.getSupplierId());
             }
         }
-        for (PurchaseRequirementSource src : requirementSourceMapper.sourceList()) {
-            if (!"ORDER".equals(src.getSourceType()) || src.getCustomerOrderId() == null) {
-                continue;
-            }
-            PurchaseRequirement req = pendingReqMap.get(src.getRequirementId());
-            if (req == null) {
-                continue;
-            }
-            Long orderId = src.getCustomerOrderId();
-            shortageCountByOrder.merge(orderId, 1, Integer::sum);
-            BigDecimal shortage = src.getShortageQuantity() != null ? src.getShortageQuantity() : BigDecimal.ZERO;
-            purchaseQtyByOrder.merge(orderId, shortage, BigDecimal::add);
+        Map<Long, String> supplierNameMap = new HashMap<>();
+        for (Supplier s : supplierMapper.listAll()) {
+            supplierNameMap.put(s.getSupplierId(), s.getSupplierName());
         }
+        Map<Long, List<Bom>> bomByParent = loadBomByParent();
 
         List<Map<String, Object>> rows = new ArrayList<>();
         List<CustomerOrderItem> allItems = customerOrderItemMapper.orderItemList();
@@ -415,6 +461,21 @@ public class PurchaseServiceImpl implements PurchaseService {
                 int needToProduce = Math.max(0, orderQty - fgStock);
                 Material mat = matId != null ? materialById.get(matId) : null;
 
+                List<Map<String, Object>> materials = needToProduce > 0 && matId != null
+                        ? buildOrderBomMaterials(matId, BigDecimal.valueOf(needToProduce), bomByParent,
+                        materialTypeMap, materialById, stock, onPurchase, materialSupplierIdMap, supplierNameMap)
+                        : Collections.emptyList();
+
+                int shortageMaterialCount = 0;
+                BigDecimal suggestedPurchaseQty = BigDecimal.ZERO;
+                for (Map<String, Object> line : materials) {
+                    BigDecimal netShortage = (BigDecimal) line.get("netShortage");
+                    if (netShortage != null && netShortage.compareTo(BigDecimal.ZERO) > 0) {
+                        shortageMaterialCount++;
+                        suggestedPurchaseQty = suggestedPurchaseQty.add(netShortage);
+                    }
+                }
+
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("orderId", order.getOrderId());
                 row.put("orderNo", order.getOrderNo());
@@ -429,8 +490,10 @@ public class PurchaseServiceImpl implements PurchaseService {
                 row.put("finishedStock", fgStock);
                 row.put("shipFromStock", shipFromStock);
                 row.put("needToProduce", needToProduce);
-                row.put("shortageMaterialCount", shortageCountByOrder.getOrDefault(order.getOrderId(), 0));
-                row.put("suggestedPurchaseQty", purchaseQtyByOrder.getOrDefault(order.getOrderId(), BigDecimal.ZERO));
+                row.put("materialCount", materials.size());
+                row.put("materials", materials);
+                row.put("shortageMaterialCount", shortageMaterialCount);
+                row.put("suggestedPurchaseQty", suggestedPurchaseQty);
                 row.put("requiredDeliveryDate", item.getDeliveryDate() != null
                         ? item.getDeliveryDate().toString()
                         : (order.getRequiredDeliveryDate() != null ? order.getRequiredDeliveryDate().toString() : ""));
@@ -439,6 +502,101 @@ public class PurchaseServiceImpl implements PurchaseService {
         }
         rows.sort((a, b) -> String.valueOf(b.get("requiredDeliveryDate")).compareTo(String.valueOf(a.get("requiredDeliveryDate"))));
         return rows;
+    }
+
+    private Map<Long, List<Bom>> loadBomByParent() {
+        Map<Long, List<Bom>> bomByParent = new HashMap<>();
+        for (Bom bom : bomMapper.bomList()) {
+            if (bom.getStatus() != null && bom.getStatus() == 0) {
+                continue;
+            }
+            bomByParent.computeIfAbsent(bom.getParentMaterialId(), k -> new ArrayList<>()).add(bom);
+        }
+        return bomByParent;
+    }
+
+    /** 按生产台数展开 BOM 叶子件，并附带库存/在途/缺口 */
+    private List<Map<String, Object>> buildOrderBomMaterials(
+            Long productMaterialId,
+            BigDecimal produceQty,
+            Map<Long, List<Bom>> bomByParent,
+            Map<Long, String> materialTypeMap,
+            Map<Long, Material> materialById,
+            Map<Long, BigDecimal> stock,
+            Map<Long, BigDecimal> onPurchase,
+            Map<Long, Long> materialSupplierIdMap,
+            Map<Long, String> supplierNameMap) {
+        Map<Long, BigDecimal> leafRequired = new LinkedHashMap<>();
+        expandBomLeafQuantities(productMaterialId, produceQty, bomByParent, materialTypeMap, leafRequired, new HashSet<>());
+
+        List<Map<String, Object>> lines = new ArrayList<>();
+        for (Map.Entry<Long, BigDecimal> entry : leafRequired.entrySet()) {
+            Long materialId = entry.getKey();
+            Material material = materialById.get(materialId);
+            if (material == null) {
+                continue;
+            }
+            BigDecimal required = entry.getValue().setScale(0, java.math.RoundingMode.CEILING);
+            BigDecimal stockQty = stock.getOrDefault(materialId, BigDecimal.ZERO);
+            BigDecimal inTransit = onPurchase.getOrDefault(materialId, BigDecimal.ZERO);
+            BigDecimal netShortage = required.subtract(stockQty).subtract(inTransit);
+            if (netShortage.compareTo(BigDecimal.ZERO) < 0) {
+                netShortage = BigDecimal.ZERO;
+            } else {
+                netShortage = netShortage.setScale(0, java.math.RoundingMode.CEILING);
+            }
+
+            Long supplierId = materialSupplierIdMap.get(materialId);
+            Map<String, Object> line = new LinkedHashMap<>();
+            line.put("materialId", materialId);
+            line.put("materialCode", material.getMaterialCode());
+            line.put("materialName", material.getMaterialName());
+            line.put("specification", material.getSpecification());
+            line.put("unit", material.getUnit());
+            line.put("requiredQuantity", required);
+            line.put("stockQuantity", stockQty);
+            line.put("onPurchaseQuantity", inTransit);
+            line.put("netShortage", netShortage);
+            line.put("supplierId", supplierId);
+            line.put("supplierName", supplierId != null ? supplierNameMap.get(supplierId) : null);
+            lines.add(line);
+        }
+        lines.sort((a, b) -> {
+            BigDecimal sa = (BigDecimal) a.get("netShortage");
+            BigDecimal sb = (BigDecimal) b.get("netShortage");
+            int cmp = sb.compareTo(sa);
+            if (cmp != 0) {
+                return cmp;
+            }
+            return String.valueOf(a.get("materialCode")).compareTo(String.valueOf(b.get("materialCode")));
+        });
+        return lines;
+    }
+
+    private void expandBomLeafQuantities(Long materialId, BigDecimal quantity,
+                                         Map<Long, List<Bom>> bomByParent,
+                                         Map<Long, String> materialTypeMap,
+                                         Map<Long, BigDecimal> accumulator,
+                                         Set<Long> visiting) {
+        List<Bom> children = bomByParent.get(materialId);
+        if (children == null || children.isEmpty()) {
+            String mtype = materialTypeMap.getOrDefault(materialId, "");
+            if ("FINISHED".equalsIgnoreCase(mtype) || "SEMI".equalsIgnoreCase(mtype)) {
+                return;
+            }
+            accumulator.merge(materialId, quantity, BigDecimal::add);
+            return;
+        }
+        if (!visiting.add(materialId)) {
+            return;
+        }
+        for (Bom bom : children) {
+            BigDecimal lossRate = bom.getLossRate() == null ? BigDecimal.ZERO : bom.getLossRate();
+            BigDecimal childQty = bom.getQuantity() == null ? BigDecimal.ZERO : bom.getQuantity();
+            BigDecimal need = quantity.multiply(childQty).multiply(BigDecimal.ONE.add(lossRate));
+            expandBomLeafQuantities(bom.getChildMaterialId(), need, bomByParent, materialTypeMap, accumulator, visiting);
+        }
+        visiting.remove(materialId);
     }
 
     private String auditStatusCn(String status) {
@@ -538,9 +696,10 @@ public class PurchaseServiceImpl implements PurchaseService {
     // ============ 采购工作台查询 ============
 
     @Override
-    public List<PurchaseRequirement> workbenchList(String materialName, String status, Integer priority) {
+    public List<PurchaseRequirement> workbenchList(String materialName, String status, Integer priority, String scope) {
         List<PurchaseRequirement> all = requirementMapper.requirementList();
         String targetStatus = (status == null || status.isEmpty()) ? REQ_PENDING : status;
+        boolean shortageOnly = "shortage".equalsIgnoreCase(scope);
         Set<Long> excludeMaterialIds = new HashSet<>();
         for (Material m : materialMapper.materialList()) {
             if ("FINISHED".equalsIgnoreCase(m.getMaterialType()) || "SEMI".equalsIgnoreCase(m.getMaterialType())) {
@@ -554,6 +713,12 @@ public class PurchaseServiceImpl implements PurchaseService {
             }
             if (!targetStatus.equalsIgnoreCase(req.getStatus())) {
                 continue;
+            }
+            if (shortageOnly) {
+                BigDecimal shortage = req.getShortageQuantity() == null ? BigDecimal.ZERO : req.getShortageQuantity();
+                if (shortage.compareTo(BigDecimal.ZERO) <= 0) {
+                    continue;
+                }
             }
             if (materialName != null && !materialName.isEmpty()) {
                 String name = req.getMaterialName() == null ? "" : req.getMaterialName();
@@ -705,8 +870,10 @@ public class PurchaseServiceImpl implements PurchaseService {
             }
         }
 
-        Map<String, GeneratePurchaseRequest.SupplierOverride> overrides =
+        Map<String, GeneratePurchaseRequest.SupplierOverride> supplierOverrides =
                 request.getSupplierOverrides() != null ? request.getSupplierOverrides() : Collections.emptyMap();
+        Map<Long, BigDecimal> quantityOverrides = request.getQuantityOverrides() != null
+                ? request.getQuantityOverrides() : Collections.emptyMap();
 
         LocalDateTime now = LocalDateTime.now();
         List<PurchaseOrder> createdOrders = new ArrayList<>();
@@ -716,7 +883,7 @@ public class PurchaseServiceImpl implements PurchaseService {
             List<PurchaseRequirement> group = entry.getValue();
 
             Supplier supplier = supplierId != 0L ? supplierMap.get(supplierId) : null;
-            GeneratePurchaseRequest.SupplierOverride override = overrides.get(String.valueOf(supplierId));
+            GeneratePurchaseRequest.SupplierOverride override = supplierOverrides.get(String.valueOf(supplierId));
 
             // 决定供应商信息：优先 override，其次 supplier 表，最后留空
             String supplierName = override != null && override.getSupplierName() != null
@@ -748,8 +915,14 @@ public class PurchaseServiceImpl implements PurchaseService {
             BigDecimal totalAmount = BigDecimal.ZERO;
             for (PurchaseRequirement req : group) {
                 Material material = materialMapper.getMaterialById(req.getMaterialId());
-                BigDecimal qty = req.getSuggestedPurchaseQuantity() != null
-                        ? req.getSuggestedPurchaseQuantity() : req.getShortageQuantity();
+                BigDecimal qty = quantityOverrides.get(req.getRequirementId());
+                if (qty == null) {
+                    qty = req.getSuggestedPurchaseQuantity() != null
+                            ? req.getSuggestedPurchaseQuantity() : req.getShortageQuantity();
+                }
+                if (qty == null || qty.compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new BusinessException("物料[" + req.getMaterialName() + "]采购数量必须大于0，请在生成前填写数量");
+                }
                 BigDecimal unitPrice = material != null && material.getStandardCost() != null
                         ? material.getStandardCost() : BigDecimal.ZERO;
 

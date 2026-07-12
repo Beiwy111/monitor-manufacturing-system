@@ -8,7 +8,12 @@ export function exportExcelSheets(sheets, filename = 'export.xls') {
     const s = v == null ? '' : String(v)
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   }
-  const sheetHtml = sheets.map((sheet) => {
+  const safeSheets = (sheets || []).map((sheet, i) => ({
+    name: String(sheet.name || `Sheet${i + 1}`).replace(/[\\/?*[\]:]/g, '_').slice(0, 31),
+    headers: Array.isArray(sheet.headers) ? sheet.headers : [],
+    rows: (sheet.rows || []).map((row) => (Array.isArray(row) ? row : [row]).map((c) => c ?? ''))
+  }))
+  const sheetHtml = safeSheets.map((sheet) => {
     const headerRow = sheet.headers.map((h) => `<th>${escape(h)}</th>`).join('')
     const bodyRows = sheet.rows.map((row) =>
       `<tr>${row.map((cell) => `<td>${escape(cell)}</td>`).join('')}</tr>`
@@ -18,7 +23,7 @@ export function exportExcelSheets(sheets, filename = 'export.xls') {
 
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
 <head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>
-${sheets.map((s, i) => `<x:ExcelWorksheet><x:Name>${escape(s.name || `Sheet${i + 1}`)}</x:Name></x:ExcelWorksheet>`).join('')}
+${safeSheets.map((s, i) => `<x:ExcelWorksheet><x:Name>${escape(s.name || `Sheet${i + 1}`)}</x:Name></x:ExcelWorksheet>`).join('')}
 </x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>${sheetHtml}</body></html>`
 
   const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8' })

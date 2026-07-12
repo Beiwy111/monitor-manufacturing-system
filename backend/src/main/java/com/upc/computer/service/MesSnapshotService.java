@@ -421,6 +421,8 @@ public class MesSnapshotService {
             m.put("equipmentId", d.getEquipmentId());
             m.put("dispatchId", d.getDispatchId());
             m.put("dispatchNo", d.getDispatchNo());
+            m.put("operator", op != null ? op.getUsername()
+                    : String.valueOf(extra.getOrDefault("operator", "")));
             m.put("operatorName", extra.getOrDefault("operatorName", op != null ? op.getRealName() : ""));
             m.put("planQty", intVal(d.getAssignedQuantity()));
             m.put("completedQty", intVal(d.getCompletedQuantity()));
@@ -461,6 +463,8 @@ public class MesSnapshotService {
             m.put("qualifiedQty", intVal(r.getQualifiedQuantity()));
             m.put("unqualifiedQty", intVal(r.getUnqualifiedQuantity()));
             m.put("workHours", r.getWorkHours() != null ? r.getWorkHours().doubleValue() : 0);
+            m.put("startTime", r.getStartTime() != null ? fmt(r.getStartTime()) : "");
+            m.put("endTime", r.getEndTime() != null ? fmt(r.getEndTime()) : "");
             m.put("status", MesStatusMapper.toReportCn(r.getReportStatus()));
             m.put("remark", r.getRemark());
             m.put("createdAt", fmt(r.getCreatedAt()));

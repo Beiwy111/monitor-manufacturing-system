@@ -72,17 +72,60 @@ export function computeDelayRisk(plan, progress = 0) {
   return '正常'
 }
 
-export function enrichPlanRow(plan, mes, scheduleMap = {}) {
+export function computeKitRate(materialGaps = []) {
+  if (!materialGaps?.length) return null
+  const ok = materialGaps.filter((g) => (Number(g.gapQty) || 0) <= 0).length
+  return Math.round((ok / materialGaps.length) * 100)
+}
+
+export function computeEquipmentLoad(schedules = [], mes) {
+  const codes = [...new Set(schedules.map((s) => s.equipmentCode).filter(Boolean))]
+  if (!codes.length) return null
+  const equipment = mes?.equipment || []
+  let busy = 0
+  codes.forEach((code) => {
+    const eq = equipment.find((e) => e.code === code || e.id === code || e.equipmentCode === code)
+    const st = String(eq?.status || '').toUpperCase()
+    if (st === 'RUNNING' || st === '运行中' || st === 'BUSY') busy += 1
+  })
+  return Math.round((busy / codes.length) * 100)
+}
+
+export function aggregateSchedulingRisk(delayRisk, conflictCount = 0, hasDanger = false) {
+  if (hasDanger || delayRisk === '严重延期') return '高风险'
+  if (conflictCount > 0 || delayRisk === '延期风险') return '中风险'
+  if (delayRisk === '关注') return '低风险'
+  return '正常'
+}
+
+export function enrichPlanRow(plan, mes, scheduleMap = {}, extras = {}) {
   const schedules = scheduleMap[plan.id] || []
   const { workshop, estimatedHours } = summarizeSchedules(schedules)
   const progress = computePlanProgress(plan, mes)
+  const delayRisk = computeDelayRisk(plan, progress)
+  const order = (mes?.orders || []).find((o) => o.id === plan.orderId || o.orderNo === plan.orderNo)
+  const orderCtx = extras.orderContextMap?.[plan.orderId] || extras.orderContextMap?.[plan.orderNo]
+  const validation = extras.conflictMap?.[plan.id]
+  const conflicts = validation?.conflicts || []
+  const kitRate = orderCtx ? computeKitRate(orderCtx.materialGaps) : null
+  const equipmentLoad = computeEquipmentLoad(schedules, mes)
+  const conflictCount = conflicts.length
+  const schedulingRisk = aggregateSchedulingRisk(delayRisk, conflictCount, validation?.hasDanger)
   return {
     ...plan,
     schedules,
     workshop,
     estimatedHours,
     progress,
-    delayRisk: computeDelayRisk(plan, progress),
+    delayRisk,
+    deliveryDate: order?.deliveryDate || orderCtx?.deliveryDate || '—',
+    kitRate,
+    kitRateLabel: kitRate == null ? '—' : `${kitRate}%`,
+    equipmentLoad,
+    equipmentLoadLabel: equipmentLoad == null ? '—' : `${equipmentLoad}%`,
+    conflictCount,
+    conflicts,
+    schedulingRisk,
     priorityLabel: priorityLabel(plan.priority),
     urgent: isUrgentPlan(plan)
   }
@@ -203,6 +246,123 @@ export function buildGanttRows(plans, scheduleMap, mes) {
       .forEach((sch) => rows.push(buildGanttRow(plan, sch, mes, false)))
   })
   return dedupeAssemblyRows(rows)
+}
+
+/** 甘特视图分组：plan | equipment | workshop */
+export function regroupGanttRows(rows, viewMode = 'plan') {
+  if (!rows?.length || viewMode === 'plan') return rows
+  const sorted = [...rows]
+  if (viewMode === 'equipment') {
+    sorted.sort((a, b) => {
+      const ea = a.equipment || '—'
+      const eb = b.equipment || '—'
+      if (ea !== eb) return ea.localeCompare(eb, 'zh-CN')
+      return (parseTs(a.plannedStart) || 0) - (parseTs(b.plannedStart) || 0)
+    })
+    return sorted.map((r) => ({ ...r, groupLabel: r.equipment || '—', subLabel: r.planId }))
+  }
+  sorted.sort((a, b) => {
+    const wa = a.workshop || '—'
+    const wb = b.workshop || '—'
+    if (wa !== wb) return wa.localeCompare(wb, 'zh-CN')
+    return (parseTs(a.plannedStart) || 0) - (parseTs(b.plannedStart) || 0)
+  })
+  return sorted.map((r) => ({ ...r, groupLabel: r.workshop || '—', subLabel: r.planId }))
+}
+
+function parseTs(val) {
+  if (!val) return null
+  const s = String(val).replace(' ', 'T')
+  const d = new Date(s.length === 10 ? `${s}T08:00:00` : s)
+  return Number.isNaN(d.getTime()) ? null : d.getTime()
+}
+
+/** 设备时间重叠冲突检测 */
+export function detectEquipmentConflicts(rows = []) {
+  const conflictIdx = new Set()
+  const byEquip = {}
+  rows.forEach((row, idx) => {
+    const eq = row.equipment
+    if (!eq || eq === '—') return
+    const start = parseTs(row.plannedStart)
+    const end = parseTs(row.plannedEnd) || start
+    if (!start) return
+    if (!byEquip[eq]) byEquip[eq] = []
+    byEquip[eq].forEach((other) => {
+      const os = parseTs(other.row.plannedStart)
+      const oe = parseTs(other.row.plannedEnd) || os
+      if (os && start < oe && end > os) {
+        conflictIdx.add(idx)
+        conflictIdx.add(other.idx)
+      }
+    })
+    byEquip[eq].push({ idx, row })
+  })
+  return conflictIdx
+}
+
+/** 同计划工序依赖连线 */
+export function buildGanttDependencies(rows = []) {
+  const deps = []
+  const byPlan = {}
+  rows.forEach((row, idx) => {
+    if (!byPlan[row.planId]) byPlan[row.planId] = []
+    byPlan[row.planId].push({ idx, stepNo: row.stepNo ?? 0, row })
+  })
+  Object.values(byPlan).forEach((items) => {
+    items.sort((a, b) => a.stepNo - b.stepNo)
+    for (let i = 1; i < items.length; i++) {
+      deps.push({
+        fromIdx: items[i - 1].idx,
+        toIdx: items[i].idx,
+        planId: items[i].row.planId
+      })
+    }
+  })
+  return deps
+}
+
+/** 产能负荷：按车间/设备聚合已排工时 */
+export function buildCapacityLoad(scheduleMap = {}, mes = {}, plans = []) {
+  const workshopMap = {}
+  const equipmentMap = {}
+  const shiftHours = 16
+
+  plans.forEach((plan) => {
+    const schedules = scheduleMap[plan.id] || []
+    schedules.forEach((sch) => {
+      const hours = Number(sch.standardHours) || 0
+      const ws = sch.workshop || '未分配'
+      const eq = sch.equipmentCode || '未分配'
+      if (!workshopMap[ws]) workshopMap[ws] = { name: ws, scheduledHours: 0, planCount: 0, plans: new Set() }
+      workshopMap[ws].scheduledHours += hours
+      workshopMap[ws].plans.add(plan.id)
+      if (!equipmentMap[eq]) equipmentMap[eq] = { name: eq, workshop: ws, scheduledHours: 0, planCount: 0, plans: new Set() }
+      equipmentMap[eq].scheduledHours += hours
+      equipmentMap[eq].plans.add(plan.id)
+    })
+  })
+
+  const workshopRows = Object.values(workshopMap).map((w) => {
+    const capacity = shiftHours * 5
+    const load = capacity > 0 ? Math.min(100, Math.round((w.scheduledHours / capacity) * 100)) : 0
+    return { ...w, planCount: w.plans.size, capacityHours: capacity, loadPct: load }
+  }).sort((a, b) => b.loadPct - a.loadPct)
+
+  const equipmentRows = Object.values(equipmentMap).map((e) => {
+    const capacity = shiftHours * 5
+    const load = capacity > 0 ? Math.min(100, Math.round((e.scheduledHours / capacity) * 100)) : 0
+    const eqMeta = (mes?.equipment || []).find((x) => x.code === e.name || x.equipmentCode === e.name)
+    return {
+      ...e,
+      planCount: e.plans.size,
+      capacityHours: capacity,
+      loadPct: load,
+      status: eqMeta?.status || '—'
+    }
+  }).sort((a, b) => b.loadPct - a.loadPct)
+
+  return { workshopRows, equipmentRows }
 }
 
 export { parseDate, parseDateTime }
