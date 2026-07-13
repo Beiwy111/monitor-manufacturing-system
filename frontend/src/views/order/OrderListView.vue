@@ -12,8 +12,6 @@
 
     :detail-rows="rows"
 
-    :logs="mes.operationLogs.slice(0, 10)"
-
     v-model:model-keyword="keyword"
 
     v-model:model-status="statusFilter"
@@ -28,9 +26,9 @@
 
         <div class="pending-block__title">已审核待提交计划员（{{ mes.pendingSubmitToPlanner.length }}）</div>
 
-        <el-table :data="mes.pendingSubmitToPlanner" border stripe size="small" style="margin-bottom: 12px">
+        <el-table :data="mes.pendingSubmitToPlanner" size="small" highlight-current-row class="mes-table-light" style="margin-bottom: 12px">
 
-          <el-table-column prop="id" label="订单号" width="140" />
+          <el-table-column prop="id" label="订单号" width="148" show-overflow-tooltip />
 
           <el-table-column prop="customerName" label="客户" min-width="120" />
 
@@ -52,9 +50,9 @@
 
 
 
-      <el-table :data="filtered" border stripe highlight-current-row style="width:100%" @current-change="onRowClick">
+      <el-table :data="filtered" highlight-current-row class="mes-table-light" style="width:100%" @current-change="onRowClick">
 
-        <el-table-column prop="id" label="订单号" width="140" />
+        <el-table-column prop="id" label="订单号" width="148" show-overflow-tooltip />
 
         <el-table-column prop="customerName" label="客户" min-width="140" />
 

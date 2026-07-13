@@ -953,6 +953,7 @@ public class MesPlannerAgentService {
                     Role role = roleMapper.getRoleById(u.getRoleId());
                     return role != null && "OPERATOR".equalsIgnoreCase(role.getRoleCode());
                 })
+                .filter(u -> OperatorWorkshopCatalog.isBoundOperator(u.getUsername()))
                 .toList();
     }
 
@@ -1297,9 +1298,15 @@ public class MesPlannerAgentService {
         List<User> operators = activeOperators();
 
         Map<String, StepCapacity> capByType = new LinkedHashMap<>();
-        for (ProcessStep step : steps) {
-            String type = normalizeType(step.getStandardEquipmentType());
-            capByType.putIfAbsent(type, buildStepCapacity(step, allEquipment, 1L, 0));
+        for (ProductionWorkshopCatalog.ProcessStageDef stage : ProductionWorkshopCatalog.PRODUCTION_STAGES) {
+            ProcessStep step = steps.stream()
+                    .filter(s -> ProductionWorkshopCatalog.matchesStage(s, stage))
+                    .findFirst()
+                    .orElse(null);
+            if (step != null) {
+                String type = normalizeType(step.getStandardEquipmentType());
+                capByType.putIfAbsent(type, buildStepCapacity(step, allEquipment, 1L, 0));
+            }
         }
 
         int totalEquipment = 0;
@@ -1356,6 +1363,7 @@ public class MesPlannerAgentService {
 
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("workshopCount", workshops.size());
+        summary.put("productionStageCount", ProductionWorkshopCatalog.PRODUCTION_STAGES.size());
         summary.put("equipmentTotal", totalEquipment);
         summary.put("running", totalRunning);
         summary.put("fault", totalFault);

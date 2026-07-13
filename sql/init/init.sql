@@ -892,7 +892,7 @@ CREATE TABLE `prod_downtime_reason` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`reason_id`),
   UNIQUE KEY `uk_date_reason` (`stat_date`,`reason_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='停机原因统计';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -925,7 +925,7 @@ CREATE TABLE `prod_hourly_metric` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`metric_id`),
   UNIQUE KEY `uk_date_hour` (`stat_date`,`stat_hour`)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='按小时产量统计';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -963,7 +963,7 @@ CREATE TABLE `prod_line_station` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`station_id`),
   UNIQUE KEY `uk_station_code` (`station_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='产线工位实时状态';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -997,7 +997,7 @@ CREATE TABLE `prod_shift_capacity` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`capacity_id`),
   UNIQUE KEY `uk_date_team` (`stat_date`,`team_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='班组产能统计';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1321,7 +1321,7 @@ CREATE TABLE `sys_role_menu` (
   UNIQUE KEY `uk_role_menu` (`role_id`,`menu_id`),
   KEY `idx_role_id` (`role_id`),
   KEY `idx_menu_id` (`menu_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=138 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=138 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='角色与菜单关联表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

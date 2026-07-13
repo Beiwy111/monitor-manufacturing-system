@@ -404,7 +404,7 @@ function render() {
 function initChart() {
   if (!chartRef.value) return
   chart?.dispose()
-  chart = echarts.init(chartRef.value)
+  chart = echarts.init(chartRef.value, 'mes')
   render()
 }
 

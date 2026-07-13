@@ -4,7 +4,7 @@
     <section v-if="flowStep === 0" class="op-report-page__section">
       <h2 class="op-report-page__heading">选择报工工序</h2>
       <p class="op-report-page__sub">
-        四道生产工序独立报工窗口，点击进入对应工序进行生产报工
+        八道生产工序独立报工窗口，点击进入对应工序进行生产报工
         <span v-if="binding">（您负责：{{ binding.stageName }} · {{ binding.workshopName }}）</span>
       </p>
 
@@ -45,7 +45,7 @@
     <section v-else class="op-report-page__section">
       <div class="op-report-page__bar">
         <el-button link type="primary" @click="backToHub">← 返回工序选择</el-button>
-        <el-tag type="primary">第 {{ activeStation?.order }}/4 道工序</el-tag>
+        <el-tag type="primary">第 {{ activeStation?.order }}/8 道工序</el-tag>
         <strong>{{ activeStation?.title }}</strong>
       </div>
       <OperatorProcessWorkbench v-if="activeStation" :station="activeStation" />
@@ -54,7 +54,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
@@ -64,7 +64,6 @@ import { operatorBinding } from '@/utils/operatorWorkshop'
 import {
   OPERATOR_PROCESS_STATIONS,
   stationById,
-  stationByStageName,
   dispatchMatchesStage
 } from '@/config/operatorProcessStations'
 import OperatorProcessWorkbench from '@/components/production/OperatorProcessWorkbench.vue'
@@ -116,11 +115,7 @@ function backToHub() {
   router.replace({ query: {} })
 }
 
-onMounted(async () => {
-  try {
-    await mes.hydrateFromApi()
-  } catch { /* ignore */ }
-
+function syncFromRoute() {
   const qStage = route.query.stage
   if (qStage) {
     const s = stationById(String(qStage))
@@ -130,16 +125,19 @@ onMounted(async () => {
       return
     }
   }
+  flowStep.value = 0
+  activeStationId.value = ''
+}
 
-  // 已绑定操作员直接进入本工序窗口
-  if (binding.value) {
-    const s = stationByStageName(binding.value.stageName)
-    if (s) {
-      activeStationId.value = s.id
-      flowStep.value = 1
-      router.replace({ query: { stage: s.id } })
-    }
-  }
+onMounted(async () => {
+  try {
+    await mes.hydrateFromApi()
+  } catch { /* ignore */ }
+  syncFromRoute()
+})
+
+watch(() => route.query.stage, () => {
+  syncFromRoute()
 })
 </script>
 
@@ -171,11 +169,15 @@ onMounted(async () => {
 .op-station-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, auto);
   gap: 16px;
 }
 
-@media (max-width: 1400px) {
-  .op-station-grid { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 1100px) {
+  .op-station-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto;
+  }
 }
 @media (max-width: 700px) {
   .op-station-grid { grid-template-columns: 1fr; }

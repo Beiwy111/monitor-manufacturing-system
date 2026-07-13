@@ -2,7 +2,7 @@
   <ModulePageShell>
     <div class="eq-header">
       <span class="eq-title">设备台账</span>
-      <el-tag type="info" size="small">四道工序 · 11 个生产车间 · 数据库活数据</el-tag>
+      <el-tag type="info" size="small">八道生产工序 · 19 个生产车间 · 数据库活数据</el-tag>
       <el-button :loading="loading" style="margin-left:auto" @click="loadData">刷新</el-button>
     </div>
     <el-table v-loading="loading" :data="productionList" border stripe highlight-current-row @current-change="onRowClick">

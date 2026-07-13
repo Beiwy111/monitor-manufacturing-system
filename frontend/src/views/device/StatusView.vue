@@ -2,7 +2,7 @@
   <ModulePageShell>
     <div class="eq-header">
       <span class="eq-title">设备状态</span>
-      <el-tag type="info" size="small">按四道工序 · 11 车间展示</el-tag>
+      <el-tag type="info" size="small">按八道生产工序 · 19 车间展示</el-tag>
       <el-button :loading="loading" style="margin-left:auto" @click="loadData">刷新</el-button>
     </div>
     <div v-for="stage in stageGroups" :key="stage.stepKey" class="stage-block">

@@ -34,23 +34,40 @@
       border
       stripe
       highlight-current-row
+      class="opwb__table"
       :row-class-name="rowClassName"
-      style="margin-bottom: 16px"
+      style="width: 100%; margin-bottom: 16px"
       @current-change="onRowClick"
     >
-      <el-table-column prop="id" label="派工单" width="130" />
+      <el-table-column prop="id" label="派工单" min-width="168" class-name="opwb__nowrap" />
       <el-table-column prop="workshopName" label="车间" min-width="120" />
       <el-table-column prop="equipment" label="设备" min-width="100" show-overflow-tooltip />
-      <el-table-column prop="planQty" label="计划" width="70" align="center" />
-      <el-table-column prop="completedQty" label="已报" width="70" align="center" />
+      <el-table-column prop="planQty" label="计划" width="96" align="center" class-name="opwb__nowrap" />
+      <el-table-column prop="completedQty" label="已报" width="88" align="center" class-name="opwb__nowrap" />
       <el-table-column label="进度" width="100">
         <template #default="{ row }">{{ progressText(row) }}</template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="90">
         <template #default="{ row }"><StatusBadge :status="row.status" /></template>
       </el-table-column>
-      <el-table-column label="操作" width="110" fixed="right">
+      <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
+          <el-button
+            v-if="row.status === '已分配'"
+            link
+            type="primary"
+            @click="selectAndAccept(row)"
+          >
+            接收
+          </el-button>
+          <el-button
+            v-if="row.status === '已接收'"
+            link
+            type="success"
+            @click="selectAndStart(row)"
+          >
+            开始生产
+          </el-button>
           <el-button
             v-if="canSubmitQc(row)"
             link
@@ -62,6 +79,17 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <div v-if="selected && !canReport && selected.status !== '待质检'" class="opwb__prep">
+      <el-alert
+        type="warning"
+        :closable="false"
+        :title="prepHint"
+        style="margin-bottom: 12px"
+      />
+      <el-button v-if="selected.status === '已分配'" type="primary" @click="acceptSelected">接收派工</el-button>
+      <el-button v-if="selected.status === '已接收'" type="success" @click="startSelected">开始生产</el-button>
+    </div>
 
     <div v-if="selected && canReport" class="opwb__form">
       <div class="opwb__form-hd">提交报工 · {{ selected.workOrderNo || selected.workOrderId }}</div>
@@ -147,7 +175,7 @@ const activeDispatches = computed(() =>
   )
 )
 
-const currentTask = computed(() => pickCurrentDispatch(activeDispatches.value, true))
+const currentTask = computed(() => pickCurrentDispatch(activeDispatches.value, false))
 const selected = ref(null)
 const form = reactive({ reportQty: 10, startTime: '', endTime: '', remark: '' })
 
@@ -180,19 +208,24 @@ function onRowClick(row) {
 }
 
 watch(
-  currentTask,
-  (task) => {
-    if (task) {
-      selected.value = task
-      resetFormDefaults(task)
+  () => activeDispatches.value,
+  (list) => {
+    if (!list?.length) {
+      selected.value = null
+      return
     }
+    if (!selected.value || !list.some((d) => d.id === selected.value.id)) {
+      selected.value = pickCurrentDispatch(list, false)
+    }
+    if (selected.value) resetFormDefaults(selected.value)
   },
   { immediate: true }
 )
 
 watch(() => props.station?.id, () => {
-  selected.value = currentTask.value
-  if (currentTask.value) resetFormDefaults(currentTask.value)
+  const list = activeDispatches.value
+  selected.value = list.length ? pickCurrentDispatch(list, false) : null
+  if (selected.value) resetFormDefaults(selected.value)
 })
 
 const canReport = computed(() =>
@@ -201,14 +234,66 @@ const canReport = computed(() =>
   && selected.value.completedQty < selected.value.planQty
 )
 
+const prepHint = computed(() => {
+  if (!selected.value) return ''
+  if (selected.value.status === '已分配') {
+    return '该派工尚未接收，请先点击「接收派工」，再「开始生产」后即可报工。'
+  }
+  if (selected.value.status === '已接收') {
+    return '已接收派工，请点击「开始生产」后再填写报工数量。'
+  }
+  if (selected.value.completedQty >= selected.value.planQty) {
+    return '计划数量已全部报工，如为最后一道工序请提交质检。'
+  }
+  return '当前状态不可报工，请确认派工流程。'
+})
+
+async function acceptSelected() {
+  if (!selected.value) return
+  try {
+    const ok = await mes.acceptDispatch(selected.value.id, username.value, 'operator')
+    if (ok !== false) {
+      ElMessage.success('已接收派工，请点击「开始生产」')
+    } else {
+      ElMessage.error('接收失败')
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '接收派工失败')
+  }
+}
+
+async function startSelected() {
+  if (!selected.value) return
+  try {
+    const ok = await mes.startDispatch(selected.value.id, username.value, 'operator')
+    if (ok !== false) {
+      ElMessage.success('已开始生产，请填写报工信息')
+    } else {
+      ElMessage.warning('请先接收派工')
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '开始生产失败')
+  }
+}
+
+function selectAndAccept(row) {
+  selected.value = row
+  acceptSelected()
+}
+
+function selectAndStart(row) {
+  selected.value = row
+  startSelected()
+}
+
 function rowClassName({ row }) {
   return row.id === currentTask.value?.id ? 'is-current-task' : ''
 }
 
 function canSubmitQc(row) {
-  return DISPATCH_REPORTABLE.includes(row.status)
-    && row.completedQty >= row.planQty
-    && (row.finalProductionStep || row.processStep === '返修')
+  if (!(row.finalProductionStep || row.processStep === '返修')) return false
+  if (Number(row.completedQty) < Number(row.planQty)) return false
+  return ['已接收', '生产中', '待质检'].includes(row.status)
 }
 
 function progressText(row) {
@@ -350,6 +435,14 @@ function selectAndSubmitQc(row) {
   background: #fafbfc;
 }
 
+.opwb__prep {
+  padding: 16px;
+  border: 1px dashed #e6a23c;
+  border-radius: 8px;
+  background: #fdf6ec;
+  margin-bottom: 16px;
+}
+
 .opwb__form-hd {
   font-size: 15px;
   font-weight: 600;
@@ -359,6 +452,10 @@ function selectAndSubmitQc(row) {
 
 :deep(.is-current-task > td) {
   background: #f0f9eb !important;
+}
+
+.opwb__table :deep(.opwb__nowrap .cell) {
+  white-space: nowrap;
 }
 
 @media (max-width: 900px) {

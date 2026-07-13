@@ -11,8 +11,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 生产结构：4 道工序，每道工序 2~3 个并行车间。
- * 工序顺序：显示屏加工 → 主板装配 → 贴附 → 组装（不含质检/老化/包装）。
+ * 生产结构：8 道工序，每道工序 2~3 个并行车间。
+ * 工序顺序：主板装配 → 电源板装配 → 接口板装配 → 显示屏加工 → 面板贴附 → 外壳装配 → 整机组装 → 支架底座装配
  */
 public final class ProductionWorkshopCatalog {
 
@@ -20,36 +20,64 @@ public final class ProductionWorkshopCatalog {
     }
 
     public static final List<ProcessStageDef> PRODUCTION_STAGES = List.of(
-            stage("display", "显示屏加工", 1, "显示屏线",
-                    List.of("显示屏加工", "显示屏"),
-                    1, "显示屏加工", "液晶面板检测、点亮与显示功能前加工",
-                    List.of(
-                            ws("display-1", "显示屏加工一车间", "display", "生产一部"),
-                            ws("display-2", "显示屏加工二车间", "display", "生产一部"),
-                            ws("display-3", "显示屏加工三车间", "display", "生产一部")
-                    )),
-            stage("motherboard", "主板装配", 2, "主板线",
+            stage("motherboard", "主板装配", 1, "主板线",
                     List.of("主板装配", "主板"),
-                    1, "主板装配", "主控板、电源板装配与功能预检",
+                    1, "主板装配", "PCB 贴装 · 主控焊接 · 电路通电测试",
                     List.of(
                             ws("mb-1", "主板装配一车间", "motherboard", "生产一部"),
                             ws("mb-2", "主板装配二车间", "motherboard", "生产一部"),
                             ws("mb-3", "主板装配三车间", "motherboard", "生产一部")
                     )),
-            stage("attach", "贴附", 3, "贴附机",
+            stage("powerboard", "电源板装配", 2, "电源板线",
+                    List.of("电源板装配", "电源板"),
+                    1, "电源板装配", "PCB 贴装 · 主控焊接 · 电路通电测试",
+                    List.of(
+                            ws("pb-1", "电源板装配一车间", "powerboard", "生产一部"),
+                            ws("pb-2", "电源板装配二车间", "powerboard", "生产一部")
+                    )),
+            stage("interface", "接口板装配", 3, "接口板线",
+                    List.of("接口板装配", "接口板"),
+                    1, "接口板装配", "PCB 贴装 · 主控焊接 · 电路通电测试",
+                    List.of(
+                            ws("if-1", "接口板装配一车间", "interface", "生产一部"),
+                            ws("if-2", "接口板装配二车间", "interface", "生产一部")
+                    )),
+            stage("display", "显示屏加工", 4, "显示屏线",
+                    List.of("显示屏加工", "显示屏"),
+                    1, "显示屏加工", "面板点亮 · 背光组装 · 显示功能初检",
+                    List.of(
+                            ws("display-1", "显示屏加工一车间", "display", "生产一部"),
+                            ws("display-2", "显示屏加工二车间", "display", "生产一部"),
+                            ws("display-3", "显示屏加工三车间", "display", "生产一部")
+                    )),
+            stage("attach", "面板贴附", 5, "贴附机",
                     List.of("面板贴附", "贴附"),
-                    1, "面板贴附", "液晶面板与背光模组高精度贴附",
+                    1, "面板贴附", "面板与背光贴合 · 边框压合 · 贴合精度校验",
                     List.of(
                             ws("attach-1", "贴附一车间", "attach", "生产一部"),
                             ws("attach-2", "贴附二车间", "attach", "生产一部")
                     )),
-            stage("assembly", "组装", 4, "组装线",
+            stage("shell", "外壳装配", 6, "外壳线",
+                    List.of("外壳装配", "外壳"),
+                    1, "外壳装配", "面板与背光贴合 · 边框压合 · 贴合精度校验",
+                    List.of(
+                            ws("shell-1", "外壳装配一车间", "shell", "生产一部"),
+                            ws("shell-2", "外壳装配二车间", "shell", "生产一部")
+                    )),
+            stage("assembly", "整机组装", 7, "组装线",
                     List.of("整机组装", "背光组装", "组装"),
-                    2, "整机组装", "整机组装与结构件固定，产出待检半成品",
+                    2, "整机组装", "整机总装 · 线缆连接 · 老化前整机联调",
                     List.of(
                             ws("assembly-1", "组装一车间", "assembly", "生产一部"),
                             ws("assembly-2", "组装二车间", "assembly", "生产一部"),
                             ws("assembly-3", "组装三车间", "assembly", "生产一部")
+                    )),
+            stage("bracket", "支架底座装配", 8, "支架线",
+                    List.of("支架底座装配", "支架", "底座"),
+                    1, "支架底座装配", "整机总装 · 线缆连接 · 老化前整机联调",
+                    List.of(
+                            ws("bracket-1", "支架底座装配一车间", "bracket", "生产一部"),
+                            ws("bracket-2", "支架底座装配二车间", "bracket", "生产一部")
                     ))
     );
 
@@ -80,13 +108,45 @@ public final class ProductionWorkshopCatalog {
     }
 
     public static ProcessStageDef stageForStep(ProcessStep step) {
-        if (step == null) {
+        if (step == null || isNonProductionStepName(step.getStepName())) {
             return null;
         }
-        return PRODUCTION_STAGES.stream()
-                .filter(stage -> matchesStage(step, stage))
-                .findFirst()
-                .orElse(null);
+        String name = step.getStepName() != null ? step.getStepName() : "";
+        for (ProcessStageDef stage : PRODUCTION_STAGES) {
+            if (stage.stepName().equals(name)) {
+                return stage;
+            }
+        }
+        for (ProcessStageDef stage : PRODUCTION_STAGES) {
+            if (matchesStage(step, stage)) {
+                return stage;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 按八道生产工序标准顺序，从工艺路线中解析生产工序（智能派工/生成工单统一入口）。
+     */
+    public static List<ProcessStep> resolveProductionStepsForRoute(Long routeId, List<ProcessStep> allSteps) {
+        if (routeId == null || allSteps == null || allSteps.isEmpty()) {
+            return List.of();
+        }
+        List<ProcessStep> routeSteps = allSteps.stream()
+                .filter(s -> routeId.equals(s.getRouteId()))
+                .filter(s -> s.getStatus() == null || s.getStatus() == 1)
+                .toList();
+        List<ProcessStep> ordered = new ArrayList<>();
+        for (ProcessStageDef stage : PRODUCTION_STAGES) {
+            ProcessStep hit = routeSteps.stream()
+                    .filter(s -> matchesStage(s, stage))
+                    .min(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
+                    .orElse(null);
+            if (hit != null) {
+                ordered.add(hit);
+            }
+        }
+        return ordered;
     }
 
     public static WorkshopDef workshopForStep(ProcessStep step) {
@@ -125,6 +185,9 @@ public final class ProductionWorkshopCatalog {
             return true;
         }
         String name = step.getStepName() != null ? step.getStepName() : "";
+        if (stage.stepName().equals(name)) {
+            return true;
+        }
         return stage.stepKeywords().stream().anyMatch(name::contains);
     }
 
@@ -165,7 +228,7 @@ public final class ProductionWorkshopCatalog {
     }
 
     /**
-     * 成品完成量 = 各工序完成量之和取瓶颈（多车间并行时同工序产量累加，再取四道工序最小值）。
+     * 成品完成量 = 各工序完成量之和取瓶颈（多车间并行时同工序产量累加，再取八道生产工序最小值）。
      */
     public static int finishedGoodsQty(List<DispatchTask> dispatches, Map<Long, ProcessStep> stepById) {
         if (dispatches == null || dispatches.isEmpty()) {

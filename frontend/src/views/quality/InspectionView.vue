@@ -740,14 +740,24 @@ async function doPass() {
   }
   await ElMessageBox.confirm('确认该批次质检通过？', '质检通过', { type: 'success' })
   acting.value = true
+  const passedId = selected.value?.inspectionId
   try {
     await ensureReportSynced()
     await passInspection(buildPassPayload())
     ElMessage.success('质检通过')
-    await refreshSelectedAfterAction(false)
+    fpReportSnapshot.value = null
+    reportItems.value = []
+    actionRemark.value = ''
+    selected.value = null
+    detail.value = null
+    items.value = []
+    await loadData()
     flowStep.value = 1
   } catch (e) {
     ElMessage.error(e?.response?.data?.message || e?.message || '操作失败')
+    if (passedId) {
+      await loadData()
+    }
   } finally {
     acting.value = false
   }
@@ -778,7 +788,12 @@ async function doFail() {
     await failInspection(payload)
     ElMessage.warning('质检不通过')
     failDialog.value = false
-    await refreshSelectedAfterAction(false)
+    fpReportSnapshot.value = null
+    reportItems.value = []
+    selected.value = null
+    detail.value = null
+    items.value = []
+    await loadData()
     flowStep.value = 1
   } catch (e) {
     ElMessage.error(e?.response?.data?.message || e?.message || '操作失败')

@@ -13,30 +13,30 @@
   flex-wrap: wrap;
   gap: 16px 24px;
   padding: 10px 16px;
-  border-bottom: 1px solid #ebeef5;
-  background: #fafafa;
+  border-bottom: 1px solid var(--layout-border);
+  background: #fff;
 }
 
 .mes-status-item {
   font-size: 13px;
-  color: #606266;
+  color: var(--layout-text-secondary);
 }
 
 .mes-status-label {
   display: inline;
   font-size: 13px;
-  color: #606266;
+  color: var(--layout-text-secondary);
 }
 
 .mes-status-value {
   display: inline;
-  font-size: 13px;
-  font-weight: 500;
-  color: #303133;
+  font-size: var(--fs-kpi, 16px);
+  font-weight: 600;
+  color: var(--layout-text-title, #25272a);
 }
 
-.mes-status-value--warn { color: #e6a23c; }
-.mes-status-value--danger { color: #f56c6c; }
+.mes-status-value--warn { color: var(--color-warning); }
+.mes-status-value--danger { color: var(--color-danger); }
 
 .mes-toolbar {
   display: flex;
@@ -44,13 +44,13 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--layout-border);
 }
 
 .mes-toolbar-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: #303133;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--layout-text-title, #25272a);
   margin-right: 8px;
 }
 
@@ -71,6 +71,7 @@
 .mes-table-wrap {
   flex: 1;
   overflow: auto;
+  overflow-x: auto;
   padding: 0 16px 8px;
 }
 
@@ -79,27 +80,27 @@
 }
 
 .mes-table-wrap .el-table th.el-table__cell {
-  background: #f8f8f9 !important;
+  background: var(--layout-table-head) !important;
   font-weight: 500;
-  color: #515a6e;
+  color: var(--layout-text-secondary);
   font-size: 13px;
 }
 
 .mes-table-wrap .el-table td.el-table__cell {
   font-size: 13px;
-  color: #606266;
+  color: var(--layout-text-secondary);
 }
 
 .mes-side {
-  border-top: 1px solid #ebeef5;
-  background: #fafafa;
+  border-top: 1px solid var(--layout-border);
+  background: #fff;
   padding: 10px 16px 14px;
 }
 
 .mes-side-header {
-  font-size: 13px;
-  font-weight: 500;
-  color: #303133;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--layout-text-title, #18181b);
   margin-bottom: 8px;
 }
 
@@ -117,12 +118,12 @@
 .mes-detail-label {
   width: 88px;
   flex-shrink: 0;
-  color: #909399;
+  color: var(--layout-text-caption, #71717a);
 }
 
 .mes-detail-value {
   flex: 1;
-  color: #606266;
+  color: var(--layout-text-secondary);
   word-break: break-all;
 }
 
@@ -136,7 +137,7 @@
 }
 
 .mes-log-panel {
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--layout-border);
   max-height: 140px;
   overflow: auto;
   background: #fff;
@@ -146,21 +147,21 @@
   padding: 8px 16px;
   font-size: 12px;
   font-weight: 500;
-  color: #909399;
+  color: var(--layout-text-caption, #71717a);
   border-bottom: 1px solid #f0f0f0;
 }
 
 .mes-log-item {
   padding: 5px 16px;
   font-size: 12px;
-  color: #606266;
+  color: var(--layout-text-secondary);
   border-bottom: 1px solid #f5f5f5;
   display: flex;
   gap: 12px;
 }
 
 .mes-log-time {
-  color: #909399;
+  color: var(--layout-text-caption, #71717a);
   white-space: nowrap;
 }
 
@@ -187,29 +188,29 @@
   flex-wrap: wrap;
   gap: 8px;
   padding: 10px 16px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--layout-border);
 }
 
 .mes-shortcut-item {
   display: inline-block;
   padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--layout-accent);
+  font-size: var(--fs-caption, 13px);
+  font-weight: 500;
+  color: var(--layout-text-title, #18181b);
   text-decoration: none;
-  border: 1px solid var(--layout-accent-border);
+  border: 1px solid var(--btn-secondary-border, #d4d4d8);
   border-radius: 8px;
-  background: var(--layout-accent-soft);
+  background: #fff;
 }
 
 .mes-shortcut-item:hover {
-  background: var(--layout-accent);
-  color: #fff;
-  border-color: var(--layout-accent);
+  background: var(--btn-secondary-hover-bg, #f4f4f5);
+  color: var(--layout-text-title, #18181b);
+  border-color: var(--btn-secondary-border, #d4d4d8);
 }
 
 .mes-operator-terminal .mes-status-strip {
-  background: #fafafa;
+  background: #fff;
 }
 
 .mes-operator-terminal .mes-status-label,
@@ -219,15 +220,15 @@
 
 .mes-operator-current {
   padding: 10px 16px;
-  background: #fafafa;
-  border-bottom: 1px solid #ebeef5;
+  background: #fff;
+  border-bottom: 1px solid var(--layout-border);
 }
 
 .mes-operator-current h3 {
   margin: 0 0 6px;
   font-size: 14px;
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  color: var(--layout-text-title, #18181b);
 }
 
 .mes-operator-btns {
@@ -249,7 +250,7 @@
   position: relative;
   padding-left: 16px;
   padding-bottom: 12px;
-  border-left: 2px solid var(--layout-accent);
+  border-left: 2px solid var(--layout-border, #e8eaed);
   margin-left: 4px;
 }
 
@@ -264,18 +265,18 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--layout-accent);
+  background: var(--layout-text-title, #18181b);
 }
 
 .mes-timeline-title {
   font-size: 13px;
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  color: var(--layout-text-title, #18181b);
 }
 
 .mes-timeline-desc {
   font-size: 12px;
-  color: #909399;
+  color: var(--layout-text-caption, #71717a);
   margin-top: 2px;
 }
 

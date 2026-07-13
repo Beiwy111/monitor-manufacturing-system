@@ -6,6 +6,7 @@ import App from './App.vue'
 import router from './router'
 import './styles/typography.css'
 import './styles/theme.css'
+import { registerMesChartTheme } from './styles/chartTheme'
 import './styles/index.css'
 import './styles/home.css'
 import './styles/mes.css'
@@ -28,4 +29,5 @@ if (!MES_LIVE_MODE) {
 app.use(pinia)
 app.use(router)
 app.use(ElementPlus)
+registerMesChartTheme()
 app.mount('#app')

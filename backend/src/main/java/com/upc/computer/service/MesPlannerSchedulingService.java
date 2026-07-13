@@ -1026,6 +1026,11 @@ public class MesPlannerSchedulingService {
         }
         return processStepMapper.listByRouteId(route.getRouteId()).stream()
                 .filter(s -> s.getStatus() == null || s.getStatus() == 1)
+                .filter(ProductionWorkshopCatalog::isProductionStep)
+                .sorted(Comparator.comparing(s -> {
+                    ProductionWorkshopCatalog.ProcessStageDef stage = ProductionWorkshopCatalog.stageForStep(s);
+                    return stage != null ? stage.stepOrder() : (s.getStepNo() != null ? s.getStepNo() : 99);
+                }))
                 .map(this::stepToMap).toList();
     }
 

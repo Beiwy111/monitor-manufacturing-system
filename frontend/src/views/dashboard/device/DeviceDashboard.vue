@@ -4,7 +4,7 @@
     <div class="dd-head">
       <div class="dd-head__left">
         <span class="dd-title">设备管理中心</span>
-        <span class="dd-sub">四道工序 · 11 个生产车间 · 与生产主管大屏数据同步</span>
+        <span class="dd-sub">八道生产工序 · 19 个生产车间 · 与生产主管大屏数据同步</span>
       </div>
       <div class="dd-head__right">
         <span class="dd-time">更新于 {{ updatedText }}</span>
@@ -23,7 +23,7 @@
       </div>
     </div>
 
-    <!-- 生产车间总览（4 工序 × 11 车间，活数据） -->
+    <!-- 生产车间总览（8 工序 × 19 车间，活数据） -->
     <div class="panel panel--workshops">
       <div class="panel__title">
         生产车间状态
@@ -79,7 +79,7 @@
         <div class="panel__foot">完好 = 空闲/运行设备占比（不含故障、维保、报废）</div>
       </div>
       <div class="panel">
-        <div class="panel__title">各车间设备分布（11 个生产车间）</div>
+        <div class="panel__title">各车间设备分布（19 个生产车间）</div>
         <BoardChart v-if="workshops.length" :option="workshopBar" class="panel__chart" />
         <div v-else class="panel__empty">暂无数据</div>
       </div>
@@ -126,7 +126,7 @@
 
     <!-- 设备状态墙 -->
     <div class="panel">
-      <div class="panel__title">生产设备状态墙（四道工序范围内）</div>
+      <div class="panel__title">生产设备状态墙（八道生产工序范围内）</div>
       <div v-if="productionEquipments.length === 0" class="panel__empty">暂无生产车间设备数据</div>
       <div v-else class="wall">
         <div v-for="e in productionEquipments" :key="e.equipmentId" class="wall__chip" :class="'is-'+e.status.toLowerCase()">

@@ -88,7 +88,7 @@ public class EquipmentController {
         return Result.success(equipmentService.maintenanceViews());
     }
 
-    /** 生产车间总览：4 道工序、11 个车间，与 /mes/dashboard/snapshot 一致 */
+    /** 生产车间总览：八道生产工序、19 个车间，与 /mes/dashboard/snapshot 一致 */
     @GetMapping("/workshop/overview")
     public Result<Map<String, Object>> workshopOverview() {
         return Result.success(equipmentService.workshopOverview());

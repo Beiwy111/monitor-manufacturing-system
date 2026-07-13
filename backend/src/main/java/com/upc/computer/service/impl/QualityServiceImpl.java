@@ -47,6 +47,7 @@ public class QualityServiceImpl implements QualityService {
     @Override
     public List<Map<String, Object>> listInspectionViews() {
         List<Map<String, Object>> list = inspectionMapper.listInspectionViews();
+        suppressSupersededPendingViews(list);
         list.forEach(row -> {
             enrichInspection(row);
             Object matId = row.get("materialId");
@@ -279,6 +280,7 @@ public class QualityServiceImpl implements QualityService {
         i.setInspectionStatus("PASSED"); i.setInspectionResult("QUALIFIED");
         i.setInspectedAt(LocalDateTime.now()); i.setRemark(remark); i.setUpdatedAt(LocalDateTime.now());
         inspectionMapper.updateInspection(i);
+        closeSupersededPendingInspections(i);
         mesWorkflowService.afterInspectionPassed(i, operator, "quality");
         return i;
     }
@@ -314,6 +316,7 @@ public class QualityServiceImpl implements QualityService {
         i.setInspectionStatus("PASSED"); i.setInspectionResult("QUALIFIED");
         i.setInspectedAt(LocalDateTime.now()); i.setRemark(remark); i.setUpdatedAt(LocalDateTime.now());
         inspectionMapper.updateInspection(i);
+        closeSupersededPendingInspections(i);
         mesWorkflowService.afterInspectionPassed(i, operator, "quality");
         return i;
     }
@@ -454,6 +457,52 @@ public class QualityServiceImpl implements QualityService {
         nc.setRegisteredAt(LocalDateTime.now());
         nc.setCreatedAt(LocalDateTime.now()); nc.setUpdatedAt(LocalDateTime.now());
         nonconformingMapper.insertNonconforming(nc);
+    }
+
+    /** 同工单已有通过记录时，其余待检/需复检单不再出现在待检列表 */
+    private void suppressSupersededPendingViews(List<Map<String, Object>> list) {
+        Set<Long> passedWorkOrders = new HashSet<>();
+        for (Map<String, Object> row : list) {
+            if (!"FINISHED_PRODUCT".equals(str(row, "inspectionCategory"))) continue;
+            Long woId = toLong(row.get("workOrderId"));
+            if (woId != null && "PASSED".equals(str(row, "inspectionStatus"))) {
+                passedWorkOrders.add(woId);
+            }
+        }
+        if (passedWorkOrders.isEmpty()) return;
+        for (Map<String, Object> row : list) {
+            if (!"FINISHED_PRODUCT".equals(str(row, "inspectionCategory"))) continue;
+            Long woId = toLong(row.get("workOrderId"));
+            if (woId == null || !passedWorkOrders.contains(woId)) continue;
+            String st = str(row, "inspectionStatus");
+            if ("PENDING".equals(st) || "RECHECK_REQUIRED".equals(st)) {
+                row.put("inspectionStatus", "CLOSED");
+            }
+        }
+    }
+
+    /** 质检通过后关闭同工单下其余待检/需复检单，避免待检列表重复出现 */
+    private void closeSupersededPendingInspections(QualityInspection passed) {
+        if (passed.getWorkOrderId() == null) return;
+        LocalDateTime now = LocalDateTime.now();
+        for (QualityInspection other : inspectionMapper.inspectionList()) {
+            if (passed.getInspectionId().equals(other.getInspectionId())) continue;
+            if (!passed.getWorkOrderId().equals(other.getWorkOrderId())) continue;
+            if (!"FINISHED_PRODUCT".equals(other.getInspectionCategory())) continue;
+            String st = other.getInspectionStatus();
+            if (!"PENDING".equals(st) && !"RECHECK_REQUIRED".equals(st)) continue;
+            String note = "同工单质检单 " + passed.getInspectionNo() + " 已通过，本单自动关闭";
+            other.setInspectionStatus("CLOSED");
+            other.setRemark(other.getRemark() != null && !other.getRemark().isBlank()
+                    ? other.getRemark() + "；" + note : note);
+            other.setUpdatedAt(now);
+            inspectionMapper.updateInspection(other);
+        }
+    }
+
+    private static Long toLong(Object v) {
+        if (v == null) return null;
+        try { return Long.parseLong(v.toString()); } catch (NumberFormatException e) { return null; }
     }
 
     private void enrichInspection(Map<String, Object> row) {

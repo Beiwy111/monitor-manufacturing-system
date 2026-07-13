@@ -19,12 +19,12 @@
       <el-tabs v-model="activeSub" class="plan-detail-panel__tabs">
         <el-tab-pane label="工序" name="process">
           <el-table :data="schedules" border size="small" height="100%" class="detail-table">
-            <el-table-column prop="stepNo" label="序号" width="50" align="center" />
+            <el-table-column prop="stepNo" label="序号" min-width="56" align="center" />
             <el-table-column prop="stepName" label="工序" min-width="100" />
-            <el-table-column prop="workshop" label="车间" width="90" />
-            <el-table-column prop="equipmentCode" label="设备" width="90" />
-            <el-table-column prop="plannedQuantity" label="数量" width="64" align="right" />
-            <el-table-column prop="standardHours" label="工时" width="64" align="right" />
+            <el-table-column prop="workshop" label="车间" min-width="108" />
+            <el-table-column prop="equipmentCode" label="设备" min-width="100" />
+            <el-table-column prop="plannedQuantity" label="数量" min-width="72" align="right" />
+            <el-table-column prop="standardHours" label="工时" min-width="72" align="right" />
             <el-table-column prop="plannedStart" label="开始" min-width="120" />
             <el-table-column prop="plannedEnd" label="结束" min-width="120" />
           </el-table>
@@ -50,9 +50,9 @@
 
         <el-tab-pane label="设备" name="equipment">
           <el-table :data="equipmentRows" border size="small" height="100%" class="detail-table">
-            <el-table-column prop="equipmentCode" label="设备编号" width="100" />
+            <el-table-column prop="equipmentCode" label="设备编号" min-width="108" />
             <el-table-column prop="stepName" label="工序" min-width="100" />
-            <el-table-column prop="workshop" label="车间" width="90" />
+            <el-table-column prop="workshop" label="车间" min-width="108" />
             <el-table-column prop="plannedStart" label="占用开始" min-width="120" />
             <el-table-column prop="plannedEnd" label="占用结束" min-width="120" />
             <el-table-column prop="status" label="状态" width="80" align="center" />
@@ -63,9 +63,9 @@
           <el-table :data="staffRows" border size="small" height="100%" class="detail-table">
             <el-table-column prop="stepName" label="工序" min-width="100" />
             <el-table-column prop="operator" label="负责人" width="100" />
-            <el-table-column prop="dispatchStatus" label="派工状态" width="90" align="center" />
-            <el-table-column prop="plannedQuantity" label="计划量" width="72" align="right" />
-            <el-table-column prop="workshop" label="车间" width="90" />
+            <el-table-column prop="dispatchStatus" label="派工状态" min-width="96" align="center" />
+            <el-table-column prop="plannedQuantity" label="计划量" min-width="80" align="right" />
+            <el-table-column prop="workshop" label="车间" min-width="108" />
           </el-table>
         </el-tab-pane>
 

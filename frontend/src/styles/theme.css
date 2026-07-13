@@ -1,39 +1,165 @@
 /**
- * MES 全局主题 — 黑色侧栏 + 细体 + 墨绿强调色（全角色统一）
+ * MES 全局视觉主题 — 柔和浅色（QuickBooks 风格）
+ * 仅样式变量与 Element Plus 覆盖，不改业务逻辑
  */
 :root {
-  --layout-font: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
-  --layout-accent: #2d8a66;
-  --layout-accent-hover: #256f52;
-  --layout-accent-light: #4ade80;
-  --layout-accent-soft: rgba(45, 138, 102, 0.12);
-  --layout-accent-border: rgba(45, 138, 102, 0.28);
-  --layout-surface: #f8fafa;
-  --layout-card-radius: 12px;
-  --layout-text: #111827;
-  --layout-text-secondary: #6b7280;
-  --layout-border: #e8eceb;
+  --layout-font: Inter, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 
-  /* Element Plus 主色 */
-  --el-color-primary: #2d8a66;
-  --el-color-primary-light-3: #5aa684;
-  --el-color-primary-light-5: #7db99f;
-  --el-color-primary-light-7: #a8d0be;
-  --el-color-primary-light-8: #c0ddd0;
-  --el-color-primary-light-9: #d8ebe2;
-  --el-color-primary-dark-2: #256f52;
+  /* 页面主背景 — 低饱和奶白/浅绿/浅粉/浅紫渐变 */
+  --layout-bg-gradient: linear-gradient(
+    120deg,
+    #f3faef 0%,
+    #fff7ee 35%,
+    #f6efff 70%,
+    #edf4ff 100%
+  );
+  --layout-surface: #fffdf9;
+  --layout-content-bg: #ffffff;
+  --layout-card-radius: 10px;
+  --layout-shadow: 0 1px 2px rgba(37, 39, 42, 0.04), 0 4px 12px rgba(37, 39, 42, 0.03);
+  --layout-divider: #e8e8e3;
+  --layout-border: #e8e8e3;
+  --sidebar-panel-bg: #f7f9f4;
+  --layout-panel-bg: transparent;
+
+  /* 文字色 — 深灰黑 / 次要灰 */
+  --layout-text-body: #25272a;
+  --layout-text-title: #25272a;
+  --layout-text-table: #25272a;
+  --layout-text-caption: #7e838b;
+  --layout-text-placeholder: #9ca3a0;
+
+  /* 兼容旧变量名 */
+  --layout-text: var(--layout-text-body);
+  --layout-text-secondary: var(--layout-text-caption);
+  --layout-text-muted: var(--layout-text-caption);
+  --layout-table-head: #fafaf8;
+  --layout-table-row-hover: #f3f5f0;
+
+  /* 侧栏 */
+  --sidebar-bg: #f7f9f4;
+  --sidebar-hover-bg: #eef1ea;
+  --sidebar-active-bg: #e8efe4;
+  --sidebar-active-text: #25272a;
+  --sidebar-text: #7e838b;
+  --sidebar-text-hover: #25272a;
+  --sidebar-accent: #8fad94;
+  --sidebar-avatar-bg: #eef1ea;
+
+  /* 操作色 — 低饱和浅绿 / 灰蓝 */
+  --btn-primary-bg: #7a9b82;
+  --btn-primary-hover: #6a8b72;
+  --btn-secondary-border: #e8e8e3;
+  --btn-secondary-text: #25272a;
+  --btn-secondary-hover-bg: #f3f5f0;
+  --btn-danger-text: #b45353;
+  --btn-danger-hover-text: #9a4545;
+  --btn-danger-hover-bg: #fef2f2;
+  --btn-link-text: #8494a7;
+  --btn-link-hover-text: #728399;
+  --btn-switch-on: #8fad94;
+  --btn-switch-off: #dde2db;
+
+  /* 语义色（低饱和） */
+  --color-success: #6b9e78;
+  --color-warning: #b8954a;
+  --color-danger: #c45c5c;
+  --color-info: #8494a7;
+
+  /* Element Plus — 主色浅绿 */
+  --el-color-primary: #7a9b82;
+  --el-color-primary-light-3: #8fad94;
+  --el-color-primary-light-5: #a3c0a8;
+  --el-color-primary-light-7: #c5d9c9;
+  --el-color-primary-light-8: #dce8de;
+  --el-color-primary-light-9: #eef4ef;
+  --el-color-primary-dark-2: #6a8b72;
+
+  --el-color-success: #6b9e78;
+  --el-color-success-light-3: #7fad8a;
+  --el-color-success-light-5: #9bc4a4;
+  --el-color-success-light-7: #b8d7be;
+  --el-color-success-light-8: #d4e9d8;
+  --el-color-success-light-9: #eef6f0;
+
+  --el-color-warning: #b8954a;
+  --el-color-warning-light-3: #c9a85e;
+  --el-color-warning-light-5: #d9bc78;
+  --el-color-warning-light-7: #e8d4a8;
+  --el-color-warning-light-8: #f2e8cc;
+  --el-color-warning-light-9: #faf6eb;
+
+  --el-color-danger: #c45c5c;
+  --el-color-danger-light-3: #d07070;
+  --el-color-danger-light-5: #dc9090;
+  --el-color-danger-light-7: #e8b0b0;
+  --el-color-danger-light-8: #f2d0d0;
+  --el-color-danger-light-9: #faf0f0;
+
+  --el-color-info: #8494a7;
+  --el-color-info-light-3: #96a4b5;
+  --el-color-info-light-5: #adb8c6;
+  --el-color-info-light-7: #c8cfd8;
+  --el-color-info-light-8: #dfe3e8;
+  --el-color-info-light-9: #f0f2f5;
+
+  --el-border-radius-base: 7px;
+  --el-border-radius-small: 4px;
+
+  /* 字号 */
+  --fs-body: 14px;
+  --fs-page-title: 24px;
+  --fs-module-title: 16px;
+  --fs-table: 14px;
+  --fs-menu: 14px;
+  --fs-caption: 13px;
+  --fs-kpi: 18px;
+  --fs-kpi-hero: 28px;
+  --lh-base: 1.5;
 }
 
 html,
 body,
 #app {
   font-family: var(--layout-font);
+  font-size: var(--fs-body);
   font-weight: 400;
-  background: var(--layout-surface);
+  line-height: var(--lh-base);
+  background: var(--layout-bg-gradient);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  color: var(--layout-text-body);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* 管理后台内容区全局 — 与用户管理一致 */
+/* 管理后台布局 — 渐变透出（勿用 var 多层渐变，部分浏览器不生效） */
+.layout-container {
+  min-height: 100vh;
+  background: transparent !important;
+}
+
+.layout-aside {
+  background: var(--sidebar-bg, #f7f9f4) !important;
+  border-right-color: var(--layout-border, #e8e8e3) !important;
+}
+
+.layout-right {
+  background: transparent !important;
+}
+
+.layout-header {
+  background: transparent !important;
+  border-bottom-color: var(--layout-border, #e8eaf0) !important;
+}
+
+.layout-main:not(.layout-main--screen),
+.layout-main.ruoyi-app-main:not(.layout-main--screen) {
+  background: transparent !important;
+}
+
+/* ========== 管理后台内容区 ========== */
 .ruoyi-app-main,
 .ruoyi-page,
 .mes-page,
@@ -41,100 +167,474 @@ body,
 .role-dashboard,
 .layout-main.ruoyi-app-main > * {
   font-family: var(--layout-font);
-  font-weight: 400;
+  font-size: var(--fs-body);
+  line-height: var(--lh-base);
+  color: var(--layout-text-body);
 }
 
 .ruoyi-app-main .el-button,
 .ruoyi-page .el-button,
-.mes-page .el-button {
+.mes-page .el-button,
+.layout-main.ruoyi-app-main .el-button {
   font-weight: 500 !important;
-  border-radius: 8px;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+  font-size: var(--fs-body) !important;
 }
 
+/* 主按钮 — 低饱和蓝灰 */
 .ruoyi-app-main .el-button--primary,
 .ruoyi-page .el-button--primary,
-.mes-page .el-button--primary {
-  --el-button-bg-color: var(--layout-accent);
-  --el-button-border-color: var(--layout-accent);
-  --el-button-hover-bg-color: var(--layout-accent-hover);
-  --el-button-hover-border-color: var(--layout-accent-hover);
+.mes-page .el-button--primary,
+.layout-main.ruoyi-app-main .el-button--primary {
+  --el-button-bg-color: var(--btn-primary-bg);
+  --el-button-border-color: var(--btn-primary-bg);
+  --el-button-hover-bg-color: var(--btn-primary-hover);
+  --el-button-hover-border-color: var(--btn-primary-hover);
+  --el-button-active-bg-color: var(--btn-primary-hover);
+  --el-button-active-border-color: var(--btn-primary-hover);
   --el-button-text-color: #fff;
 }
 
 .ruoyi-app-main .el-button--primary.is-plain,
 .ruoyi-page .el-button--primary.is-plain,
-.mes-page .el-button--primary.is-plain {
-  --el-button-bg-color: var(--el-color-primary-light-9);
-  --el-button-border-color: var(--el-color-primary-light-5);
-  --el-button-text-color: var(--layout-accent);
-  --el-button-hover-bg-color: var(--layout-accent);
-  --el-button-hover-border-color: var(--layout-accent);
-  --el-button-hover-text-color: #fff;
+.mes-page .el-button--primary.is-plain,
+.layout-main.ruoyi-app-main .el-button--primary.is-plain {
+  --el-button-bg-color: #fff;
+  --el-button-border-color: var(--btn-secondary-border);
+  --el-button-text-color: var(--btn-secondary-text);
+  --el-button-hover-bg-color: var(--btn-secondary-hover-bg);
+  --el-button-hover-border-color: var(--btn-secondary-border);
+  --el-button-hover-text-color: var(--btn-secondary-text);
+}
+
+/* 次要按钮 */
+.ruoyi-app-main .el-button--default,
+.ruoyi-page .el-button--default,
+.mes-page .el-button--default,
+.ruoyi-app-main .el-button--warning,
+.ruoyi-page .el-button--warning,
+.mes-page .el-button--warning,
+.layout-main.ruoyi-app-main .el-button--default,
+.layout-main.ruoyi-app-main .el-button--warning {
+  --el-button-bg-color: #fff;
+  --el-button-border-color: var(--btn-secondary-border);
+  --el-button-text-color: var(--btn-secondary-text);
+  --el-button-hover-bg-color: var(--btn-secondary-hover-bg);
+  --el-button-hover-border-color: var(--btn-secondary-border);
+  --el-button-hover-text-color: var(--btn-secondary-text);
+}
+
+/* 成功按钮 — 避免高饱和绿 */
+.ruoyi-app-main .el-button--success,
+.ruoyi-page .el-button--success,
+.mes-page .el-button--success,
+.layout-main.ruoyi-app-main .el-button--success {
+  --el-button-bg-color: var(--btn-primary-bg);
+  --el-button-border-color: var(--btn-primary-bg);
+  --el-button-hover-bg-color: var(--btn-primary-hover);
+  --el-button-hover-border-color: var(--btn-primary-hover);
+  --el-button-active-bg-color: var(--btn-primary-hover);
+  --el-button-active-border-color: var(--btn-primary-hover);
+  --el-button-text-color: #fff;
+}
+
+.ruoyi-app-main .el-button--success.is-plain,
+.ruoyi-page .el-button--success.is-plain,
+.mes-page .el-button--success.is-plain,
+.layout-main.ruoyi-app-main .el-button--success.is-plain {
+  --el-button-bg-color: #fff;
+  --el-button-border-color: var(--btn-secondary-border);
+  --el-button-text-color: var(--btn-secondary-text);
+  --el-button-hover-bg-color: var(--btn-secondary-hover-bg);
+  --el-button-hover-border-color: var(--btn-secondary-border);
+  --el-button-hover-text-color: var(--btn-secondary-text);
+}
+
+/* 删除按钮 — 白底红字 */
+.ruoyi-app-main .el-button--danger,
+.ruoyi-page .el-button--danger,
+.mes-page .el-button--danger,
+.layout-main.ruoyi-app-main .el-button--danger {
+  --el-button-bg-color: #fff;
+  --el-button-border-color: var(--btn-secondary-border);
+  --el-button-text-color: var(--btn-danger-text);
+  --el-button-hover-bg-color: var(--btn-danger-hover-bg);
+  --el-button-hover-border-color: #fecaca;
+  --el-button-hover-text-color: var(--btn-danger-hover-text);
+  --el-button-active-bg-color: var(--btn-danger-hover-bg);
+  --el-button-active-border-color: #fecaca;
+  --el-button-active-text-color: var(--btn-danger-hover-text);
+}
+
+.ruoyi-app-main .el-button--danger.is-plain,
+.ruoyi-page .el-button--danger.is-plain,
+.mes-page .el-button--danger.is-plain,
+.layout-main.ruoyi-app-main .el-button--danger.is-plain {
+  --el-button-bg-color: #fff;
+  --el-button-border-color: var(--btn-secondary-border);
+  --el-button-text-color: var(--btn-danger-text);
+  --el-button-hover-bg-color: var(--btn-danger-hover-bg);
+  --el-button-hover-border-color: #fecaca;
+  --el-button-hover-text-color: var(--btn-danger-hover-text);
 }
 
 .ruoyi-app-main .el-button.is-link,
 .ruoyi-page .el-button.is-link,
-.mes-page .el-button.is-link {
-  font-weight: 400 !important;
+.mes-page .el-button.is-link,
+.layout-main.ruoyi-app-main .el-button.is-link {
+  font-weight: 500 !important;
+  border-radius: 4px !important;
 }
 
+/* 操作列 — 修改/普通：蓝灰文字 */
 .ruoyi-app-main .el-button--primary.is-link,
-.ruoyi-page .el-button--primary.is-link {
-  --el-button-text-color: var(--layout-accent);
-  --el-button-hover-text-color: var(--layout-accent-hover);
+.ruoyi-page .el-button--primary.is-link,
+.mes-page .el-button--primary.is-link,
+.ruoyi-app-main .el-button.is-link:not(.el-button--danger):not(.el-button--success),
+.ruoyi-page .el-button.is-link:not(.el-button--danger):not(.el-button--success),
+.mes-page .el-button.is-link:not(.el-button--danger):not(.el-button--success),
+.layout-main.ruoyi-app-main .el-button--primary.is-link,
+.layout-main.ruoyi-app-main .el-button.is-link:not(.el-button--danger):not(.el-button--success) {
+  --el-button-text-color: var(--btn-link-text);
+  --el-button-hover-text-color: var(--btn-link-hover-text);
+  --el-button-bg-color: transparent;
+  --el-button-hover-bg-color: var(--btn-secondary-hover-bg);
 }
 
+.ruoyi-app-main .el-button--success.is-link,
+.ruoyi-page .el-button--success.is-link,
+.mes-page .el-button--success.is-link,
+.layout-main.ruoyi-app-main .el-button--success.is-link {
+  --el-button-text-color: var(--btn-link-text);
+  --el-button-hover-text-color: var(--btn-link-hover-text);
+  --el-button-bg-color: transparent;
+  --el-button-hover-bg-color: var(--btn-secondary-hover-bg);
+}
+
+/* 操作列 — 删除：低饱和红字 */
+.ruoyi-app-main .el-button--danger.is-link,
+.ruoyi-page .el-button--danger.is-link,
+.mes-page .el-button--danger.is-link,
+.layout-main.ruoyi-app-main .el-button--danger.is-link {
+  --el-button-text-color: var(--btn-danger-text);
+  --el-button-hover-text-color: var(--btn-danger-hover-text);
+  --el-button-bg-color: transparent;
+  --el-button-hover-bg-color: var(--btn-danger-hover-bg);
+}
+
+/* 输入框 */
 .ruoyi-app-main .el-input__wrapper,
 .ruoyi-page .el-input__wrapper,
-.mes-page .el-input__wrapper {
+.mes-page .el-input__wrapper,
+.layout-main.ruoyi-app-main .el-textarea__inner {
   border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--layout-border) inset !important;
+}
+
+.ruoyi-app-main .el-input__wrapper.is-focus,
+.ruoyi-page .el-input__wrapper.is-focus,
+.mes-page .el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--btn-primary-bg) inset !important;
+}
+
+.ruoyi-app-main .el-input__inner,
+.ruoyi-page .el-input__inner,
+.mes-page .el-input__inner,
+.layout-main.ruoyi-app-main .el-textarea__inner {
+  color: var(--layout-text-body) !important;
+  font-size: var(--fs-body) !important;
+}
+
+.ruoyi-app-main .el-input__inner::placeholder,
+.ruoyi-page .el-input__inner::placeholder,
+.layout-main.ruoyi-app-main .el-textarea__inner::placeholder {
+  color: var(--layout-text-placeholder) !important;
+}
+
+/* 表格 */
+.ruoyi-app-main .el-table,
+.ruoyi-page .el-table,
+.mes-table-wrap .el-table,
+.layout-main.ruoyi-app-main .el-table {
+  --el-table-border-color: var(--layout-border);
+  --el-table-header-bg-color: var(--layout-table-head);
+  --el-table-row-hover-bg-color: var(--layout-table-row-hover);
+  font-size: var(--fs-table) !important;
+  color: var(--layout-text-table) !important;
 }
 
 .ruoyi-app-main .el-table th.el-table__cell,
 .ruoyi-page .el-table th.el-table__cell,
-.mes-table-wrap .el-table th.el-table__cell {
-  font-weight: 500 !important;
+.mes-table-wrap .el-table th.el-table__cell,
+.layout-main.ruoyi-app-main .el-table th.el-table__cell {
+  font-weight: 600 !important;
+  font-size: var(--fs-table) !important;
+  background: var(--layout-table-head) !important;
+  color: var(--layout-text-table) !important;
 }
 
+.ruoyi-app-main .el-table td.el-table__cell,
+.ruoyi-page .el-table td.el-table__cell,
+.mes-table-wrap .el-table td.el-table__cell,
+.layout-main.ruoyi-app-main .el-table td.el-table__cell {
+  font-weight: 400 !important;
+  font-size: var(--fs-table) !important;
+  color: var(--layout-text-table) !important;
+}
+
+/* 轻量表格 — 全局 */
+.layout-main.ruoyi-app-main .el-table th.el-table__cell,
+.layout-main.ruoyi-app-main .el-table td.el-table__cell {
+  padding: 10px 12px !important;
+  border-bottom: 1px solid var(--layout-border) !important;
+}
+
+.layout-main.ruoyi-app-main .el-table .cell {
+  white-space: normal;
+  word-break: keep-all;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.45;
+}
+
+.layout-main.ruoyi-app-main .el-table .cell.cell--nowrap {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layout-main.ruoyi-app-main .ruoyi-table-wrap,
+.layout-main.ruoyi-app-main .mes-table-wrap {
+  overflow-x: auto;
+}
+
+.layout-main.ruoyi-app-main .el-table--border::before,
+.layout-main.ruoyi-app-main .el-table--border::after,
+.layout-main.ruoyi-app-main .el-table__inner-wrapper::before {
+  display: none;
+}
+
+.layout-main.ruoyi-app-main .el-table--border .el-table__cell {
+  border-right: none !important;
+}
+
+.layout-main.ruoyi-app-main .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: transparent !important;
+}
+
+.layout-main.ruoyi-app-main .el-table .el-table__body tr:hover > td.el-table__cell {
+  background: var(--layout-table-row-hover) !important;
+}
+
+/* 表格主体保持纯白，确保可读性 */
+.layout-main.ruoyi-app-main .el-table,
+.layout-main.ruoyi-app-main .el-table__inner-wrapper,
+.layout-main.ruoyi-app-main .el-table__body-wrapper,
+.layout-main.ruoyi-app-main .el-table tr,
+.layout-main.ruoyi-app-main .el-table td.el-table__cell {
+  background-color: #fff;
+}
+
+/* 弹窗 */
 .ruoyi-app-main .el-dialog,
 .ruoyi-page .el-dialog {
   border-radius: var(--layout-card-radius);
+  box-shadow: var(--layout-shadow);
 }
 
+.layout-main.ruoyi-app-main .el-dialog__title,
+.layout-main.ruoyi-app-main .el-drawer__title {
+  font-size: var(--fs-module-title) !important;
+  font-weight: 600 !important;
+  color: var(--layout-text-title) !important;
+}
+
+/* 页签 */
 .ruoyi-app-main .el-tabs__item,
 .ruoyi-page .el-tabs__item {
-  font-weight: 400;
+  font-weight: 500;
+  font-size: var(--fs-body);
+  color: var(--layout-text-caption);
 }
 
 .ruoyi-app-main .el-tabs__item.is-active,
 .ruoyi-page .el-tabs__item.is-active {
-  color: var(--layout-accent);
-  font-weight: 500;
+  color: var(--layout-text-title);
+  font-weight: 600;
 }
 
 .ruoyi-app-main .el-tabs__active-bar,
 .ruoyi-page .el-tabs__active-bar {
-  background-color: var(--layout-accent);
+  background-color: var(--btn-primary-bg);
 }
 
+/* 分页 */
 .ruoyi-app-main .el-pagination.is-background .el-pager li.is-active,
-.ruoyi-page .el-pagination.is-background .el-pager li.is-active {
-  background-color: var(--layout-accent) !important;
+.ruoyi-page .el-pagination.is-background .el-pager li.is-active,
+.layout-main.ruoyi-app-main .el-pagination.is-background .el-pager li.is-active {
+  background-color: var(--btn-primary-bg) !important;
+  color: #fff !important;
+}
+
+.layout-main.ruoyi-app-main .el-pagination .el-pager li.is-active,
+.ruoyi-app-main .el-pagination .el-pager li.is-active,
+.ruoyi-page .el-pagination .el-pager li.is-active {
+  color: var(--btn-primary-bg) !important;
+  font-weight: 600;
+}
+
+.layout-main.ruoyi-app-main .el-pagination {
+  color: var(--layout-text-table);
+  font-size: var(--fs-body) !important;
+}
+
+/* 状态开关 */
+.layout-main.ruoyi-app-main .el-switch__core,
+.ruoyi-app-main .el-switch__core,
+.ruoyi-page .el-switch__core,
+.mes-page .el-switch__core {
+  border-color: var(--btn-switch-off);
+  background-color: var(--btn-switch-off);
+}
+
+.layout-main.ruoyi-app-main .el-switch.is-checked .el-switch__core,
+.ruoyi-app-main .el-switch.is-checked .el-switch__core,
+.ruoyi-page .el-switch.is-checked .el-switch__core,
+.mes-page .el-switch.is-checked .el-switch__core {
+  border-color: var(--btn-switch-on);
+  background-color: var(--btn-switch-on);
+}
+
+/* 表单标签 */
+.layout-main.ruoyi-app-main .el-form-item__label {
+  font-size: var(--fs-body) !important;
+  color: var(--layout-text-table) !important;
+  font-weight: 500 !important;
+}
+
+/* 标签语义色 */
+.ruoyi-app-main .el-tag--success,
+.ruoyi-page .el-tag--success {
+  --el-tag-bg-color: var(--el-color-success-light-9);
+  --el-tag-border-color: #bbf7d0;
+  --el-tag-text-color: #15803d;
+  font-weight: 500;
+}
+
+.ruoyi-app-main .el-tag--warning,
+.ruoyi-page .el-tag--warning {
+  --el-tag-bg-color: var(--el-color-warning-light-9);
+  --el-tag-border-color: #fde68a;
+  --el-tag-text-color: #a16207;
+  font-weight: 500;
+}
+
+.ruoyi-app-main .el-tag--danger,
+.ruoyi-page .el-tag--danger {
+  --el-tag-bg-color: var(--el-color-danger-light-9);
+  --el-tag-border-color: #fecaca;
+  --el-tag-text-color: #b91c1c;
+  font-weight: 500;
+}
+
+.ruoyi-app-main .el-tag--info,
+.ruoyi-page .el-tag--info {
+  --el-tag-bg-color: var(--el-color-info-light-9);
+  --el-tag-border-color: var(--el-color-info-light-8);
+  --el-tag-text-color: #5f7084;
+  font-weight: 500;
 }
 
 .ruoyi-app-main .el-tag--primary,
 .ruoyi-page .el-tag--primary {
-  --el-tag-bg-color: var(--layout-accent-soft);
-  --el-tag-border-color: var(--layout-accent-border);
-  --el-tag-text-color: var(--layout-accent);
+  --el-tag-bg-color: #f4f4f5;
+  --el-tag-border-color: #e4e4e7;
+  --el-tag-text-color: var(--layout-text-table);
+  font-weight: 500;
 }
 
 .page-card {
   border-radius: var(--layout-card-radius);
   border-color: var(--layout-border);
+  box-shadow: var(--layout-shadow);
+  background: var(--layout-content-bg);
 }
 
 .page-title {
+  font-size: var(--fs-page-title);
+  font-weight: 700;
+  color: var(--layout-text-title);
+  line-height: var(--lh-base);
+}
+
+/* 链接 */
+.layout-main.ruoyi-app-main a:not(.el-button):not(.ruoyi-tags__item) {
+  color: var(--layout-text-title);
   font-weight: 500;
-  color: var(--layout-text);
+}
+
+.layout-main.ruoyi-app-main a:not(.el-button):hover {
+  color: var(--btn-primary-hover);
+}
+
+/* 描述列表 */
+.layout-main.ruoyi-app-main .el-descriptions__label {
+  color: var(--layout-text-caption) !important;
+  font-weight: 500 !important;
+}
+
+.layout-main.ruoyi-app-main .el-descriptions__content {
+  color: var(--layout-text-table) !important;
+}
+
+/* 弹窗/抽屉按钮（挂载在 body，与内容区保持一致） */
+.el-dialog .el-button,
+.el-drawer .el-button,
+.el-message-box .el-button {
+  border-radius: 7px !important;
+  box-shadow: none !important;
+  font-weight: 500 !important;
+}
+
+.el-dialog .el-button--primary,
+.el-drawer .el-button--primary,
+.el-message-box .el-button--primary {
+  --el-button-bg-color: var(--btn-primary-bg);
+  --el-button-border-color: var(--btn-primary-bg);
+  --el-button-hover-bg-color: var(--btn-primary-hover);
+  --el-button-hover-border-color: var(--btn-primary-hover);
+  --el-button-text-color: #fff;
+}
+
+.el-dialog .el-button--default,
+.el-drawer .el-button--default,
+.el-message-box .el-button--default {
+  --el-button-bg-color: #fff;
+  --el-button-border-color: var(--btn-secondary-border);
+  --el-button-text-color: var(--btn-secondary-text);
+  --el-button-hover-bg-color: var(--btn-secondary-hover-bg);
+  --el-button-hover-border-color: var(--btn-secondary-border);
+  --el-button-hover-text-color: var(--btn-secondary-text);
+}
+
+.el-dialog .el-button--success,
+.el-drawer .el-button--success,
+.el-message-box .el-button--success {
+  --el-button-bg-color: var(--btn-primary-bg);
+  --el-button-border-color: var(--btn-primary-bg);
+  --el-button-hover-bg-color: var(--btn-primary-hover);
+  --el-button-hover-border-color: var(--btn-primary-hover);
+  --el-button-text-color: #fff;
+}
+
+.el-dialog .el-button--danger,
+.el-drawer .el-button--danger,
+.el-message-box .el-button--danger {
+  --el-button-bg-color: #fff;
+  --el-button-border-color: var(--btn-secondary-border);
+  --el-button-text-color: var(--btn-danger-text);
+  --el-button-hover-bg-color: var(--btn-danger-hover-bg);
+  --el-button-hover-border-color: #fecaca;
+  --el-button-hover-text-color: var(--btn-danger-hover-text);
 }

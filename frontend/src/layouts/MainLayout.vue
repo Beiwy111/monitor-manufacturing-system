@@ -1,16 +1,8 @@
 <template>
   <el-container class="layout-container">
-    <el-aside width="210px" class="layout-aside">
+    <el-aside width="168px" class="layout-aside">
       <div class="logo">
-        <span class="logo__text">MES 制造执行</span>
-      </div>
-      <div class="ruoyi-sidebar-user">
-        <div class="ruoyi-sidebar-user__avatar">{{ avatarText }}</div>
-        <div class="ruoyi-sidebar-user__name">{{ userStore.displayName }}</div>
-        <div class="ruoyi-sidebar-user__links">
-          <a href="#" @click.prevent>在线</a>
-          <a href="#" @click.prevent="handleLogout">注销</a>
-        </div>
+        <img src="/logo-icon.svg" alt="" class="logo__icon" width="32" height="32" />
       </div>
       <el-scrollbar class="layout-menu-scroll">
         <el-menu
@@ -153,34 +145,33 @@ function toggleFullscreen() {
 <style scoped>
 .layout-container {
   height: 100vh;
-  font-family: var(--layout-font, "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif);
+  font-family: var(--layout-font);
+  background: transparent;
 }
 
 .layout-aside {
-  --sidebar-bg: #0a0a0a;
-  --sidebar-active: #2d8a66;
-  --sidebar-active-bg: rgba(45, 138, 102, 0.18);
-  --sidebar-text: rgba(255, 255, 255, 0.62);
-  --sidebar-text-hover: rgba(255, 255, 255, 0.92);
-  background: var(--sidebar-bg);
+  background: var(--sidebar-bg, #f7f9f4);
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid var(--layout-border, #e8e8e3);
 }
 
 .logo {
-  height: 52px;
-  line-height: 52px;
-  text-align: center;
-  background: var(--sidebar-bg);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  background: var(--sidebar-bg, #f7f9f4);
+  border-bottom: 1px solid var(--layout-border, #e8e8e3);
 }
 
-.logo__text {
-  font-weight: 300;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.9);
-  letter-spacing: 0.12em;
+.logo__icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.layout-right {
+  background: transparent;
 }
 
 .layout-menu-scroll {
@@ -191,12 +182,12 @@ function toggleFullscreen() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f8fafa;
-  border-bottom: 1px solid #e8eceb;
+  background: transparent;
+  border-bottom: 1px solid var(--layout-border, #e8e8e3);
   height: 52px;
-  padding: 0 20px;
-  color: #374151;
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+  padding: 0 24px;
+  color: var(--layout-text-body, #25272a);
+  box-shadow: none;
 }
 
 .layout-header__left {
@@ -212,11 +203,11 @@ function toggleFullscreen() {
 }
 
 .header-user__btn {
-  color: #6b7280 !important;
+  color: var(--layout-text-caption, #7e838b) !important;
 }
 
 .header-user__btn:hover {
-  color: #2d8a66 !important;
+  color: var(--layout-text-title, #25272a) !important;
 }
 
 .header-user__trigger {
@@ -224,86 +215,139 @@ function toggleFullscreen() {
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 400;
-  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--layout-text-body, #25272a);
 }
 
 .header-user__avatar {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2d8a66, #1f6b4f);
-  color: #fff;
+  background: var(--sidebar-avatar-bg, #eef1ea);
+  color: var(--layout-text-title, #25272a);
   text-align: center;
   line-height: 28px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .layout-main {
   padding: 0;
   overflow: auto;
+  background: transparent;
 }
 
 .layout-main--screen {
   padding: 0;
-  background: #0a1628;
+  background: transparent !important;
 }
 
 .layout-menu {
   border-right: none;
   background: transparent !important;
+  --el-menu-active-color: var(--layout-text-title, #25272a);
+  --el-menu-hover-bg-color: transparent;
+  --el-menu-bg-color: transparent;
+  --el-menu-text-color: var(--sidebar-text, #7e838b);
 }
 
 .layout-menu :deep(.el-menu-item),
 .layout-menu :deep(.el-sub-menu__title) {
+  position: relative;
   height: 44px;
   line-height: 44px;
   font-size: 14px;
-  font-weight: 400;
-  color: var(--sidebar-text) !important;
-  margin: 2px 10px;
-  border-radius: 10px;
-  transition: color 0.2s, background 0.2s;
+  font-weight: 500;
+  color: var(--sidebar-text, #7e838b) !important;
+  margin: 0;
+  padding-left: 20px !important;
+  border-radius: 0;
+  background: transparent !important;
+  transition: color 0.15s, font-weight 0.15s;
+}
+
+.layout-menu :deep(.el-menu-item .el-icon),
+.layout-menu :deep(.el-sub-menu__title .el-icon) {
+  color: var(--sidebar-text, #7e838b) !important;
+  font-size: 16px;
+  transition: color 0.15s;
 }
 
 .layout-menu :deep(.el-menu-item:hover),
 .layout-menu :deep(.el-sub-menu__title:hover) {
-  color: var(--sidebar-text-hover) !important;
-  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--sidebar-text-hover, #25272a) !important;
+  background: transparent !important;
+}
+
+.layout-menu :deep(.el-menu-item:hover .el-icon),
+.layout-menu :deep(.el-sub-menu__title:hover .el-icon) {
+  color: var(--sidebar-text-hover, #25272a) !important;
 }
 
 .layout-menu :deep(.el-menu-item.is-active) {
-  position: relative;
-  background: var(--sidebar-active-bg) !important;
-  color: #fff !important;
-  font-weight: 400;
+  background: transparent !important;
+  color: var(--sidebar-active-text, #25272a) !important;
+  font-weight: 700;
 }
 
-.layout-menu :deep(.el-menu-item.is-active)::after {
+.layout-menu :deep(.el-menu-item.is-active .el-icon) {
+  color: var(--sidebar-active-text, #25272a) !important;
+}
+
+.layout-menu :deep(.el-menu-item.is-active)::before {
   content: '';
   position: absolute;
-  right: 0;
+  left: 0;
   top: 10px;
   bottom: 10px;
   width: 3px;
-  border-radius: 3px 0 0 3px;
-  background: var(--sidebar-active);
+  border-radius: 0 2px 2px 0;
+  background: var(--sidebar-accent, #8fad94);
+}
+
+.layout-menu :deep(.el-menu-item.is-active)::after {
+  display: none;
 }
 
 .layout-menu :deep(.el-sub-menu .el-menu-item) {
+  position: relative;
   min-width: auto;
   padding-left: 44px !important;
+  background: transparent !important;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sidebar-text, #7e838b) !important;
+}
+
+.layout-menu :deep(.el-sub-menu .el-menu-item .el-icon) {
+  display: none;
+}
+
+.layout-menu :deep(.el-sub-menu .el-menu-item:hover) {
+  color: var(--sidebar-text-hover, #25272a) !important;
   background: transparent !important;
 }
 
 .layout-menu :deep(.el-sub-menu .el-menu-item.is-active) {
-  background: var(--sidebar-active-bg) !important;
+  background: transparent !important;
+  color: var(--sidebar-active-text, #25272a) !important;
+  font-weight: 700;
+}
+
+.layout-menu :deep(.el-sub-menu .el-menu-item.is-active)::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--sidebar-accent, #8fad94);
 }
 
 .layout-menu :deep(.el-sub-menu__title .el-sub-menu__icon-arrow) {
-  color: rgba(255, 255, 255, 0.45);
+  color: #b8bdb5;
 }
 
 .layout-menu :deep(.el-sub-menu .el-menu) {
@@ -311,30 +355,44 @@ function toggleFullscreen() {
 }
 
 .layout-menu :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
-  color: var(--sidebar-text-hover) !important;
+  color: var(--layout-text-body, #25272a) !important;
+  font-weight: 600;
+}
+
+.layout-menu :deep(.el-sub-menu.is-opened > .el-sub-menu__title .el-icon) {
+  color: var(--layout-text-body, #25272a) !important;
+}
+
+.layout-menu :deep(.el-sub-menu.is-active > .el-sub-menu__title) {
+  color: var(--sidebar-active-text, #25272a) !important;
+  font-weight: 700;
+}
+
+.layout-menu :deep(.el-sub-menu.is-active > .el-sub-menu__title .el-icon) {
+  color: var(--sidebar-active-text, #25272a) !important;
 }
 
 .layout-breadcrumb {
-  color: #606266;
+  color: var(--layout-text-caption, #7e838b);
   font-size: 14px;
   font-weight: 400;
 }
 
 .layout-breadcrumb :deep(.ruoyi-breadcrumb__link) {
-  color: #606266;
+  color: var(--layout-text-caption, #7e838b);
   text-decoration: none;
 }
 
 .layout-breadcrumb :deep(.ruoyi-breadcrumb__link:hover) {
-  color: #2d8a66;
+  color: var(--layout-text-title, #25272a);
 }
 
 .layout-breadcrumb :deep(.ruoyi-breadcrumb__current) {
-  color: #303133;
-  font-weight: 400;
+  color: var(--layout-text-title, #25272a);
+  font-weight: 600;
 }
 
 .layout-breadcrumb :deep(.ruoyi-breadcrumb__sep) {
-  color: #d1d5db;
+  color: var(--layout-border, #e8e8e3);
 }
 </style>

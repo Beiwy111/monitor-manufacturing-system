@@ -57,7 +57,25 @@ INSERT INTO `user` (role_id, username, password_hash, real_name, employee_no, ph
 (8, 'zhou_warehouse', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '周仓管', 'EMP107', '13800001107', 'warehouse@display.com', '仓储部', 1, NULL),
 (9, 'zhou_device', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '周设备', 'EMP108', '13800001108', 'device@display.com', '设备部', 1, NULL),
 (10, 'wu_service', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '吴售后', 'EMP109', '13800001109', 'service@display.com', '售后部', 1, NULL),
-(11, 'zheng_cost', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '郑财务', 'EMP110', '13800001110', 'cost@display.com', '财务部', 1, NULL);
+(11, 'zheng_cost', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '郑财务', 'EMP110', '13800001110', 'cost@display.com', '财务部', 1, NULL),
+(5, 'li_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '李操作', 'EMP202', '13800001202', 'li.op@display.com', '生产一部', 1, NULL),
+(5, 'wu_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '吴操作', 'EMP205', '13800001205', 'wu.op@display.com', '生产一部', 1, NULL),
+(5, 'bai_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '白操作', 'EMP211', '13800001211', 'bai.op@display.com', '生产一部', 1, NULL),
+(5, 'huang_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '黄操作', 'EMP212', '13800001212', 'huang.op@display.com', '生产一部', 1, NULL),
+(5, 'xu_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '徐操作', 'EMP213', '13800001213', 'xu.op@display.com', '生产一部', 1, NULL),
+(5, 'yang_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '杨操作', 'EMP214', '13800001214', 'yang.op@display.com', '生产一部', 1, NULL),
+(5, 'he_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '何操作', 'EMP215', '13800001215', 'he.op@display.com', '生产一部', 1, NULL),
+(5, 'zhao_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '赵操作', 'EMP201', '13800001201', 'zhao.op@display.com', '生产一部', 1, NULL),
+(5, 'ma_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '马操作', 'EMP204', '13800001204', 'ma.op@display.com', '生产一部', 1, NULL),
+(5, 'feng_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '冯操作', 'EMP216', '13800001216', 'feng.op@display.com', '生产一部', 1, NULL),
+(5, 'zhou_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '周操作', 'EMP206', '13800001206', 'zhou.op@display.com', '生产一部', 1, NULL),
+(5, 'gu_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '顾操作', 'EMP217', '13800001217', 'gu.op@display.com', '生产一部', 1, NULL),
+(5, 'xie_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '谢操作', 'EMP218', '13800001218', 'xie.op@display.com', '生产一部', 1, NULL),
+(5, 'sun_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '孙操作', 'EMP203', '13800001203', 'sun.op@display.com', '生产一部', 1, NULL),
+(5, 'chen_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '陈操作', 'EMP219', '13800001219', 'chen.op@display.com', '生产一部', 1, NULL),
+(5, 'lin_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '林操作', 'EMP220', '13800001220', 'lin.op@display.com', '生产一部', 1, NULL),
+(5, 'han_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '韩操作', 'EMP221', '13800001221', 'han.op@display.com', '生产一部', 1, NULL),
+(5, 'tang_operator', '$2b$10$KoXI6kkD6AOp0WtyKXENlek9gKs2sAMFIHjUtme1CiPaSYnEhTzRm', '唐操作', 'EMP222', '13800001222', 'tang.op@display.com', '生产一部', 1, NULL);
 
 INSERT INTO permission (role_id, permission_code, permission_name, resource_type, resource_path, parent_id, sort_no, status) VALUES
 (1, 'system', '系统管理', 'MENU', '/system', NULL, 1, 1),
@@ -147,19 +165,27 @@ INSERT INTO process_route (material_id, route_code, route_name, version_no, stat
 (9, 'RT-PRD003-V1', '27寸4K显示器工艺路线', 'V1.0', 1, 2);
 
 INSERT INTO process_step (route_id, step_no, step_code, step_name, standard_work_hours, standard_equipment_type, quality_required, status) VALUES
-(1, 10, 'STEP-01', '显示屏加工', 0.35, '显示屏线', 0, 1),
-(1, 20, 'STEP-02', '主板装配', 0.45, '主板线', 0, 1),
-(1, 30, 'STEP-03', '面板贴附', 0.50, '贴附机', 1, 1),
-(1, 40, 'STEP-04', '整机组装', 0.80, '组装线', 0, 1),
-(1, 50, 'STEP-05', '整机老化测试', 4.00, '老化架', 1, 1),
-(1, 60, 'STEP-06', '外观检验包装', 0.30, '包装线', 1, 1),
-(2, 10, 'STEP-01', '显示屏加工', 0.40, '显示屏线', 0, 1),
-(2, 20, 'STEP-02', '主板装配', 0.50, '主板线', 0, 1),
-(2, 30, 'STEP-03', '面板贴附', 0.60, '贴附机', 1, 1),
-(2, 40, 'STEP-04', '整机组装', 1.00, '组装线', 0, 1),
-(2, 50, 'STEP-05', '整机老化测试', 6.00, '老化架', 1, 1),
-(2, 60, 'STEP-06', '电竞调校', 1.50, '调校台', 1, 1),
-(2, 70, 'STEP-07', '外观检验包装', 0.40, '包装线', 1, 1);
+(1, 10, 'STEP-01', '主板装配', 0.45, '主板线', 0, 1),
+(1, 20, 'STEP-02', '电源板装配', 0.40, '电源板线', 0, 1),
+(1, 30, 'STEP-03', '接口板装配', 0.38, '接口板线', 0, 1),
+(1, 40, 'STEP-04', '显示屏加工', 0.35, '显示屏线', 0, 1),
+(1, 50, 'STEP-05', '面板贴附', 0.50, '贴附机', 1, 1),
+(1, 60, 'STEP-06', '外壳装配', 0.55, '外壳线', 0, 1),
+(1, 70, 'STEP-07', '整机组装', 0.80, '组装线', 0, 1),
+(1, 80, 'STEP-08', '支架底座装配', 0.42, '支架线', 0, 1),
+(1, 90, 'STEP-09', '整机老化测试', 4.00, '老化架', 1, 1),
+(1, 100, 'STEP-10', '外观检验包装', 0.30, '包装线', 1, 1),
+(2, 10, 'STEP-01', '主板装配', 0.50, '主板线', 0, 1),
+(2, 20, 'STEP-02', '电源板装配', 0.42, '电源板线', 0, 1),
+(2, 30, 'STEP-03', '接口板装配', 0.40, '接口板线', 0, 1),
+(2, 40, 'STEP-04', '显示屏加工', 0.40, '显示屏线', 0, 1),
+(2, 50, 'STEP-05', '面板贴附', 0.60, '贴附机', 1, 1),
+(2, 60, 'STEP-06', '外壳装配', 0.58, '外壳线', 0, 1),
+(2, 70, 'STEP-07', '整机组装', 1.00, '组装线', 0, 1),
+(2, 80, 'STEP-08', '支架底座装配', 0.45, '支架线', 0, 1),
+(2, 90, 'STEP-09', '整机老化测试', 6.00, '老化架', 1, 1),
+(2, 100, 'STEP-10', '电竞调校', 1.50, '调校台', 1, 1),
+(2, 110, 'STEP-11', '外观检验包装', 0.40, '包装线', 1, 1);
 
 INSERT INTO equipment (equipment_code, equipment_name, equipment_type, workshop, workstation, manufacturer, model, purchase_date, status, last_maintenance_at) VALUES
 ('EQ-DISP-01', '1号显示屏加工线', '显示屏线', '显示屏加工一车间', 'F线-01', '显示科技', 'XS-DP100', '2024-05-10', 'RUNNING', '2026-06-18 10:00:00'),
@@ -168,40 +194,52 @@ INSERT INTO equipment (equipment_code, equipment_name, equipment_type, workshop,
 ('EQ-MB-01', '1号主板装配线', '主板线', '主板装配一车间', 'G线-01', '华南电子', 'HN-MB80', '2024-05-10', 'RUNNING', '2026-06-18 10:00:00'),
 ('EQ-MB-02', '2号主板装配线', '主板线', '主板装配二车间', 'G线-02', '华南电子', 'HN-MB80', '2024-06-01', 'RUNNING', '2026-06-18 10:00:00'),
 ('EQ-MB-03', '3号主板装配线', '主板线', '主板装配三车间', 'G线-03', '华南电子', 'HN-MB80', '2024-06-01', 'IDLE', '2026-06-18 10:00:00'),
+('EQ-PB-01', '1号电源板装配线', '电源板线', '电源板装配一车间', 'H线-01', '华南电子', 'HN-PB60', '2024-05-12', 'RUNNING', '2026-06-18 10:00:00'),
+('EQ-PB-02', '2号电源板装配线', '电源板线', '电源板装配二车间', 'H线-02', '华南电子', 'HN-PB60', '2024-06-05', 'RUNNING', '2026-06-18 10:00:00'),
+('EQ-IF-01', '1号接口板装配线', '接口板线', '接口板装配一车间', 'I线-01', '华南电子', 'HN-IF50', '2024-05-15', 'RUNNING', '2026-06-18 10:00:00'),
+('EQ-IF-02', '2号接口板装配线', '接口板线', '接口板装配二车间', 'I线-02', '华南电子', 'HN-IF50', '2024-06-08', 'IDLE', '2026-06-18 10:00:00'),
 ('EQ-001', '1号自动贴附机', '贴附机', '贴附一车间', 'A线-01', '精工自动化', 'JF-TF200', '2024-03-15', 'RUNNING', '2026-06-15 10:00:00'),
 ('EQ-002', '2号自动贴附机', '贴附机', '贴附二车间', 'A线-02', '精工自动化', 'JF-TF200', '2024-03-15', 'IDLE', '2026-06-15 10:00:00'),
 ('EQ-003', '1号组装流水线', '组装线', '组装一车间', 'B线-01', '华南机械', 'HN-ZX100', '2023-08-20', 'RUNNING', '2026-05-20 14:00:00'),
 ('EQ-007', '2号组装流水线', '组装线', '组装二车间', 'B线-02', '华南机械', 'HN-ZX100', '2024-08-01', 'RUNNING', '2026-05-20 14:00:00'),
 ('EQ-012', '3号组装流水线', '组装线', '组装三车间', 'B线-03', '华南机械', 'HN-ZX100', '2025-01-01', 'IDLE', '2026-05-20 14:00:00'),
+('EQ-SH-01', '1号外壳装配线', '外壳线', '外壳装配一车间', 'J线-01', '精工自动化', 'JF-SH80', '2024-07-01', 'RUNNING', '2026-06-18 10:00:00'),
+('EQ-SH-02', '2号外壳装配线', '外壳线', '外壳装配二车间', 'J线-02', '精工自动化', 'JF-SH80', '2024-07-15', 'RUNNING', '2026-06-18 10:00:00'),
+('EQ-BR-01', '1号支架底座装配线', '支架线', '支架底座装配一车间', 'K线-01', '华南机械', 'HN-BR40', '2024-08-01', 'RUNNING', '2026-06-18 10:00:00'),
+('EQ-BR-02', '2号支架底座装配线', '支架线', '支架底座装配二车间', 'K线-02', '华南机械', 'HN-BR40', '2024-08-10', 'IDLE', '2026-06-18 10:00:00'),
 ('EQ-004', '老化测试架A区', '老化架', '生产二部', 'C区-01', '可靠性设备', 'KK-LH50', '2023-11-10', 'RUNNING', '2026-06-01 09:00:00'),
 ('EQ-005', '电竞调校台', '调校台', '生产二部', 'D区-01', '显示科技', 'XS-TJ300', '2025-01-08', 'IDLE', '2026-06-20 16:00:00'),
 ('EQ-006', '自动包装线', '包装线', '生产二部', 'E线-01', '华南机械', 'HN-BZ80', '2024-06-01', 'RUNNING', '2026-06-10 11:00:00');
 
 INSERT INTO work_order (work_order_no, plan_id, plan_item_id, material_id, route_id, planned_quantity, completed_quantity, qualified_quantity, unqualified_quantity, planned_start_time, planned_end_time, actual_start_time, actual_end_time, status, created_by, released_by, released_at, remark) VALUES
-('WO202607001', 1, 1, 7, 1, 200.0000, 85.0000, 82.0000, 3.0000, '2026-07-05 08:00:00', '2026-07-18 18:00:00', '2026-07-05 08:30:00', NULL, 'RUNNING', 2, 1, '2026-07-04 17:00:00', '华创订单工单'),
+('WO202607001', 1, 1, 7, 1, 200.0000, 65.0000, 62.0000, 3.0000, '2026-07-05 08:00:00', '2026-07-18 18:00:00', '2026-07-05 08:30:00', NULL, 'RUNNING', 2, 1, '2026-07-04 17:00:00', '华创订单工单'),
 ('WO202607002', 2, 2, 8, 2, 150.0000, 42.0000, 40.0000, 2.0000, '2026-07-06 08:00:00', '2026-07-22 18:00:00', '2026-07-06 09:00:00', NULL, 'RUNNING', 2, 1, '2026-07-05 16:00:00', '电竞显示器工单'),
 ('WO202607003', 3, 3, 7, 1, 80.0000, 0.0000, 0.0000, 0.0000, '2026-07-08 08:00:00', '2026-07-25 18:00:00', NULL, NULL, 'RELEASED', 2, 1, '2026-07-06 10:00:00', '电商补货工单');
 
 INSERT INTO dispatch_task (dispatch_no, work_order_id, step_id, operator_id, equipment_id, assigned_quantity, accepted_quantity, completed_quantity, assigned_by, assigned_at, accepted_at, status, remark) VALUES
-('DT202607001', 1, 1, 3, 1, 50.0000, 50.0000, 50.0000, 2, '2026-07-05 08:00:00', '2026-07-05 08:15:00', 'COMPLETED', '面板贴附批次1'),
-('DT202607002', 1, 2, 3, 3, 50.0000, 50.0000, 48.0000, 2, '2026-07-05 14:00:00', '2026-07-05 14:10:00', 'RUNNING', '背光组装批次1'),
-('DT202607003', 1, 3, 4, 4, 48.0000, 48.0000, 45.0000, 2, '2026-07-06 08:00:00', '2026-07-06 08:20:00', 'RUNNING', '老化测试批次1'),
-('DT202607004', 2, 5, 3, 1, 40.0000, 40.0000, 40.0000, 2, '2026-07-06 09:00:00', '2026-07-06 09:10:00', 'COMPLETED', '电竞面板贴附'),
-('DT202607005', 2, 6, 4, 3, 40.0000, 40.0000, 38.0000, 2, '2026-07-06 14:00:00', '2026-07-06 14:05:00', 'RUNNING', '电竞背光组装'),
-('DT202607006', 1, 4, 4, 6, 30.0000, 30.0000, 28.0000, 2, '2026-07-06 16:00:00', '2026-07-06 16:10:00', 'RUNNING', '包装批次1');
+('DT202607001', 1, 1, 12, 4, 200.0000, 200.0000, 120.0000, 4, '2026-07-05 08:00:00', '2026-07-05 08:15:00', 'RUNNING', '主板装配'),
+('DT202607002', 1, 2, 15, 7, 200.0000, 200.0000, 115.0000, 4, '2026-07-05 08:30:00', '2026-07-05 08:45:00', 'RUNNING', '电源板装配'),
+('DT202607003', 1, 3, 17, 9, 200.0000, 200.0000, 110.0000, 4, '2026-07-05 09:00:00', '2026-07-05 09:10:00', 'RUNNING', '接口板装配'),
+('DT202607004', 1, 4, 19, 1, 200.0000, 200.0000, 105.0000, 4, '2026-07-05 09:30:00', '2026-07-05 09:40:00', 'RUNNING', '显示屏加工'),
+('DT202607005', 1, 5, 5, 11, 200.0000, 200.0000, 95.0000, 4, '2026-07-05 10:00:00', '2026-07-05 10:10:00', 'RUNNING', '面板贴附'),
+('DT202607006', 1, 6, 23, 16, 200.0000, 180.0000, 85.0000, 4, '2026-07-05 14:00:00', '2026-07-05 14:10:00', 'RUNNING', '外壳装配'),
+('DT202607007', 1, 7, 25, 13, 200.0000, 150.0000, 72.0000, 4, '2026-07-06 08:00:00', '2026-07-06 08:20:00', 'RUNNING', '整机组装'),
+('DT202607008', 1, 8, 28, 18, 200.0000, 120.0000, 65.0000, 4, '2026-07-06 09:00:00', '2026-07-06 09:15:00', 'RUNNING', '支架底座装配'),
+('DT202607009', 1, 9, 6, 20, 65.0000, 65.0000, 45.0000, 4, '2026-07-06 10:00:00', '2026-07-06 10:05:00', 'RUNNING', '整机老化测试'),
+('DT202607010', 2, 11, 12, 4, 150.0000, 150.0000, 60.0000, 4, '2026-07-06 09:00:00', '2026-07-06 09:10:00', 'RUNNING', '电竞主板装配'),
+('DT202607011', 2, 15, 5, 11, 150.0000, 150.0000, 55.0000, 4, '2026-07-06 10:00:00', '2026-07-06 10:10:00', 'RUNNING', '电竞面板贴附'),
+('DT202607012', 2, 17, 25, 13, 150.0000, 120.0000, 42.0000, 4, '2026-07-06 14:00:00', '2026-07-06 14:05:00', 'RUNNING', '电竞整机组装');
 
 INSERT INTO work_report (report_no, work_order_id, dispatch_id, step_id, operator_id, equipment_id, report_date, start_time, end_time, completed_quantity, qualified_quantity, unqualified_quantity, work_hours, report_status, confirmed_by, confirmed_at, remark) VALUES
-('WR202607001', 1, 1, 1, 3, 1, '2026-07-05', '2026-07-05 08:15:00', '2026-07-05 12:00:00', 50.0000, 49.0000, 1.0000, 3.75, 'CONFIRMED', 2, '2026-07-05 17:00:00', '贴附完成'),
-('WR202607002', 1, 2, 2, 3, 3, '2026-07-05', '2026-07-05 14:10:00', '2026-07-05 18:00:00', 48.0000, 47.0000, 1.0000, 3.83, 'CONFIRMED', 2, '2026-07-05 18:30:00', NULL),
-('WR202607003', 1, 3, 3, 4, 4, '2026-07-06', '2026-07-06 08:20:00', '2026-07-06 16:00:00', 45.0000, 44.0000, 1.0000, 7.67, 'SUBMITTED', NULL, NULL, '老化进行中'),
-('WR202607004', 2, 4, 5, 3, 1, '2026-07-06', '2026-07-06 09:10:00', '2026-07-06 13:00:00', 40.0000, 39.0000, 1.0000, 3.83, 'CONFIRMED', 2, '2026-07-06 14:00:00', NULL),
-('WR202607005', 1, 6, 4, 4, 6, '2026-07-06', '2026-07-06 16:10:00', '2026-07-06 18:00:00', 28.0000, 27.0000, 1.0000, 1.83, 'SUBMITTED', NULL, NULL, '包装报工');
+('WR202607001', 1, 5, 5, 5, 11, '2026-07-05', '2026-07-05 10:10:00', '2026-07-05 16:00:00', 95.0000, 94.0000, 1.0000, 5.83, 'CONFIRMED', 4, '2026-07-05 17:00:00', '面板贴附报工'),
+('WR202607002', 1, 7, 7, 25, 13, '2026-07-06', '2026-07-06 08:20:00', '2026-07-06 14:00:00', 72.0000, 71.0000, 1.0000, 5.67, 'SUBMITTED', NULL, NULL, '整机组装报工'),
+('WR202607003', 1, 9, 9, 6, 20, '2026-07-06', '2026-07-06 10:05:00', '2026-07-06 18:00:00', 45.0000, 44.0000, 1.0000, 7.92, 'SUBMITTED', NULL, NULL, '老化测试进行中'),
+('WR202607004', 2, 11, 15, 5, 11, '2026-07-06', '2026-07-06 10:10:00', '2026-07-06 15:00:00', 55.0000, 54.0000, 1.0000, 4.83, 'CONFIRMED', 4, '2026-07-06 16:00:00', '电竞面板贴附报工');
 
 INSERT INTO work_progress (work_order_id, dispatch_id, progress_date, progress_percent, completed_quantity, current_status, progress_description, recorded_by, recorded_at) VALUES
-(1, 2, '2026-07-05', 25.00, 50.0000, 'RUNNING', '完成面板贴附50台', 2, '2026-07-05 18:00:00'),
-(1, 3, '2026-07-06', 42.50, 85.0000, 'RUNNING', '老化测试进行中，累计完成85台', 2, '2026-07-06 17:00:00'),
-(2, 5, '2026-07-06', 28.00, 42.0000, 'RUNNING', '电竞显示器背光组装中', 2, '2026-07-06 17:30:00'),
-(1, 6, '2026-07-06', 42.50, 85.0000, 'RUNNING', '部分产品已进入包装环节', 2, '2026-07-06 18:00:00');
+(1, 5, '2026-07-05', 47.50, 95.0000, 'RUNNING', '面板贴附完成95台', 4, '2026-07-05 18:00:00'),
+(1, 8, '2026-07-06', 32.50, 65.0000, 'RUNNING', '八道生产工序瓶颈在支架底座装配，累计完成65台', 4, '2026-07-06 17:00:00'),
+(2, 12, '2026-07-06', 28.00, 42.0000, 'RUNNING', '电竞显示器整机组装中', 4, '2026-07-06 17:30:00');
 
 -- ==================== 5. 采购管理 ====================
 INSERT INTO purchase_order (purchase_order_no, supplier_name, supplier_contact, supplier_phone, purchase_date, expected_arrival_date, total_amount, status, purchaser_id, approved_by, approved_at, remark) VALUES

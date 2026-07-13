@@ -38,8 +38,6 @@
         <slot name="detail-actions" />
       </template>
     </DetailPanel>
-
-    <OperationLogPanel v-if="showLog" :logs="logs" />
   </div>
 </template>
 
@@ -47,7 +45,6 @@
 import { ref, watch, useSlots, computed, provide } from 'vue'
 import SearchToolbar from './SearchToolbar.vue'
 import DetailPanel from './DetailPanel.vue'
-import OperationLogPanel from './OperationLogPanel.vue'
 
 const props = defineProps({
   statusItems: { type: Array, default: () => [] },
@@ -58,8 +55,6 @@ const props = defineProps({
   toolbarActions: { type: Array, default: () => [] },
   detailTitle: { type: String, default: '详情' },
   detailRows: { type: Array, default: () => [] },
-  logs: { type: Array, default: () => [] },
-  showLog: { type: Boolean, default: true },
   modelKeyword: { type: String, default: '' },
   modelStatus: { type: String, default: '' }
 })

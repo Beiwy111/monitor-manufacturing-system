@@ -8,17 +8,17 @@
 }
 
 .ruoyi-app-main {
-  background: var(--layout-surface);
-  padding: 12px;
+  background: transparent !important;
+  padding: 20px 24px;
   overflow: auto;
 }
 
 .ruoyi-page {
-  background: #fff;
+  background: var(--layout-content-bg, #fff);
   border-radius: var(--layout-card-radius);
-  min-height: calc(100vh - 120px);
-  border: 1px solid #e8eceb;
-  box-shadow: none;
+  min-height: calc(100vh - 108px);
+  border: 1px solid var(--layout-border, #e8e8e3);
+  box-shadow: var(--layout-shadow);
 }
 
 .ruoyi-page__head {
@@ -27,14 +27,15 @@
 
 .ruoyi-page__title {
   margin: 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: #111827;
+  font-size: var(--fs-page-title, 22px);
+  font-weight: 700;
+  color: var(--layout-text-title, #25272a);
+  line-height: 1.5;
 }
 
 .ruoyi-query {
-  padding: 14px 16px 4px;
-  border-bottom: 1px solid #ebeef5;
+  padding: 16px 20px 4px;
+  border-bottom: none;
 }
 
 .ruoyi-query .el-form-item {
@@ -43,8 +44,9 @@
 }
 
 .ruoyi-query .el-form-item__label {
-  font-size: 13px;
-  color: #606266;
+  font-size: var(--fs-body, 14px);
+  font-weight: 500;
+  color: var(--layout-text-table, #3f3f46);
 }
 
 .ruoyi-toolbar {
@@ -52,11 +54,11 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 4px 20px 12px;
 }
 
 .ruoyi-toolbar .el-button {
-  font-size: 13px;
+  font-size: var(--fs-body, 14px);
 }
 
 .ruoyi-toolbar__right {
@@ -66,19 +68,21 @@
 }
 
 .ruoyi-table-wrap {
-  padding: 0 16px 8px;
+  padding: 0 20px 12px;
+  overflow-x: auto;
 }
 
 .ruoyi-table-wrap .el-table th.el-table__cell {
-  background: #f8f8f9 !important;
-  color: #515a6e;
-  font-weight: 500;
-  font-size: 13px;
+  background: var(--layout-table-head) !important;
+  color: var(--layout-text-caption, #71717a);
+  font-weight: 600;
+  font-size: var(--fs-table, 14px);
 }
 
 .ruoyi-table-wrap .el-table td.el-table__cell {
-  font-size: 13px;
-  color: #606266;
+  font-size: var(--fs-table, 14px);
+  font-weight: 400;
+  color: var(--layout-text-table, #25272a);
 }
 
 .ruoyi-pagination {
@@ -91,25 +95,26 @@
   display: flex;
   flex-wrap: wrap;
   gap: 16px 24px;
-  padding: 10px 16px;
-  border-bottom: 1px solid #ebeef5;
-  background: #fafafa;
-  font-size: 13px;
-  color: #606266;
+  padding: 12px 20px;
+  border-bottom: none;
+  background: #fff;
+  font-size: var(--fs-caption, 13px);
+  color: var(--layout-text-caption, #71717a);
 }
 
 .ruoyi-stats__item em {
   font-style: normal;
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  font-size: var(--fs-kpi, 16px);
+  color: var(--layout-text-title, #25272a);
 }
 
 .ruoyi-stats__item--warn em {
-  color: #e6a23c;
+  color: var(--color-warning);
 }
 
 .ruoyi-stats__item--danger em {
-  color: #f56c6c;
+  color: var(--color-danger);
 }
 
 .ruoyi-stats__item--filter {
@@ -122,29 +127,30 @@
 }
 
 .ruoyi-stats__item--filter:hover {
-  background: #f0f2f5;
+  background: var(--layout-table-row-hover, #f7f7f8);
 }
 
 .ruoyi-stats__item--filter.is-active {
-  background: var(--layout-accent-soft);
-  color: var(--layout-accent);
+  background: var(--btn-primary-bg, #7a9b82);
+  color: #fff;
+  font-weight: 600;
 }
 
 .ruoyi-stats__item--filter.is-active em {
-  color: var(--layout-accent);
+  color: #fff;
   font-weight: 600;
 }
 
 .qc-split-layout {
   display: grid;
   grid-template-columns: minmax(480px, 1fr) minmax(380px, 420px);
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--layout-border);
   align-items: stretch;
   min-height: calc(100vh - 200px);
 }
 
 .qc-split-layout__main {
-  border-right: 1px solid #ebeef5;
+  border-right: 1px solid var(--layout-border);
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -153,12 +159,12 @@
 
 .qc-split-layout__side {
   overflow-y: auto;
-  background: #fafafa;
+  background: #fff;
 }
 
 .qc-section {
   padding: 12px 16px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--layout-border);
 }
 
 .qc-section:last-child {
@@ -169,15 +175,47 @@
   display: flex;
   align-items: center;
   margin-bottom: 10px;
-  font-size: 13px;
+  font-size: var(--fs-module-title, 16px);
+  font-weight: 600;
+  color: var(--layout-text-title, #25272a);
+}
+
+.qc-dashboard-section__hd {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: var(--fs-module-title, 16px);
+  font-weight: 600;
+  color: var(--layout-text-title, #25272a);
+}
+
+.qc-dashboard-section__hd .qc-link {
+  margin-left: auto;
+  font-size: var(--fs-caption, 13px);
   font-weight: 500;
-  color: #303133;
+  color: var(--layout-text-title, #25272a);
+  cursor: pointer;
+}
+
+.qc-dashboard-section__note {
+  margin-left: auto;
+  font-size: var(--fs-caption, 13px);
+  font-weight: 400;
+  color: var(--layout-text-caption, #71717a);
+}
+
+.qc-empty {
+  text-align: center;
+  color: var(--layout-text-caption, #71717a);
+  padding: 48px 0;
+  font-size: var(--fs-body, 14px);
+  margin: 0;
 }
 
 .qc-dashboard-grid {
   display: grid;
   gap: 0;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--layout-border);
 }
 
 .qc-dashboard-grid--2 {
@@ -190,8 +228,8 @@
 
 .qc-dashboard-section {
   padding: 14px 16px;
-  border-bottom: 1px solid #ebeef5;
-  border-right: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--layout-border);
+  border-right: 1px solid var(--layout-border);
 }
 
 .qc-dashboard-section:nth-child(2n) {
@@ -203,44 +241,8 @@
   border-right: none;
 }
 
-.qc-dashboard-section__hd {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #303133;
-}
-
-.qc-dashboard-section__hd .qc-link {
-  margin-left: auto;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--layout-accent);
-  cursor: pointer;
-}
-
-.qc-dashboard-section__hd .qc-link:hover {
-  text-decoration: underline;
-}
-
-.qc-dashboard-section__note {
-  margin-left: auto;
-  font-size: 12px;
-  font-weight: 400;
-  color: #909399;
-}
-
-.qc-empty {
-  text-align: center;
-  color: #909399;
-  padding: 48px 0;
-  font-size: 13px;
-  margin: 0;
-}
-
 .qc-empty--ok {
-  color: #52a838;
+  color: var(--color-success);
 }
 
 @media (max-width: 1180px) {
@@ -250,7 +252,7 @@
 
   .qc-split-layout__main {
     border-right: none;
-    border-bottom: 1px solid #ebeef5;
+    border-bottom: 1px solid var(--layout-border);
   }
 
   .qc-dashboard-grid--2,
@@ -273,31 +275,31 @@
 .ruoyi-toolbar--sub {
   padding-top: 6px;
   padding-bottom: 6px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--layout-border);
 }
 
 .ruoyi-link-btn {
   display: inline-block;
   padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--layout-accent);
+  font-size: var(--fs-caption, 13px);
+  font-weight: 500;
+  color: var(--btn-secondary-text, #475569);
   text-decoration: none;
-  border: 1px solid var(--layout-accent-border);
-  border-radius: 8px;
-  background: var(--layout-accent-soft);
+  border: 1px solid var(--btn-secondary-border, #d8dee8);
+  border-radius: 7px;
+  background: #fff;
 }
 
 .ruoyi-link-btn:hover {
-  background: var(--layout-accent);
-  color: #fff;
-  border-color: var(--layout-accent);
+  background: var(--btn-secondary-hover-bg, #f3f6f9);
+  color: var(--btn-secondary-text, #475569);
+  border-color: var(--btn-secondary-border, #d8dee8);
 }
 
 .ruoyi-detail {
-  padding: 10px 16px 14px;
-  border-top: 1px solid #ebeef5;
-  background: #fafafa;
+  padding: 12px 20px 16px;
+  border-top: 1px solid #f0f0f0;
+  background: #fff;
 }
 
 .ruoyi-detail__head {
@@ -305,15 +307,19 @@
 }
 
 .ruoyi-detail__title {
-  font-size: 13px;
-  font-weight: 500;
-  color: #303133;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--layout-text-title, #25272a);
 }
 
 .ruoyi-detail__empty {
-  font-size: 12px;
-  color: #909399;
   padding: 8px 0;
+}
+
+.ruoyi-empty-tip,
+.ruoyi-log__head {
+  font-size: var(--fs-caption, 13px);
+  color: var(--layout-text-caption, #71717a);
 }
 
 .ruoyi-detail__actions {
@@ -326,15 +332,17 @@
 }
 
 .ruoyi-detail .el-descriptions__label {
-  font-size: 12px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .ruoyi-detail .el-descriptions__content {
-  font-size: 13px;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 .ruoyi-log {
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--layout-border);
   background: #fff;
 }
 
@@ -342,7 +350,7 @@
   padding: 8px 16px;
   font-size: 12px;
   font-weight: 500;
-  color: #909399;
+  color: var(--layout-text-caption, #71717a);
   border-bottom: 1px solid #f0f0f0;
 }
 
@@ -354,14 +362,14 @@
 .ruoyi-log__item {
   padding: 5px 16px;
   font-size: 12px;
-  color: #606266;
+  color: var(--layout-text-secondary);
   border-bottom: 1px solid #f5f5f5;
   display: flex;
   gap: 12px;
 }
 
 .ruoyi-log__time {
-  color: #909399;
+  color: var(--layout-text-caption, #71717a);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -371,22 +379,22 @@
 }
 
 .ruoyi-workbench-embed {
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--layout-border);
 }
 
 .ruoyi-operator-bar {
   padding: 10px 16px;
-  border-bottom: 1px solid #ebeef5;
-  background: #fafafa;
+  border-bottom: 1px solid var(--layout-border);
+  background: #fff;
   font-size: 13px;
-  color: #606266;
+  color: var(--layout-text-secondary);
 }
 
 .ruoyi-operator-bar__title {
   margin: 0 0 6px;
   font-size: 14px;
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  color: var(--layout-text-title, #25272a);
 }
 
 .ruoyi-operator-bar__actions {
@@ -399,13 +407,13 @@
 .pending-block {
   padding: 0 0 8px;
   margin-bottom: 8px;
-  border-bottom: 1px dashed #ebeef5;
+  border-bottom: 1px dashed var(--layout-border);
 }
 
 .pending-block__title {
-  font-size: 13px;
-  font-weight: 500;
-  color: #515a6e;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--layout-text-title, #25272a);
   margin-bottom: 8px;
 }
 
@@ -428,14 +436,14 @@
 
 .ruoyi-empty-tip {
   font-size: 13px;
-  color: #909399;
+  color: var(--layout-text-caption, #71717a);
   margin: 0;
 }
 
 .ruoyi-summary {
   margin: 10px 0 0;
   font-size: 13px;
-  color: #606266;
+  color: var(--layout-text-secondary);
 }
 
 .ruoyi-split {
@@ -446,14 +454,14 @@
 .ruoyi-split__tree {
   width: 220px;
   flex-shrink: 0;
-  border-right: 1px solid #ebeef5;
+  border-right: 1px solid var(--layout-border);
   padding: 12px;
 }
 
 .ruoyi-split__tree-title {
   font-size: 14px;
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  color: var(--layout-text-title, #25272a);
   margin-bottom: 10px;
 }
 
@@ -466,52 +474,76 @@
 .ruoyi-sidebar-user {
   padding: 18px 12px;
   text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--layout-divider, #e8e8ec);
 }
 
 .ruoyi-sidebar-user__avatar {
+  position: relative;
   width: 56px;
   height: 56px;
   margin: 0 auto 10px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2d8a66, #1a5c42);
-  color: #fff;
+  background: var(--sidebar-avatar-bg, #e4e4e7);
+  color: var(--layout-text-title, #25272a);
   font-size: 22px;
   line-height: 56px;
-  font-weight: 400;
+  font-weight: 600;
+}
+
+.ruoyi-sidebar-user__avatar::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-success, #16a34a);
+  border: 2px solid var(--sidebar-bg, #f7f7f8);
+  box-sizing: border-box;
 }
 
 .ruoyi-sidebar-user__name {
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 14px;
-  font-weight: 400;
-  letter-spacing: 0;
+  color: var(--layout-text-title, #25272a);
+  font-size: var(--fs-body, 14px);
+  font-weight: 600;
 }
 
 .ruoyi-sidebar-user__links {
   margin-top: 8px;
-  font-size: 12px;
-  font-weight: 300;
+  font-size: var(--fs-caption, 13px);
+  font-weight: 400;
 }
 
 .ruoyi-sidebar-user__links a {
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--layout-text-caption, #71717a);
   text-decoration: none;
   margin: 0 6px;
 }
 
 .ruoyi-sidebar-user__links a:hover {
-  color: #4ade80;
+  color: var(--layout-text-title, #25272a);
 }
 
-/* 顶栏标签页 */
+.ruoyi-sidebar-user__links a:first-child::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success, #16a34a);
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+/* 顶栏标签页 — 简约下划线 */
 .ruoyi-tags {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: #fff;
-  border-bottom: 1px solid #e8eceb;
+  gap: 0;
+  padding: 8px 24px 6px;
+  background: transparent;
+  border-bottom: 1px solid var(--layout-border, #e8e8e3);
   overflow-x: auto;
 }
 
@@ -519,38 +551,40 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 400;
-  color: #606266;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--layout-text-caption, #71717a);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   cursor: pointer;
   white-space: nowrap;
   text-decoration: none;
-  transition: all 0.2s;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+  line-height: 1.4;
 }
 
 .ruoyi-tags__item:hover {
-  color: #374151;
-  border-color: #d1d5db;
+  color: var(--layout-text-title, #25272a);
 }
 
 .ruoyi-tags__item.is-active {
-  background: var(--layout-accent-soft);
-  border-color: rgba(45, 138, 102, 0.35);
-  color: var(--layout-accent);
-  font-weight: 400;
+  background: transparent;
+  border-bottom-color: var(--btn-primary-bg, #7a9b82);
+  color: var(--layout-text-title, #25272a);
+  font-weight: 600;
 }
 
 .ruoyi-tags__close {
   font-size: 12px;
-  opacity: 0.7;
+  color: inherit;
 }
 
 .ruoyi-tags__close:hover {
-  opacity: 1;
+  color: inherit;
 }
 
 .ruoyi-breadcrumb {
@@ -558,7 +592,7 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: #606266;
+  color: var(--layout-text-secondary);
 }
 
 .ruoyi-breadcrumb__sep {
@@ -574,36 +608,37 @@
 
 .ruoyi-stat-card {
   background: #fff;
-  border-radius: 4px;
+  border-radius: var(--layout-card-radius);
   padding: 20px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--layout-border);
+  box-shadow: var(--layout-shadow);
 }
 
 .ruoyi-stat-card__label {
   font-size: 14px;
-  color: #909399;
+  color: var(--layout-text-caption, #71717a);
 }
 
 .ruoyi-stat-card__value {
   font-size: 28px;
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  color: var(--layout-text-title, #25272a);
   margin-top: 8px;
 }
 
 .ruoyi-home-panel {
   margin: 0 16px 16px;
   background: #fff;
-  border-radius: 4px;
-  border: 1px solid #ebeef5;
+  border-radius: var(--layout-card-radius);
+  border: 1px solid var(--layout-border);
   padding: 16px;
 }
 
 .ruoyi-home-panel__title {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 600;
   margin-bottom: 12px;
-  color: #303133;
+  color: var(--layout-text-title, #25272a);
 }
 
 .ruoyi-shortcuts {
@@ -618,128 +653,48 @@
   align-items: center;
   gap: 8px;
   padding: 16px 8px;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
+  border: 1px solid var(--layout-border);
+  border-radius: var(--layout-card-radius);
   cursor: pointer;
   transition: all 0.2s;
   text-decoration: none;
-  color: #606266;
+  color: var(--layout-text-secondary);
 }
 
 .ruoyi-shortcut:hover {
-  border-color: var(--layout-accent);
-  color: var(--layout-accent);
-  background: #ecf5ff;
+  border-color: var(--btn-secondary-border, #d4d4d8);
+  color: var(--layout-text-title, #25272a);
+  background: var(--btn-secondary-hover-bg, #f4f4f5);
 }
 
-/* —— 全站后台字体统一（与用户管理 ruoyi-page 一致） —— */
+/* —— 全站后台字体统一 —— */
 .layout-main.ruoyi-app-main {
   font-family: var(--layout-font);
-  font-size: 14px;
+  font-size: var(--fs-body, 14px);
   font-weight: 400;
-  color: #606266;
+  color: var(--layout-text-body, #27272a);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  background: transparent !important;
 }
 
 .layout-main.ruoyi-app-main h1,
-.layout-main.ruoyi-app-main h2,
+.layout-main.ruoyi-app-main h2 {
+  font-weight: 700;
+  color: var(--layout-text-title, #25272a);
+}
+
 .layout-main.ruoyi-app-main h3,
 .layout-main.ruoyi-app-main h4,
 .layout-main.ruoyi-app-main h5,
 .layout-main.ruoyi-app-main h6 {
-  font-family: inherit;
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  color: var(--layout-text-title, #25272a);
 }
 
-.layout-main.ruoyi-app-main p,
-.layout-main.ruoyi-app-main span,
-.layout-main.ruoyi-app-main label,
-.layout-main.ruoyi-app-main td,
-.layout-main.ruoyi-app-main th,
-.layout-main.ruoyi-app-main li {
-  font-family: inherit;
-}
-
-.layout-main.ruoyi-app-main .el-button,
-.layout-main.ruoyi-app-main .el-input,
-.layout-main.ruoyi-app-main .el-input__wrapper,
-.layout-main.ruoyi-app-main .el-input__inner,
-.layout-main.ruoyi-app-main .el-textarea__inner,
-.layout-main.ruoyi-app-main .el-select,
-.layout-main.ruoyi-app-main .el-form-item__label,
-.layout-main.ruoyi-app-main .el-table,
-.layout-main.ruoyi-app-main .el-tabs__item,
-.layout-main.ruoyi-app-main .el-pagination,
-.layout-main.ruoyi-app-main .el-tag,
-.layout-main.ruoyi-app-main .el-dialog,
-.layout-main.ruoyi-app-main .el-dialog__title,
-.layout-main.ruoyi-app-main .el-drawer,
-.layout-main.ruoyi-app-main .el-drawer__title,
-.layout-main.ruoyi-app-main .el-descriptions__label,
-.layout-main.ruoyi-app-main .el-descriptions__content,
-.layout-main.ruoyi-app-main .el-tree,
-.layout-main.ruoyi-app-main .el-breadcrumb,
-.layout-main.ruoyi-app-main .el-alert,
-.layout-main.ruoyi-app-main .el-steps,
-.layout-main.ruoyi-app-main .el-collapse-item__header {
-  font-family: inherit !important;
-}
-
-.layout-main.ruoyi-app-main .el-button {
-  font-size: 13px !important;
-  font-weight: 500 !important;
-}
-
-.layout-main.ruoyi-app-main .el-button.is-link {
-  font-weight: 400 !important;
-}
-
-.layout-main.ruoyi-app-main .el-form-item__label {
-  font-size: 13px !important;
-  color: #606266 !important;
-  font-weight: 400 !important;
-}
-
-.layout-main.ruoyi-app-main .el-input__inner,
-.layout-main.ruoyi-app-main .el-textarea__inner {
-  font-size: 13px !important;
-  color: #606266 !important;
-}
-
-.layout-main.ruoyi-app-main .el-table {
-  font-size: 13px !important;
-  color: #606266 !important;
-}
-
-.layout-main.ruoyi-app-main .el-table th.el-table__cell {
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  color: #515a6e !important;
-  background: #f8f8f9 !important;
-}
-
-.layout-main.ruoyi-app-main .el-table td.el-table__cell {
-  font-size: 13px !important;
-  color: #606266 !important;
-}
-
-.layout-main.ruoyi-app-main .el-tabs__item {
-  font-size: 14px !important;
-  font-weight: 400 !important;
-}
-
-.layout-main.ruoyi-app-main .el-tag {
-  font-size: 12px !important;
-}
-
-.layout-main.ruoyi-app-main .el-pagination {
-  font-size: 13px !important;
-}
-
-/* 各业务页自定义标题类 — 收敛为若依标题风格 */
+/* 页面主标题 24px / 700 */
 .layout-main.ruoyi-app-main .ruoyi-page__title,
+.layout-main.ruoyi-app-main .ruoyi-toolbar > .ruoyi-page__title,
 .layout-main.ruoyi-app-main .page-title,
 .layout-main.ruoyi-app-main .wb__title,
 .layout-main.ruoyi-app-main .wb-title,
@@ -747,28 +702,50 @@
 .layout-main.ruoyi-app-main .dm-title,
 .layout-main.ruoyi-app-main .eq-title,
 .layout-main.ruoyi-app-main .alarm-title,
-.layout-main.ruoyi-app-main .pdb-toolbar__title,
 .layout-main.ruoyi-app-main .op-report-page__heading,
-.layout-main.ruoyi-app-main .planner-plan-page__title,
-.layout-main.ruoyi-app-main [class$="__title"]:not(.el-dialog__title):not(.el-drawer__title),
-.layout-main.ruoyi-app-main [class*="-title"]:not(.el-step__title):not(.el-collapse-item__header) {
-  font-family: inherit !important;
-  font-size: 15px !important;
-  font-weight: 500 !important;
-  color: #303133 !important;
-  line-height: 1.4 !important;
+.layout-main.ruoyi-app-main .planner-plan-page__title {
+  font-size: var(--fs-page-title, 20px) !important;
+  font-weight: 700 !important;
+  color: var(--layout-text-title, #25272a) !important;
+  line-height: 1.5 !important;
 }
 
+/* 模块标题 16px / 600 */
+.layout-main.ruoyi-app-main .pdb-toolbar__title,
+.layout-main.ruoyi-app-main [class$="__title"]:not(.el-dialog__title):not(.el-drawer__title):not(.ruoyi-page__title):not(.page-title),
+.layout-main.ruoyi-app-main [class*="-title"]:not(.el-step__title):not(.el-collapse-item__header):not(.page-title),
+.layout-main.ruoyi-app-main [class$="__hd"],
+.layout-main.ruoyi-app-main .qc-dashboard-section__hd,
+.layout-main.ruoyi-app-main .qc-section__title,
+.layout-main.ruoyi-app-main .ruoyi-detail__title,
+.layout-main.ruoyi-app-main .ruoyi-home-panel__title,
+.layout-main.ruoyi-app-main .mes-side-header,
+.layout-main.ruoyi-app-main .mes-toolbar-title,
+.layout-main.ruoyi-app-main .pending-block__title,
 .layout-main.ruoyi-app-main .section-title,
 .layout-main.ruoyi-app-main .po-section-title,
 .layout-main.ruoyi-app-main .stage-block__title,
-.layout-main.ruoyi-app-main .panel__title {
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  color: #303133 !important;
+.layout-main.ruoyi-app-main .panel__title,
+.layout-main.ruoyi-app-main .ruoyi-operator-bar__title,
+.layout-main.ruoyi-app-main .ruoyi-split__tree-title {
+  font-size: var(--fs-module-title, 16px) !important;
+  font-weight: 600 !important;
+  color: var(--layout-text-title, #25272a) !important;
+  line-height: 1.5 !important;
 }
 
 .layout-main.ruoyi-app-main .ruoyi-breadcrumb,
 .layout-main.ruoyi-app-main .ruoyi-tags__item {
   font-family: inherit !important;
+}
+
+.ruoyi-breadcrumb {
+  font-size: var(--fs-caption, 13px);
+  color: var(--layout-text-caption, #71717a);
+}
+
+.ruoyi-breadcrumb__current,
+.layout-breadcrumb .ruoyi-breadcrumb__current {
+  color: var(--layout-text-title, #25272a);
+  font-weight: 600;
 }

@@ -1,31 +1,31 @@
 /**
- * 全站字体与排版变量（与若依「用户管理」一致）
+ * 全站字体与排版变量 — 现代企业 ERP 风格
+ * 中文优先 HarmonyOS Sans SC / PingFang SC，英文与数字 Inter
  */
 :root {
-  --font-sans: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+  --font-sans: Inter, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-num: Inter, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 
-  /* 文字颜色 — 若依标准色 */
-  --text-main: #303133;
-  --text-muted: #606266;
-  --text-subtle: #909399;
-  --text-placeholder: #c0c4cc;
+  /* 文字颜色层级 */
+  --text-main: #25272a;
+  --text-muted: #25272a;
+  --text-subtle: #7e838b;
+  --text-placeholder: #9ca3a0;
   --text-inverse: #ffffff;
-  --heading-color: #303133;
-  --accent-color: #2d8a66;
-  --accent-bright: #4ade80;
-  --accent-hover: #256f52;
+  --heading-color: #25272a;
 
-  /* 字重 */
-  --heading-weight: 500;
+  /* 字重层级：标题 700 / 模块标题与表头 600 / 菜单与标签 500 / 正文 400 */
+  --heading-weight: 700;
+  --module-weight: 600;
   --body-weight: 400;
-  --body-weight-medium: 500;
-  --brand-weight: 500;
-  --nav-weight: 400;
+  --body-weight-medium: 400;
+  --brand-weight: 600;
+  --nav-weight: 500;
+  --nav-weight-active: 600;
   --btn-weight: 500;
-  --table-head-weight: 500;
-  --label-weight: 400;
+  --table-head-weight: 600;
+  --label-weight: 500;
 
-  /* 字号 — 后台 14px 正文 / 13px 表格 */
   --fs-base: 14px;
   --fs-body-sm: 13px;
   --fs-nav: 14px;
@@ -34,50 +34,48 @@
   --fs-hero-label: 13px;
   --fs-hero-title: 46px;
   --fs-hero-desc: 16px;
-  --fs-section-title: 15px;
+  --fs-section-title: 16px;
   --fs-section-lead: 14px;
-  --fs-card-title: 15px;
+  --fs-card-title: 16px;
   --fs-card-label: 13px;
   --fs-card-desc: 14px;
   --fs-card-link: 13px;
-  --fs-btn: 13px;
-  --fs-page-title: 15px;
-  --fs-dashboard-title: 15px;
-  --fs-kpi-value: 24px;
+  --fs-btn: 14px;
+  --fs-page-title: 24px;
+  --fs-dashboard-title: 16px;
+  --fs-kpi-value: 28px;
   --fs-kpi-label: 13px;
-  --fs-table-head: 13px;
-  --fs-table-body: 13px;
+  --fs-table-head: 14px;
+  --fs-table-body: 14px;
   --fs-tag: 12px;
-  --fs-caption: 12px;
+  --fs-caption: 13px;
 
-  /* 行高 */
   --lh-hero: 1.15;
-  --lh-heading: 1.4;
-  --lh-card-title: 1.4;
+  --lh-tight: 1.2;
+  --lh-heading: 1.45;
+  --lh-card-title: 1.45;
   --lh-body: 1.5;
-  --lh-lead: 1.6;
-  --lh-card-desc: 1.6;
+  --lh-lead: 1.5;
+  --lh-card-desc: 1.5;
 
-  /* 字间距 */
-  --ls-hero-label: 2px;
-  --ls-hero-title: -1px;
-  --ls-section-title: -0.5px;
-  --ls-card-label: 0.05em;
-  --ls-btn-en: 0.08em;
-  --ls-login-header: 0.28em;
+  --ls-hero-label: 0;
+  --ls-hero-title: 0;
+  --ls-section-title: 0;
+  --ls-card-label: 0;
+  --ls-btn-en: 0;
+  --ls-login-header: 0.02em;
 
-  /* 导航栏 */
   --nav-height: 56px;
 }
 
 @media (max-width: 768px) {
   :root {
     --fs-hero-title: 36px;
-    --fs-section-title: 28px;
-    --fs-card-title: 20px;
+    --fs-section-title: 18px;
+    --fs-card-title: 16px;
     --fs-hero-desc: 16px;
-    --fs-section-lead: 16px;
-    --fs-kpi-value: 26px;
+    --fs-section-lead: 14px;
+    --fs-kpi-value: 24px;
     --nav-height: 52px;
   }
 }
@@ -85,11 +83,10 @@
 @media (max-width: 480px) {
   :root {
     --fs-hero-title: 32px;
-    --fs-section-title: 26px;
+    --fs-section-title: 16px;
   }
 }
 
-/* 全局基础 */
 html,
 body,
 #app {
@@ -97,6 +94,7 @@ body,
   font-size: var(--fs-base);
   font-weight: var(--body-weight);
   line-height: var(--lh-body);
+  letter-spacing: 0;
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -104,11 +102,12 @@ body,
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-weight: var(--heading-weight);
+  font-weight: var(--module-weight);
   color: var(--heading-color);
+  line-height: var(--lh-heading);
+  letter-spacing: 0;
 }
 
-/* Element Plus 字体统一 */
 .el-button,
 .el-input,
 .el-input__inner,
@@ -127,38 +126,46 @@ h1, h2, h3, h4, h5, h6 {
 
 .el-menu-item,
 .el-sub-menu__title {
-  font-weight: 400 !important;
-  font-size: 14px !important;
+  font-weight: var(--nav-weight) !important;
+  font-size: var(--fs-nav) !important;
 }
 
 .el-table th.el-table__cell {
   font-size: var(--fs-table-head);
   font-weight: var(--table-head-weight) !important;
-  color: var(--heading-color);
+  color: var(--text-subtle);
 }
 
 .el-table td.el-table__cell {
   font-size: var(--fs-table-body);
   font-weight: var(--body-weight);
-  color: var(--text-main);
+  color: var(--text-muted);
 }
 
-/* 通用排版工具类 */
+/* 核心指标数字 — Inter 大号加粗，数字使用等宽数位 */
+.kpi-value,
+.stat-value,
+.module-kpi-card__num {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
 .type-section-title {
   margin: 0 0 12px;
   font-size: var(--fs-section-title);
-  font-weight: var(--heading-weight);
+  font-weight: var(--module-weight);
   line-height: var(--lh-heading);
-  letter-spacing: var(--ls-section-title);
   color: var(--heading-color);
 }
 
 .type-section-lead {
-  margin: 0 0 48px;
+  margin: 0 0 32px;
   font-size: var(--fs-section-lead);
   font-weight: var(--body-weight);
   line-height: var(--lh-lead);
-  color: var(--text-muted);
+  color: var(--text-subtle);
 }
 
 .type-page-title {

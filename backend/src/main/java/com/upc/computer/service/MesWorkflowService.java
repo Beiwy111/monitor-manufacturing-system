@@ -1264,14 +1264,29 @@ public class MesWorkflowService {
         }
         int qualifiedQty = isRework ? reportQualifiedQty(d.getDispatchId()) : finalInspectionSubmitQty(d);
         if (qualifiedQty <= 0) {
-            throw new BusinessException("四道生产工序尚未全部形成成品，无可提交终检数量");
+            WorkOrder wo = workOrderMapper.getWorkOrderById(d.getWorkOrderId());
+            Map<Long, ProcessStep> stepById = processStepMapper.stepList().stream()
+                    .collect(java.util.stream.Collectors.toMap(ProcessStep::getStepId, s -> s, (a, b) -> a));
+            List<DispatchTask> workOrderDispatches = dispatchTaskMapper.dispatchList().stream()
+                    .filter(x -> d.getWorkOrderId().equals(x.getWorkOrderId()))
+                    .toList();
+            int finished = ProductionWorkshopCatalog.finishedGoodsQty(workOrderDispatches, stepById);
+            int planned = wo != null ? intVal(wo.getPlannedQuantity()) : 0;
+            int submitted = normalInspectionSubmittedQty(d.getWorkOrderId());
+            if (finished <= 0 || (planned > 0 && finished < planned)) {
+                throw new BusinessException(String.format(
+                        "前序工序尚未全部报工完成（成品 %d / 计划 %d 台），请确认八道生产工序均已完成后提交质检",
+                        finished, planned));
+            }
+            throw new BusinessException(String.format(
+                    "该工单质检提交数量已达上限（计划 %d 台，已累计提交 %d 台）", planned, submitted));
         }
         for (QualityInspection existing : qualityInspectionMapper.inspectionList()) {
             Map<String, Object> extra = mesRuntimeStore.load().getExtras()
                     .getOrDefault("inspection:" + existing.getInspectionNo(), Map.of());
             if ((dispatchNo.equals(extra.get("dispatchId"))
                     || (!isRework && existing.getWorkOrderId() != null && existing.getWorkOrderId().equals(d.getWorkOrderId())))
-                    && "PENDING".equals(existing.getInspectionResult())) {
+                    && List.of("PENDING", "RECHECK_REQUIRED").contains(existing.getInspectionStatus())) {
                 throw new BusinessException("已有待检任务");
             }
         }
@@ -1354,7 +1369,7 @@ public class MesWorkflowService {
         String qcNo = str(p, "qcId");
         Map<String, Object> payload = (Map<String, Object>) p.getOrDefault("payload", p);
         QualityInspection qi = findInspectionByNo(qcNo);
-        if (qi == null || !"PENDING".equals(qi.getInspectionResult())) {
+        if (qi == null || !List.of("PENDING", "RECHECK_REQUIRED").contains(qi.getInspectionStatus())) {
             throw new BusinessException("质检状态不允许提交");
         }
         LocalDateTime now = LocalDateTime.now();
@@ -1365,6 +1380,11 @@ public class MesWorkflowService {
         qi.setQualifiedQuantity(decimal(payload.get("qualifiedQty")));
         qi.setUnqualifiedQuantity(decimal(payload.get("unqualifiedQty")));
         qi.setInspectionResult(MesStatusMapper.inspectionResultToDb(result));
+        if ("合格".equals(result) || "让步接收".equals(result)) {
+            qi.setInspectionStatus("PASSED");
+        } else if ("不合格".equals(result)) {
+            qi.setInspectionStatus("FAILED");
+        }
         qi.setInspectorId(inspector != null ? inspector.getUserId() : null);
         qi.setInspectedAt(now);
         qi.setRemark(str(payload, "remark"));
@@ -2861,9 +2881,28 @@ public class MesWorkflowService {
             if (extra.get("defectId") != null) {
                 continue;
             }
-            int submitQty = intVal(extra.get("submitQty"));
-            if (submitQty <= 0) {
+            String status = inspection.getInspectionStatus();
+            if ("FAILED".equals(status) || "CLOSED".equals(status)) {
+                continue;
+            }
+            int submitQty;
+            if ("PASSED".equals(status) || "RECHECK_REQUIRED".equals(status)) {
+                // 以数据库实际判定数量为准，避免 Redis 中夸大的 submitQty 占满配额
                 submitQty = intVal(inspection.getQualifiedQuantity()) + intVal(inspection.getUnqualifiedQuantity());
+            } else if ("PENDING".equals(status)) {
+                String dispatchNo = String.valueOf(extra.getOrDefault("dispatchId", ""));
+                if (!dispatchNo.isBlank()) {
+                    DispatchTask linked = findDispatchByNo(dispatchNo);
+                    if (linked != null && !isFinalProductionDispatch(linked)) {
+                        continue;
+                    }
+                }
+                submitQty = intVal(extra.get("submitQty"));
+                if (submitQty <= 0) {
+                    submitQty = intVal(inspection.getSampleQuantity());
+                }
+            } else {
+                continue;
             }
             total += submitQty;
         }

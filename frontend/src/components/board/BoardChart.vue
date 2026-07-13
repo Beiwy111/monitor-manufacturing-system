@@ -5,6 +5,7 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, shallowRef } from 'vue'
 import * as echarts from 'echarts'
+import { mergeChartOption } from '@/styles/chartTheme'
 
 const props = defineProps({
   option: { type: Object, required: true }
@@ -17,9 +18,9 @@ let observer = null
 function render() {
   if (!chartRef.value) return
   if (!chart.value) {
-    chart.value = echarts.init(chartRef.value, null, { renderer: 'canvas' })
+    chart.value = echarts.init(chartRef.value, 'mes', { renderer: 'canvas' })
   }
-  chart.value.setOption(props.option, { notMerge: true })
+  chart.value.setOption(mergeChartOption(props.option), { notMerge: true })
 }
 
 function resize() {

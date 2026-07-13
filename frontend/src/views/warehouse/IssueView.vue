@@ -3,7 +3,6 @@
     toolbar-title="生产领料"
     :status-options="['待领料', '部分领料', '已完成']"
     :detail-rows="rows"
-    :logs="mes.operationLogs.slice(0,8)"
   >
     <template #table>
       <el-table :data="mes.issueTasks" border stripe highlight-current-row @current-change="onRowClick">

@@ -1,5 +1,5 @@
 <template>
-  <MesPageShell toolbar-title="我的派工" :status-options="DISPATCH_STATUS" :detail-rows="rows" :logs="mes.operationLogs.slice(0, 8)">
+  <MesPageShell toolbar-title="我的派工" :status-options="DISPATCH_STATUS" :detail-rows="rows">
     <template #table>
       <div v-if="binding" class="dispatch-context">
         <span class="dispatch-context__tag">固定车间</span>
@@ -17,16 +17,16 @@
         title="暂无派工任务。请生产主管在「工单派工」页将任务派给您。"
         style="margin: 12px 0"
       />
-      <el-table v-else :data="myList" border stripe highlight-current-row @current-change="onRowClick">
-        <el-table-column prop="id" label="派工单" width="130" />
-        <el-table-column prop="workOrderNo" label="工单" width="130" />
-        <el-table-column prop="workshopName" label="车间" min-width="130" />
-        <el-table-column prop="processStep" label="工序" width="110" />
-        <el-table-column label="工序进度" width="150">
+      <el-table v-else :data="myList" highlight-current-row class="mes-table-light" @current-change="onRowClick">
+        <el-table-column prop="id" label="派工单" width="148" show-overflow-tooltip />
+        <el-table-column prop="workOrderNo" label="工单" width="148" show-overflow-tooltip />
+        <el-table-column prop="workshopName" label="车间" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="processStep" label="工序" width="100" show-overflow-tooltip />
+        <el-table-column label="工序进度" min-width="168" show-overflow-tooltip>
           <template #default="{ row }">{{ stageProgressLabel(row) }}</template>
         </el-table-column>
-        <el-table-column prop="equipment" label="设备" min-width="120" />
-        <el-table-column prop="planQty" label="计划" width="70" />
+        <el-table-column prop="equipment" label="设备" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="planQty" label="计划" width="72" align="center" />
         <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }"><StatusBadge :status="row.status" /></template>
         </el-table-column>
@@ -54,7 +54,7 @@ import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { DISPATCH_STATUS, DISPATCH_REPORTABLE } from '@/mock/constants'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
-import { operatorBinding, stageProgressLabel, operatorReportPath } from '@/utils/operatorWorkshop'
+import { operatorBinding, stageProgressLabel } from '@/utils/operatorWorkshop'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 
@@ -62,7 +62,7 @@ const mes = useMesStore()
 const userStore = useUserStore()
 const username = computed(() => userStore.userInfo?.username)
 const binding = computed(() => operatorBinding(username.value))
-const reportPath = computed(() => operatorReportPath(username.value))
+const reportPath = '/production/report'
 const myList = computed(() => mes.myDispatches(username.value))
 const { selected, onRowClick } = useMesFilter(myList, ['id'])
 const rows = computed(() => detailRows(selected.value, [

@@ -7,6 +7,10 @@ export const roleMenus = {
       { menuId: 13, menuName: '权限管理', path: '/system/permission' },
       { menuId: 14, menuName: '菜单管理', path: '/system/menu' },
       { menuId: 15, menuName: '操作日志', path: '/system/log' }
+    ]},
+    { menuId: 92, menuName: '考勤管理', children: [
+      { menuId: 921, menuName: '考勤记录', path: '/attendance/record' },
+      { menuId: 922, menuName: '考勤统计', path: '/attendance/statistics' }
     ]}
   ],
   order: [
@@ -32,7 +36,8 @@ export const roleMenus = {
       { menuId: 43, menuName: '工单派工', path: '/production/dispatch' },
       { menuId: 44, menuName: '生产进度', path: '/production/progress' },
       { menuId: 45, menuName: '生产异常', path: '/production/exception' },
-      { menuId: 46, menuName: '安灯报警', path: '/device/alarm' }
+      { menuId: 46, menuName: '安灯报警', path: '/device/alarm' },
+      { menuId: 47, menuName: '排班日历', path: '/production/shift-calendar' }
     ]}
   ],
   operator: [

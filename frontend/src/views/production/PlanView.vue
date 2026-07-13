@@ -28,12 +28,12 @@
               <el-table :data="filteredPending" border size="small" height="100%" class="wb-table" highlight-current-row @row-click="onPendingRowClick">
                 <el-table-column prop="id" label="订单编号" min-width="130" />
                 <el-table-column prop="productModel" label="产品型号" min-width="140" show-overflow-tooltip />
-                <el-table-column prop="quantity" label="数量" width="72" align="right" />
-                <el-table-column prop="deliveryDate" label="客户交期" width="100" />
-                <el-table-column label="齐套率" width="80" align="center">
+                <el-table-column prop="quantity" label="数量" min-width="72" align="right" />
+                <el-table-column prop="deliveryDate" label="客户交期" min-width="108" />
+                <el-table-column label="齐套率" min-width="80" align="center">
                   <template #default="{ row }">{{ kitRateLabel(row.id) }}</template>
                 </el-table-column>
-                <el-table-column prop="status" label="状态" width="88" />
+                <el-table-column prop="status" label="状态" min-width="88" />
                 <el-table-column label="操作" width="160" fixed="right">
                   <template #default="{ row }">
                     <el-button link type="primary" size="small" @click.stop="openSmart(row.id)">智能排产</el-button>
@@ -80,19 +80,19 @@
                   <el-table-column prop="id" label="计划编号" min-width="120" sortable="custom" fixed="left" />
                   <el-table-column prop="orderNo" label="来源订单" min-width="118" sortable="custom" />
                   <el-table-column prop="productModel" label="产品型号" min-width="130" show-overflow-tooltip sortable="custom" />
-                  <el-table-column prop="quantity" label="数量" width="68" align="right" sortable="custom" />
-                  <el-table-column prop="deliveryDate" label="客户交期" width="96" sortable="custom" />
-                  <el-table-column prop="priorityLabel" label="优先级" width="72" sortable="custom" />
-                  <el-table-column prop="kitRateLabel" label="齐套率" width="72" align="center" sortable="custom" />
-                  <el-table-column prop="estimatedHours" label="预计工时" width="80" align="right" sortable="custom">
+                  <el-table-column prop="quantity" label="数量" min-width="72" align="right" sortable="custom" />
+                  <el-table-column prop="deliveryDate" label="客户交期" min-width="108" sortable="custom" />
+                  <el-table-column prop="priorityLabel" label="优先级" min-width="80" sortable="custom" />
+                  <el-table-column prop="kitRateLabel" label="齐套率" min-width="80" align="center" sortable="custom" />
+                  <el-table-column prop="estimatedHours" label="预计工时" min-width="96" align="right" sortable="custom">
                     <template #default="{ row }">{{ row.estimatedHours || '—' }}</template>
                   </el-table-column>
-                  <el-table-column prop="workshop" label="车间" width="90" show-overflow-tooltip />
-                  <el-table-column prop="equipmentLoadLabel" label="设备负荷" width="80" align="center" />
-                  <el-table-column prop="schedulingRisk" label="排产风险" width="80" align="center">
+                  <el-table-column prop="workshop" label="车间" min-width="108" show-overflow-tooltip />
+                  <el-table-column prop="equipmentLoadLabel" label="设备负荷" min-width="96" align="center" />
+                  <el-table-column prop="schedulingRisk" label="排产风险" min-width="96" align="center">
                     <template #default="{ row }"><span class="wb-tag" :class="schedRiskClass(row.schedulingRisk)">{{ row.schedulingRisk }}</span></template>
                   </el-table-column>
-                  <el-table-column prop="status" label="状态" width="80">
+                  <el-table-column prop="status" label="状态" min-width="88">
                     <template #default="{ row }"><span class="wb-tag" :class="statusTagClass(row.status)">{{ row.status }}</span></template>
                   </el-table-column>
                   <el-table-column label="操作" width="168" fixed="right">
@@ -157,11 +157,11 @@
               <el-table :data="capacityRows" border size="small" height="100%" class="wb-table" v-loading="tableLoading">
                 <el-table-column prop="name" :label="capacityView === 'workshop' ? '车间' : '设备'" min-width="120" />
                 <el-table-column v-if="capacityView === 'equipment'" prop="workshop" label="所属车间" width="100" />
-                <el-table-column prop="planCount" label="关联计划" width="80" align="center" />
-                <el-table-column prop="scheduledHours" label="已排工时(h)" width="100" align="right">
+                <el-table-column prop="planCount" label="关联计划" min-width="88" align="center" />
+                <el-table-column prop="scheduledHours" label="已排工时(h)" min-width="108" align="right">
                   <template #default="{ row }">{{ row.scheduledHours?.toFixed?.(1) ?? row.scheduledHours }}</template>
                 </el-table-column>
-                <el-table-column prop="capacityHours" label="周产能(h)" width="90" align="right" />
+                <el-table-column prop="capacityHours" label="周产能(h)" min-width="96" align="right" />
                 <el-table-column label="负荷率" min-width="200">
                   <template #default="{ row }">
                     <div class="load-bar">

@@ -55,7 +55,7 @@ public interface EquipmentService {
     /** 维护记录视图（含设备名、维护人、结果中文） */
     List<Map<String, Object>> maintenanceViews();
 
-    /** 四道工序 × 11 车间总览（与生产主管大屏同一数据源） */
+    /** 八道生产工序 × 19 车间总览（与生产主管大屏同一数据源） */
     Map<String, Object> workshopOverview();
 
     /** 触发安灯报警：设备置为故障(FAULT)，创建 OPEN 报警 */

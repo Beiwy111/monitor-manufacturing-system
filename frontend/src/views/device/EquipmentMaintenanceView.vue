@@ -15,7 +15,7 @@
     <div v-loading="loading" class="dm-card">
       <div class="dm-card__title">
         生产车间状态
-        <el-tag type="info" size="small" effect="plain" style="margin-left:8px">4 道工序 · {{ workshops.length }} 车间</el-tag>
+        <el-tag type="info" size="small" effect="plain" style="margin-left:8px">八道生产工序 · {{ workshops.length }} 车间</el-tag>
       </div>
       <el-table :data="workshops" border stripe size="small">
         <el-table-column prop="parentStepName" label="工序" width="100" />

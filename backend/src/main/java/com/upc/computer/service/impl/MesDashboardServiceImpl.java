@@ -92,6 +92,7 @@ public class MesDashboardServiceImpl implements MesDashboardService {
         @SuppressWarnings("unchecked")
         Map<String, Object> summary = (Map<String, Object>) overview.getOrDefault("summary", Map.of());
         return List.of(
+                kpiItem("productionStageCount", "生产工序", intVal(summary.get("productionStageCount")), "道"),
                 kpiItem("workshopCount", "车间", intVal(summary.get("workshopCount")), "个"),
                 kpiItem("equipmentTotal", "设备", intVal(summary.get("equipmentTotal")), "台"),
                 kpiItem("running", "运行中", intVal(summary.get("running")), "台"),

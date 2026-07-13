@@ -227,5 +227,5 @@ export const AUDIT_ACTIONS = [
   { action: 'pass', label: '审核通过', type: 'primary', needReason: false },
   { action: 'reject', label: '驳回作废', type: 'danger', needReason: true },
   { action: 'supplement', label: '要求补充资料', type: 'warning', needReason: true },
-  { action: 'defer', label: '暂缓审核', type: 'info', needReason: true }
+  { action: 'defer', label: '暂缓审核', type: 'default', needReason: true }
 ]

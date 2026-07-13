@@ -32,7 +32,7 @@
   </div>
 
   <div v-if="title || actions.length || $slots.suffix" class="ruoyi-toolbar">
-    <span v-if="title" class="ruoyi-toolbar__title">{{ title }}</span>
+    <span v-if="title" class="ruoyi-toolbar__title ruoyi-page__title">{{ title }}</span>
     <el-button
       v-for="btn in actions"
       :key="btn.label"

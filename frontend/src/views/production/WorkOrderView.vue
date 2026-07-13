@@ -21,52 +21,51 @@
 
     <el-tabs v-model="activeTab" class="wo-tabs">
       <el-tab-pane label="待生成工单" name="pendingPlan">
-        <el-table :data="filteredPlans" border stripe size="small" highlight-current-row>
-          <el-table-column prop="id" label="计划号" width="130" />
-          <el-table-column prop="orderNo" label="订单号" width="130" />
-          <el-table-column prop="productModel" label="型号" min-width="120" show-overflow-tooltip />
-          <el-table-column prop="quantity" label="数量" width="72" align="right" />
-          <el-table-column prop="planEnd" label="计划完工" width="110" />
-          <el-table-column label="操作" width="220" fixed="right">
+        <el-table :data="filteredPlans" border stripe size="small" highlight-current-row class="wo-table" style="width: 100%">
+          <el-table-column prop="id" label="计划号" min-width="156" class-name="wo-table__nowrap" />
+          <el-table-column prop="orderNo" label="订单号" min-width="210" class-name="wo-table__nowrap" />
+          <el-table-column prop="productModel" label="型号" min-width="240" show-overflow-tooltip />
+          <el-table-column prop="quantity" label="数量" width="96" align="right" />
+          <el-table-column prop="planEnd" label="计划完工" width="128" />
+          <el-table-column label="操作" min-width="300" fixed="right" class-name="wo-table-actions">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openPlanDetail(row)">详情</el-button>
-              <el-button link type="warning" @click="openSmart(row.id)">智能派工</el-button>
-              <el-button link type="success" @click="createWo(row.id)">生成工单</el-button>
+              <el-button link type="warning" @click="openAutoCreate(row.id)">一键生成工单</el-button>
+              <el-button link type="success" @click="openManualCreate(row.id)">手动生成工单</el-button>
             </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
       <el-tab-pane label="待派工" name="pendingDispatch">
-        <el-table :data="filteredPendingDispatch" border stripe size="small">
-          <el-table-column prop="id" label="工单号" width="130" />
-          <el-table-column prop="orderNo" label="订单号" width="130" />
-          <el-table-column prop="productModel" label="型号" min-width="120" />
-          <el-table-column prop="quantity" label="数量" width="72" align="right" />
-          <el-table-column prop="status" label="状态" width="88">
+        <el-table :data="filteredPendingDispatch" border stripe size="small" class="wo-table" style="width: 100%">
+          <el-table-column prop="id" label="工单号" min-width="156" class-name="wo-table__nowrap" />
+          <el-table-column prop="orderNo" label="订单号" min-width="210" class-name="wo-table__nowrap" />
+          <el-table-column prop="productModel" label="型号" min-width="240" show-overflow-tooltip />
+          <el-table-column prop="quantity" label="数量" width="96" align="right" />
+          <el-table-column prop="status" label="状态" width="100">
             <template #default="{ row }"><StatusBadge :status="row.status" /></template>
           </el-table-column>
-          <el-table-column label="操作" width="180" fixed="right">
+          <el-table-column label="操作" min-width="220" fixed="right" class-name="wo-table-actions">
             <template #default="{ row }">
-              <el-button link type="warning" @click="openSmartByWo(row)">智能派工</el-button>
-              <el-button link type="primary" @click="goDispatch(row.id)">手动派工</el-button>
+              <el-button link type="primary" @click="openWoDetail(row)">详情</el-button>
+              <el-button link type="warning" @click="openAutoDispatch(row)">一键派工</el-button>
             </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
       <el-tab-pane label="执行中" name="executing">
-        <el-table :data="filteredExecuting" border stripe size="small">
-          <el-table-column prop="id" label="工单号" width="130" />
-          <el-table-column prop="orderNo" label="订单号" width="130" />
-          <el-table-column prop="productModel" label="型号" min-width="120" />
-          <el-table-column prop="quantity" label="计划" width="64" align="right" />
-          <el-table-column prop="completedQty" label="完成" width="64" align="right" />
-          <el-table-column prop="line" label="产线/车间" width="110" />
-          <el-table-column prop="status" label="状态" width="88">
+        <el-table :data="filteredExecuting" border stripe size="small" class="wo-table" style="width: 100%">
+          <el-table-column prop="id" label="工单号" min-width="156" class-name="wo-table__nowrap" />
+          <el-table-column prop="orderNo" label="订单号" min-width="210" class-name="wo-table__nowrap" />
+          <el-table-column prop="productModel" label="型号" min-width="220" show-overflow-tooltip />
+          <el-table-column prop="quantity" label="计划" width="88" align="right" />
+          <el-table-column prop="completedQty" label="完成" width="88" align="right" />
+          <el-table-column prop="line" label="产线/车间" min-width="140" />
+          <el-table-column prop="status" label="状态" width="100">
             <template #default="{ row }"><StatusBadge :status="row.status" /></template>
           </el-table-column>
-          <el-table-column label="进度" min-width="120">
+          <el-table-column label="进度" min-width="180">
             <template #default="{ row }">
               <el-progress :percentage="woProgress(row)" :stroke-width="8" />
             </template>
@@ -75,17 +74,17 @@
       </el-tab-pane>
 
       <el-tab-pane label="异常" name="abnormal">
-        <el-table :data="filteredAbnormal" border stripe size="small">
-          <el-table-column prop="id" label="工单号" width="130" />
-          <el-table-column prop="orderNo" label="订单号" width="130" />
-          <el-table-column prop="productModel" label="型号" min-width="120" />
-          <el-table-column prop="status" label="状态" width="88">
+        <el-table :data="filteredAbnormal" border stripe size="small" class="wo-table" style="width: 100%">
+          <el-table-column prop="id" label="工单号" min-width="156" class-name="wo-table__nowrap" />
+          <el-table-column prop="orderNo" label="订单号" min-width="210" class-name="wo-table__nowrap" />
+          <el-table-column prop="productModel" label="型号" min-width="220" show-overflow-tooltip />
+          <el-table-column prop="status" label="状态" width="100">
             <template #default="{ row }"><StatusBadge :status="row.status" /></template>
           </el-table-column>
-          <el-table-column label="关联报警" min-width="160">
+          <el-table-column label="关联报警" min-width="200">
             <template #default="{ row }">{{ relatedAlarms(row.id) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="100">
+          <el-table-column label="操作" width="120" fixed="right" class-name="wo-table-actions">
             <template #default="{ row }">
               <el-button link type="primary" @click="$router.push('/device/alarm')">查看报警</el-button>
             </template>
@@ -113,39 +112,84 @@
           <el-table-column prop="standardWorkHours" label="工时" width="72" align="right" />
         </el-table>
         <div class="drawer-actions">
-          <el-button type="success" :loading="creating" @click="createWo(planContext.planId)">生成总工单</el-button>
-          <el-button type="warning" @click="openSmart(planContext.planId)">智能派工（按工序）</el-button>
+          <el-button type="warning" @click="openAutoCreate(planContext.planId)">一键生成工单</el-button>
+          <el-button type="success" @click="openManualCreate(planContext.planId)">手动生成工单</el-button>
         </div>
       </template>
       <el-skeleton v-else :rows="6" animated />
     </el-drawer>
 
-    <SmartDispatchDialog v-model="smartVisible" :default-plan-id="smartPlanId" @success="onSmartSuccess" />
+    <el-drawer v-model="woDrawer" title="生产工单详情" size="640px" destroy-on-close>
+      <template v-if="woContext">
+        <el-descriptions :column="2" border size="small" title="工单信息">
+          <el-descriptions-item label="工单号">{{ woContext.id }}</el-descriptions-item>
+          <el-descriptions-item label="状态"><StatusBadge :status="woContext.status" /></el-descriptions-item>
+          <el-descriptions-item label="关联计划">{{ woContext.planId || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="订单号">{{ woContext.orderNo || woContext.orderId || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="产品型号" :span="2">{{ woContext.productModel }}</el-descriptions-item>
+          <el-descriptions-item label="计划数量">{{ woContext.quantity }} 台</el-descriptions-item>
+          <el-descriptions-item label="完成数量">{{ woContext.completedQty || 0 }} 台</el-descriptions-item>
+          <el-descriptions-item label="产线/车间" :span="2">{{ woContext.line || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间" :span="2">{{ woContext.createdAt || '—' }}</el-descriptions-item>
+        </el-descriptions>
+        <el-divider content-position="left">工单工序安排</el-divider>
+        <el-skeleton v-if="woDetailLoading" :rows="4" animated />
+        <el-table v-else-if="woTaskRows.length" :data="woTaskRows" border stripe size="small">
+          <el-table-column prop="processStep" label="工序" min-width="100" />
+          <el-table-column prop="workshopName" label="车间" min-width="110" />
+          <el-table-column prop="equipment" label="设备" min-width="110" />
+          <el-table-column prop="operatorName" label="操作员" width="96" />
+          <el-table-column prop="planQty" label="数量" width="72" align="right" />
+          <el-table-column prop="estimatedHours" label="工时(h)" width="80" align="right" />
+          <el-table-column prop="taskStatus" label="状态" width="88">
+            <template #default="{ row }">
+              <el-tag v-if="row.taskStatus === '已派工'" type="success" size="small">已派工</el-tag>
+              <el-tag v-else type="info" size="small">待派工</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-else description="暂无工序安排" :image-size="72" />
+        <div v-if="woContext.status === '已下达'" class="drawer-actions">
+          <el-button type="warning" @click="openAutoDispatch(woContext)">一键派工</el-button>
+        </div>
+      </template>
+      <el-skeleton v-else :rows="6" animated />
+    </el-drawer>
+
+    <SmartDispatchDialog
+      v-model="smartVisible"
+      :default-plan-id="smartPlanId"
+      :manual="smartManual"
+      :intent="smartIntent"
+      @success="onSmartSuccess"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
-import { useUserStore } from '@/stores/user'
 import { fetchManagerPlanContext } from '@/api/mes'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 import SmartDispatchDialog from '@/components/mes/SmartDispatchDialog.vue'
 
 const route = useRoute()
-const router = useRouter()
 const mes = useMesStore()
-const userStore = useUserStore()
 
 const activeTab = ref('pendingPlan')
 const keyword = ref('')
 const planDrawer = ref(false)
 const planContext = ref(null)
-const creating = ref(false)
+const woDrawer = ref(false)
+const woContext = ref(null)
+const woDetailLoading = ref(false)
+const woTaskRows = ref([])
 const smartVisible = ref(false)
 const smartPlanId = ref('')
+const smartManual = ref(false)
+const smartIntent = ref('create')
 
 const tabCounts = computed(() => ({
   pendingPlan: mes.pendingManagerPlans.length,
@@ -164,6 +208,30 @@ const filteredPlans = computed(() => mes.pendingManagerPlans.filter(matchKeyword
 const filteredPendingDispatch = computed(() => mes.pendingDispatchWorkOrders.filter(matchKeyword))
 const filteredExecuting = computed(() => mes.executingWorkOrders.filter(matchKeyword))
 const filteredAbnormal = computed(() => mes.abnormalWorkOrders.filter(matchKeyword))
+
+function buildWoTaskRows(wo, dispatches, processRoute = []) {
+  const dispatchByStep = new Map(dispatches.map((d) => [d.processStep, d]))
+  if (dispatchByStep.size) {
+    return [...dispatchByStep.values()].map((d) => ({
+      processStep: d.processStep,
+      workshopName: d.workshopName || '—',
+      equipment: d.equipment || '—',
+      operatorName: d.operatorName || d.operator || '—',
+      planQty: d.planQty ?? wo.quantity,
+      estimatedHours: d.estimatedHours ?? '—',
+      taskStatus: '已派工'
+    }))
+  }
+  return (processRoute || []).map((step) => ({
+    processStep: step.stepName,
+    workshopName: '—',
+    equipment: step.standardEquipmentType || '—',
+    operatorName: '—',
+    planQty: wo.quantity,
+    estimatedHours: step.standardWorkHours ?? '—',
+    taskStatus: '待派工'
+  }))
+}
 
 onMounted(async () => {
   await refresh()
@@ -201,47 +269,107 @@ async function openPlanDetail(row) {
   }
 }
 
-async function createWo(planId) {
-  creating.value = true
+function openAutoCreate(planId) {
+  smartPlanId.value = planId
+  smartManual.value = false
+  smartIntent.value = 'create'
+  smartVisible.value = true
+}
+
+function openManualCreate(planId) {
+  smartPlanId.value = planId
+  smartManual.value = true
+  smartIntent.value = 'create'
+  smartVisible.value = true
+}
+
+async function openWoDetail(row) {
+  if (!row?.id) return
+  woContext.value = row
+  woTaskRows.value = []
+  woDrawer.value = true
+  woDetailLoading.value = true
   try {
-    const wo = await mes.createWorkOrder(planId, userStore.username, userStore.roleKey)
-    if (wo) {
-      ElMessage.success(`工单 ${wo.id} 已创建`)
-      activeTab.value = 'pendingDispatch'
-      planDrawer.value = false
-      await refresh()
-    } else {
-      ElMessage.warning('请确认计划已提交至主管')
+    const dispatches = mes.dispatches.filter((d) => d.workOrderId === row.id || d.workOrderNo === row.id)
+    let processRoute = []
+    if (!dispatches.length && row.planId) {
+      const ctx = await fetchManagerPlanContext(row.planId)
+      processRoute = ctx.processRoute || []
     }
+    woTaskRows.value = buildWoTaskRows(row, dispatches, processRoute)
   } catch (e) {
-    ElMessage.error(e?.message || '生成失败')
+    woTaskRows.value = buildWoTaskRows(row, [], [])
+    ElMessage.error(e?.message || '加载工单详情失败')
   } finally {
-    creating.value = false
+    woDetailLoading.value = false
   }
 }
 
-function openSmart(planId) {
-  smartPlanId.value = planId
-  smartVisible.value = true
-}
-
-function openSmartByWo(wo) {
+function openAutoDispatch(wo) {
   smartPlanId.value = wo.planId || mes.plans.find((p) => p.orderNo === wo.orderNo)?.id || ''
+  if (!smartPlanId.value) {
+    ElMessage.warning('未找到关联计划，无法派工')
+    return
+  }
+  smartManual.value = false
+  smartIntent.value = 'dispatch'
   smartVisible.value = true
 }
 
-function goDispatch(woId) {
-  router.push(`/production/dispatch?workOrderId=${woId}`)
-}
-
-function onSmartSuccess() {
+function onSmartSuccess(res) {
   refresh()
-  activeTab.value = 'executing'
+  planDrawer.value = false
+  woDrawer.value = false
+  if (smartIntent.value === 'dispatch' || res?.dispatches?.length) {
+    activeTab.value = 'executing'
+  } else {
+    activeTab.value = 'pendingDispatch'
+  }
 }
 </script>
 
 <style scoped>
-.manager-wo-page { padding: 0 4px; }
-.wo-tabs { margin-top: 8px; }
+.manager-wo-page {
+  padding: 0 4px;
+  width: 100%;
+}
+
+.wo-tabs {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.wo-tabs :deep(.el-tabs__content),
+.wo-tabs :deep(.el-tab-pane) {
+  width: 100%;
+}
+
+.wo-table {
+  width: 100% !important;
+}
+
+.wo-table :deep(.el-table__inner-wrapper),
+.wo-table :deep(.el-table__header-wrapper),
+.wo-table :deep(.el-table__body-wrapper) {
+  width: 100% !important;
+}
+
+.wo-table :deep(.wo-table__nowrap .cell) {
+  white-space: nowrap;
+}
+
 .drawer-actions { margin-top: 16px; display: flex; gap: 8px; }
+
+.wo-table :deep(.wo-table-actions .cell) {
+  white-space: nowrap;
+}
+
+.wo-table :deep(.wo-table-actions .el-button.is-link) {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.wo-table :deep(.wo-table-actions .el-button.is-link + .el-button.is-link) {
+  margin-left: 12px;
+}
 </style>

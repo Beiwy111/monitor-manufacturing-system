@@ -1,5 +1,5 @@
 <template>
-  <MesPageShell toolbar-title="成品入库" :detail-rows="rows" :logs="mes.operationLogs.slice(0,8)">
+  <MesPageShell toolbar-title="成品入库" :detail-rows="rows">
     <template #table>
       <el-alert
         type="info"

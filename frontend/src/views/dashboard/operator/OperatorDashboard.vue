@@ -15,6 +15,27 @@
       </p>
     </div>
 
+    <div class="ruoyi-operator-bar ruoyi-operator-bar--attendance">
+      <div class="attendance-info">
+        <h3 class="ruoyi-operator-bar__title">今日考勤</h3>
+        <p style="margin:0;font-size:13px;color:#606266">
+          上班：{{ fmtTime(todayRecord?.checkInTime) }}
+          · 下班：{{ fmtTime(todayRecord?.checkOutTime) }}
+          <el-tag v-if="todayRecord?.status" :type="attendanceTag(todayRecord.status)" size="small" style="margin-left:8px">
+            {{ attendanceLabel(todayRecord.status) }}
+          </el-tag>
+        </p>
+      </div>
+      <div class="ruoyi-operator-bar__actions">
+        <el-button type="primary" size="small" :loading="checkingIn" :disabled="!!todayRecord?.checkInTime" @click="doCheckIn">
+          上班打卡
+        </el-button>
+        <el-button type="success" size="small" :loading="checkingOut" :disabled="!todayRecord?.checkInTime || !!todayRecord?.checkOutTime" @click="doCheckOut">
+          下班打卡
+        </el-button>
+      </div>
+    </div>
+
     <div v-if="currentDispatch" class="ruoyi-operator-bar">
       <h3 class="ruoyi-operator-bar__title">
         当前生产：{{ currentDispatch.workOrderNo }} · {{ stageProgressLabel(currentDispatch) }}
@@ -50,8 +71,9 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useMesStore } from '@/stores/mes'
 import { DISPATCH_REPORTABLE, DISPATCH_ACTIVE } from '@/mock/constants'
-import { operatorBinding, pickCurrentDispatch, stageProgressLabel, operatorReportPath } from '@/utils/operatorWorkshop'
+import { operatorBinding, pickCurrentDispatch, stageProgressLabel } from '@/utils/operatorWorkshop'
 import { triggerAlarm } from '@/api/business'
+import { getTodayAttendance, checkIn, checkOut } from '@/api/attendance'
 import RoleWorkbench from '@/components/workbench/RoleWorkbench.vue'
 
 const userStore = useUserStore()
@@ -59,6 +81,9 @@ const mes = useMesStore()
 const showAlarm = ref(false)
 const alarmDesc = ref('')
 const acting = ref(false)
+const todayRecord = ref(null)
+const checkingIn = ref(false)
+const checkingOut = ref(false)
 
 const username = computed(() => userStore.userInfo?.username)
 const binding = computed(() => operatorBinding(username.value))
@@ -69,7 +94,7 @@ const currentDispatch = computed(() => pickCurrentDispatch(
   myDispatches.value.filter((d) => DISPATCH_ACTIVE.includes(d.status))
 ))
 
-const reportPath = computed(() => operatorReportPath(username.value))
+const reportPath = '/production/report'
 
 const shortcuts = computed(() => [
   { label: '我的派工', path: '/production/my-dispatch' },
@@ -85,7 +110,59 @@ onMounted(async () => {
   } catch {
     /* 路由守卫已尝试加载 */
   }
+  await loadTodayAttendance()
 })
+
+async function loadTodayAttendance() {
+  const userId = userStore.userInfo?.userId
+  if (!userId) return
+  try {
+    todayRecord.value = await getTodayAttendance(userId)
+  } catch {
+    todayRecord.value = null
+  }
+}
+
+function fmtTime(val) {
+  if (!val) return '未打卡'
+  return String(val).replace('T', ' ').slice(11, 19)
+}
+
+function attendanceLabel(status) {
+  return { NORMAL: '正常', LATE: '迟到', EARLY_LEAVE: '早退', ABSENT: '缺勤' }[status] || status
+}
+
+function attendanceTag(status) {
+  return { NORMAL: 'success', LATE: 'warning', EARLY_LEAVE: 'warning', ABSENT: 'danger' }[status] || 'info'
+}
+
+async function doCheckIn() {
+  const userId = userStore.userInfo?.userId
+  if (!userId || checkingIn.value) return
+  checkingIn.value = true
+  try {
+    todayRecord.value = await checkIn(userId)
+    ElMessage.success('上班打卡成功')
+  } catch (e) {
+    ElMessage.error(e?.message || '打卡失败')
+  } finally {
+    checkingIn.value = false
+  }
+}
+
+async function doCheckOut() {
+  const userId = userStore.userInfo?.userId
+  if (!userId || checkingOut.value) return
+  checkingOut.value = true
+  try {
+    todayRecord.value = await checkOut(userId)
+    ElMessage.success('下班打卡成功')
+  } catch (e) {
+    ElMessage.error(e?.message || '打卡失败')
+  } finally {
+    checkingOut.value = false
+  }
+}
 
 async function accept() {
   if (!currentDispatch.value || acting.value) return
@@ -155,6 +232,18 @@ async function submitAlarm() {
   padding: 10px 14px;
   background: var(--layout-accent-soft, rgba(45, 138, 102, 0.08));
   border: 1px solid var(--layout-accent-border, rgba(45, 138, 102, 0.2));
+  border-radius: var(--layout-card-radius, 12px);
+}
+
+.ruoyi-operator-bar--attendance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 12px 14px;
+  background: #f0f9ff;
+  border: 1px solid #b3d8ff;
   border-radius: var(--layout-card-radius, 12px);
 }
 

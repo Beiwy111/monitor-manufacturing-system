@@ -97,18 +97,10 @@ public class MesDispatchRecommendService {
 
         Long materialId = resolveMaterialId(plan);
         Long routeId = resolveRouteId(materialId);
-        List<ProcessStep> steps = processStepMapper.stepList().stream()
-                .filter(s -> routeId.equals(s.getRouteId()))
-                .filter(s -> s.getStatus() == null || s.getStatus() == 1)
-                .filter(ProductionWorkshopCatalog::isProductionStep)
-                .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
-                .toList();
+        List<ProcessStep> allSteps = processStepMapper.stepList();
+        List<ProcessStep> steps = ProductionWorkshopCatalog.resolveProductionStepsForRoute(routeId, allSteps);
         if (steps.isEmpty()) {
-            steps = processStepMapper.stepList().stream()
-                    .filter(s -> Long.valueOf(1L).equals(s.getRouteId()))
-                    .filter(ProductionWorkshopCatalog::isProductionStep)
-                    .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
-                    .toList();
+            steps = ProductionWorkshopCatalog.resolveProductionStepsForRoute(1L, allSteps);
         }
 
         int planQty = resolvePlanQty(plan, materialId);
@@ -159,6 +151,7 @@ public class MesDispatchRecommendService {
         result.put("hasWorkOrder", wo != null);
         result.put("summary", String.format("计划 %s 共 %d 道工序，已生成智能派工推荐",
                 planNo, recommendations.size()));
+        result.put("productionStageCount", ProductionWorkshopCatalog.PRODUCTION_STAGES.size());
         result.put("schedulingSteps", buildDispatchSchedulingSteps(planNo, planQty, steps,
                 operators, allEquipment, recommendations, wo));
         result.put("evidenceBase", buildDispatchEvidenceBase(planNo, planQty, steps,
@@ -602,11 +595,9 @@ public class MesDispatchRecommendService {
                 .findFirst().orElse(null);
         Long materialId = resolveMaterialId(plan);
         Long routeId = resolveRouteId(materialId);
-        List<Map<String, Object>> steps = processStepMapper.stepList().stream()
-                .filter(s -> routeId.equals(s.getRouteId()))
-                .filter(s -> s.getStatus() == null || s.getStatus() == 1)
-                .filter(ProductionWorkshopCatalog::isProductionStep)
-                .sorted(Comparator.comparing(ProcessStep::getStepNo, Comparator.nullsLast(Integer::compareTo)))
+        List<ProcessStep> allSteps = processStepMapper.stepList();
+        List<Map<String, Object>> steps = ProductionWorkshopCatalog.resolveProductionStepsForRoute(routeId, allSteps)
+                .stream()
                 .map(s -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("stepNo", s.getStepNo());

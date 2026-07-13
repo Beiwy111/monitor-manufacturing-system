@@ -122,6 +122,7 @@ async function handleLogin() {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
+  font-family: Inter, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .auth-bg {
@@ -139,10 +140,10 @@ async function handleLogin() {
   inset: 0;
   background: linear-gradient(
     105deg,
-    rgba(0, 18, 42, 0.92) 0%,
-    rgba(0, 24, 52, 0.78) 38%,
-    rgba(0, 32, 64, 0.45) 62%,
-    rgba(0, 32, 64, 0.28) 100%
+    rgba(226, 232, 240, 0.72) 0%,
+    rgba(219, 228, 240, 0.58) 42%,
+    rgba(210, 220, 235, 0.42) 68%,
+    rgba(200, 212, 228, 0.28) 100%
   );
 }
 
@@ -160,42 +161,45 @@ async function handleLogin() {
 }
 
 .auth-brand {
-  color: #fff;
+  color: #172033;
   padding-right: 24px;
 }
 
 .auth-brand__kicker {
   font-size: 12px;
-  letter-spacing: 0.28em;
-  color: #4ade80;
+  letter-spacing: 0.08em;
+  color: #64748b;
   margin-bottom: 18px;
-  font-weight: 300;
+  font-weight: 400;
 }
 
 .auth-brand__title {
   margin: 0;
-  line-height: 1.15;
-  font-weight: 400;
+  line-height: 1.2;
+  font-weight: 600;
 }
 
 .auth-brand__title-cn {
   display: block;
   font-size: clamp(36px, 5vw, 56px);
-  color: #fff;
+  color: #172033;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .auth-brand__title-en {
   display: block;
   font-size: clamp(42px, 6vw, 64px);
-  color: #2d8a66;
-  letter-spacing: 0.06em;
-  font-weight: 300;
+  color: #3b5b92;
+  letter-spacing: 0.02em;
+  font-weight: 600;
 }
 
 .auth-brand__slogan {
   margin: 20px 0 28px;
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.82);
+  font-weight: 400;
+  color: #475569;
   line-height: 1.6;
 }
 
@@ -206,13 +210,13 @@ async function handleLogin() {
 }
 
 .auth-brand__tags span {
-  padding: 8px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 999px;
+  padding: 8px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(4px);
+  font-weight: 400;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .auth-panel {
@@ -220,45 +224,55 @@ async function handleLogin() {
   width: 100%;
   max-width: 420px;
   padding: 36px 36px 28px;
-  background: rgba(8, 36, 72, 0.72);
-  border: 1px solid rgba(94, 234, 212, 0.18);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(12px);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 .auth-panel__label {
   text-align: right;
   font-size: 11px;
-  letter-spacing: 0.22em;
-  color: #5eead4;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
   margin-bottom: 8px;
+  font-weight: 400;
 }
 
 .auth-panel__heading {
   margin: 0 0 28px;
   text-align: center;
   font-size: 26px;
-  font-weight: 400;
-  color: #fff;
+  font-weight: 600;
+  color: #172033;
 }
 
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 16px;
 }
 
 .auth-field {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.auth-field:focus-within {
+  border-color: #3b5b92;
+  box-shadow: 0 0 0 3px rgba(59, 91, 146, 0.12);
+  background: #ffffff;
 }
 
 .auth-field__icon {
   font-size: 18px;
-  color: rgba(255, 255, 255, 0.85);
+  color: #94a3b8;
 }
 
 .auth-field__input {
@@ -266,13 +280,14 @@ async function handleLogin() {
   border: none;
   outline: none;
   background: transparent;
-  color: #fff;
+  color: #172033;
   font-size: 15px;
-  padding: 6px 0;
+  font-weight: 400;
+  padding: 4px 0;
 }
 
 .auth-field__input::placeholder {
-  color: rgba(255, 255, 255, 0.45);
+  color: #94a3b8;
 }
 
 .auth-submit {
@@ -280,22 +295,21 @@ async function handleLogin() {
   width: 100%;
   padding: 14px 24px;
   border: none;
-  border-radius: 10px;
-  background: #2d8a66;
+  border-radius: 8px;
+  background: #3b5b92;
   color: #fff;
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.2s, background 0.2s;
+  transition: background 0.2s;
 }
 
 .auth-submit:hover:not(:disabled) {
-  transform: translateY(-1px);
-  background: #256f52;
+  background: #2f4a78;
 }
 
 .auth-submit:disabled {
-  opacity: 0.7;
+  opacity: 0.65;
   cursor: not-allowed;
 }
 
@@ -303,7 +317,8 @@ async function handleLogin() {
   margin: 24px 0 12px;
   text-align: center;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.65);
+  font-weight: 400;
+  color: #64748b;
 }
 
 .auth-panel__links {
@@ -315,18 +330,20 @@ async function handleLogin() {
 }
 
 .auth-panel__links a {
-  color: #4ade80;
+  color: #71717a;
   cursor: pointer;
   text-decoration: none;
-  font-weight: 300;
+  font-weight: 400;
+  transition: color 0.2s;
 }
 
 .auth-panel__links a:hover {
-  text-decoration: underline;
+  color: #3b5b92;
+  text-decoration: none;
 }
 
 .auth-panel__sep {
-  color: rgba(255, 255, 255, 0.35);
+  color: #d4d4d8;
 }
 
 @media (max-width: 900px) {

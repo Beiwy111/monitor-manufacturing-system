@@ -46,7 +46,7 @@ function buildUserInfo(session) {
   }
 }
 
-const _MENU_VERSION = '6'
+const _MENU_VERSION = '8'
 if (localStorage.getItem('menuVersion') !== _MENU_VERSION) {
   localStorage.removeItem('menus')
   localStorage.setItem('menuVersion', _MENU_VERSION)

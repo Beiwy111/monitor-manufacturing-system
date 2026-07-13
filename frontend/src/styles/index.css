@@ -6,14 +6,18 @@ html, body, #app {
   margin: 0;
   padding: 0;
   height: 100%;
-  background: var(--layout-surface, #f8fafa);
+  min-height: 100%;
+  background: var(--layout-bg-gradient, linear-gradient(120deg, #f3faef 0%, #fff7ee 35%, #f6efff 70%, #edf4ff 100%));
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 .page-card {
-  background: #fff;
-  border: 1px solid var(--layout-border, #e8eceb);
-  border-radius: var(--layout-card-radius, 12px);
-  padding: 16px;
+  background: var(--layout-content-bg, #fff);
+  border: 1px solid var(--layout-border, #e8e8e3);
+  border-radius: var(--layout-card-radius, 10px);
+  padding: 20px;
+  box-shadow: var(--layout-shadow);
 }
 
 .page-title {
@@ -38,13 +42,36 @@ html, body, #app {
 
 .el-table .cell {
   white-space: normal;
+  word-break: keep-all;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.45;
+}
+
+/* 少数需要单行省略的列可手动加 class="cell--nowrap" */
+.el-table .cell.cell--nowrap {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: keep-all;
+}
+
+/* 少数需要多行展示的列可手动加 class="cell--wrap" */
+.el-table .cell.cell--wrap {
+  white-space: normal;
   word-break: break-word;
-  line-height: 1.35;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .el-table th.el-table__cell,
 .el-table td.el-table__cell {
-  padding: 8px 0;
+  padding: 10px 12px;
+}
+
+.el-table th.el-table__cell .cell {
+  white-space: normal;
+  word-break: keep-all;
 }
 
 .el-table .el-button + .el-button {

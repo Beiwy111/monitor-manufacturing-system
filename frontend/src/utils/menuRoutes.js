@@ -87,7 +87,10 @@ export const MENU_PATH_MAP = {
   'customer:products': '/customer/products',
   'customer:feedbackSubmit': '/customer/feedback/submit',
   'customer:feedbackList': '/customer/feedback/list',
-  'customer:profile': '/customer/profile'
+  'customer:profile': '/customer/profile',
+  'attendance:record': '/attendance/record',
+  'attendance:statistics': '/attendance/statistics',
+  'production:shiftCalendar': '/production/shift-calendar'
 }
 
 export const BOARD_PATH = '/system/board'
@@ -96,23 +99,57 @@ export const BOARD_PATH = '/system/board'
 export const MANAGER_ONLY_PATHS = new Set([
   BOARD_PATH,
   '/production/work-order',
-  '/production/dispatch'
+  '/production/dispatch',
+  '/production/shift-calendar'
 ])
 
 /** 已下线、需从导航中移除的菜单（按 path 或 menuCode 匹配） */
 const REMOVED_MENU_PATHS = new Set(['/purchase/arrival'])
 const REMOVED_MENU_CODES = new Set(['purchase:arrival'])
 
+/** 设备模块 menuCode 别名（后端 sys_menu 可能为 device 或 equipment） */
+const EQUIPMENT_MODULE_CODES = new Set(['equipment', 'device'])
+
+function findEquipmentGroup(menus) {
+  return (menus || []).find((m) => EQUIPMENT_MODULE_CODES.has(m.menuCode) || m.menuName === '设备管理')
+}
+
+/** 合并重复的「设备管理」分组，保留第一个并汇总子菜单 */
+function dedupeEquipmentMenus(menus) {
+  const list = menus || []
+  const groups = list.filter((m) => EQUIPMENT_MODULE_CODES.has(m.menuCode) || m.menuName === '设备管理')
+  if (groups.length <= 1) return list
+
+  const primary = groups[0]
+  const mergedChildren = [...(primary.children || [])]
+  const paths = new Set(mergedChildren.map((c) => c.path))
+
+  groups.slice(1).forEach((g) => {
+    ;(g.children || []).forEach((item) => {
+      if (item.path && !paths.has(item.path)) {
+        mergedChildren.push(item)
+        paths.add(item.path)
+      }
+    })
+  })
+
+  primary.children = mergedChildren
+  const dropIds = new Set(groups.slice(1).map((g) => g.menuId))
+  return list.filter((m) => !dropIds.has(m.menuId))
+}
+
 /** 清理菜单树中的下线项，同时用于 localStorage 缓存兜底数据 */
 export function sanitizeMenus(menus) {
-  return (menus || [])
-    .map((m) => ({
-      ...m,
-      children: (m.children || []).filter(
-        (c) => !REMOVED_MENU_PATHS.has(c.path) && !REMOVED_MENU_CODES.has(c.menuCode)
-      )
-    }))
-    .filter((m) => m.children?.length)
+  return dedupeEquipmentMenus(
+    (menus || [])
+      .map((m) => ({
+        ...m,
+        children: (m.children || []).filter(
+          (c) => !REMOVED_MENU_PATHS.has(c.path) && !REMOVED_MENU_CODES.has(c.menuCode)
+        )
+      }))
+      .filter((m) => m.children?.length)
+  )
 }
 
 /** 各角色在前端有、但 sys_menu 未单独建项的路由 */
@@ -132,7 +169,8 @@ const ROLE_MENU_EXTRAS = {
       { menuId: 9041, menuName: '生产调度大屏', path: BOARD_PATH },
       { menuId: 9042, menuName: '生产工单', path: '/production/work-order' },
       { menuId: 9043, menuName: '工单派工', path: '/production/dispatch' },
-      { menuId: 9044, menuName: '生产进度', path: '/production/progress' }
+      { menuId: 9044, menuName: '生产进度', path: '/production/progress' },
+      { menuId: 9047, menuName: '排班日历', path: '/production/shift-calendar' }
     ],
     equipment: [{ menuId: 9046, menuName: '安灯报警', path: '/device/alarm' }]
   },
@@ -177,7 +215,8 @@ const MODULE_NAME_MAP = {
   quality: '质量管理',
   warehouse: '仓储管理',
   equipment: '设备管理',
-  afterSales: '售后成本'
+  afterSales: '售后成本',
+  attendance: '考勤管理'
 }
 
 export function resolveMenuPath(menu) {
@@ -207,7 +246,7 @@ export function normalizeMenus(apiMenus, roleKey, fallbackMenus) {
     return normalizeMenus(fallbackMenus, roleKey, null)
   }
 
-  return sanitizeMenus(stripManagerOnlyFromMenus(menus, roleKey))
+  return dedupeEquipmentMenus(sanitizeMenus(stripManagerOnlyFromMenus(menus, roleKey)))
 }
 
 function mergeRoleExtras(menus, roleKey) {
@@ -218,15 +257,29 @@ function mergeRoleExtras(menus, roleKey) {
     children: [...(m.children || [])]
   }))
   Object.entries(extras).forEach(([moduleCode, items]) => {
-    let group = result.find((m) => m.menuCode === moduleCode)
-    if (!group) {
-      group = {
-        menuId: 9000 + moduleCode.length,
-        menuCode: moduleCode,
-        menuName: MODULE_NAME_MAP[moduleCode] || moduleCode,
-        children: []
+    let group
+    if (moduleCode === 'equipment') {
+      group = findEquipmentGroup(result)
+      if (!group) {
+        group = {
+          menuId: 9000 + moduleCode.length,
+          menuCode: moduleCode,
+          menuName: MODULE_NAME_MAP[moduleCode] || moduleCode,
+          children: []
+        }
+        result.push(group)
       }
-      result.push(group)
+    } else {
+      group = result.find((m) => m.menuCode === moduleCode)
+      if (!group) {
+        group = {
+          menuId: 9000 + moduleCode.length,
+          menuCode: moduleCode,
+          menuName: MODULE_NAME_MAP[moduleCode] || moduleCode,
+          children: []
+        }
+        result.push(group)
+      }
     }
     const paths = new Set(group.children.map((c) => c.path))
     items.forEach((item) => {
@@ -295,6 +348,20 @@ function mergeAdminExtras(menus) {
         { menuId: 14, menuName: '菜单管理', path: '/system/menu' },
         { menuId: 15, menuName: '操作日志', path: '/system/log' }
       ]
+    })
+  }
+  let attendance = menus.find((m) => m.menuCode === 'attendance' || m.menuName === '考勤管理')
+  const attendanceItems = [
+    { menuId: 9201, menuName: '考勤记录', path: '/attendance/record' },
+    { menuId: 9202, menuName: '考勤统计', path: '/attendance/statistics' }
+  ]
+  if (!attendance) {
+    attendance = { menuId: 92, menuCode: 'attendance', menuName: '考勤管理', children: [...attendanceItems] }
+    menus.push(attendance)
+  } else {
+    const paths = new Set((attendance.children || []).map((c) => c.path))
+    attendanceItems.forEach((e) => {
+      if (!paths.has(e.path)) attendance.children.push(e)
     })
   }
   return menus.filter((m) => m.children?.length)

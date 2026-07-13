@@ -246,7 +246,7 @@ function buildDispatchStepsFromResult(result) {
     {
       key: 'result', agentName: '派工汇总员', actionType: '发现', badge: '发现',
       action: '输出派工方案',
-      summary: `「派工结论」${recs.length} 道工序推荐完成；累计证据库 ${4 + recs.length} 条。`,
+      summary: `「派工结论」${recs.length} 道工序推荐完成；累计证据库 ${8 + recs.length} 条。`,
       thought: result.summary || '派工推荐完成。',
       detailLines: [result.summary || '确认后将生成工单并派工'],
       evidenceCount: 4 + recs.length, section: 'result'
@@ -432,7 +432,9 @@ export function useSchedulingFlow(template = PLANNER_FLOW_TEMPLATE) {
     evidenceList.value = []
     allEvidence.value = []
     flowSteps.value = mergeSteps(template, null)
-    currentDetail.value = '正在启动智能排产引擎，接入订单、库存、设备与人员数据…'
+    currentDetail.value = template === DISPATCH_FLOW_TEMPLATE
+      ? '正在启动智能派工引擎，接入工艺路线、设备状态与人员编制…'
+      : '正在启动智能排产引擎，接入订单、库存、设备与人员数据…'
 
     try {
       const result = await loadFn()

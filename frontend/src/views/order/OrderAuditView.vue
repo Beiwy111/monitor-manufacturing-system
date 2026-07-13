@@ -95,14 +95,6 @@
                 <el-table-column prop="unit" label="单位" width="60" />
               </el-table>
               <el-empty v-else description="未找到 BOM 配置" :image-size="64" />
-
-              <el-divider content-position="left">工艺路线</el-divider>
-              <el-table v-if="processGuide?.steps?.length" :data="processRows" border stripe size="small">
-                <el-table-column prop="seq" label="序号" width="60" align="center" />
-                <el-table-column prop="name" label="工序名称" min-width="160" />
-              </el-table>
-              <div v-if="processGuide?.keyPoints" class="order-audit-note">{{ processGuide.keyPoints }}</div>
-              <el-empty v-if="!processGuide?.steps?.length" description="未配置工艺路线" :image-size="64" />
             </el-tab-pane>
 
             <el-tab-pane label="审核检查" name="checklist">
@@ -241,7 +233,6 @@ import {
   compareOcrWithOrder,
   detectAuditRisks,
   findBomProduct,
-  findProcessGuide,
   formatCurrency
 } from '@/utils/orderAudit'
 
@@ -275,10 +266,6 @@ const attachmentCount = computed(() => pendingOrders.value.filter((o) => (o.atta
 const riskCount = computed(() => pendingOrders.value.filter((o) => detectAuditRisks(o, mes.bomGuide, mes.processGuide).length).length)
 
 const bomProduct = computed(() => (selected.value ? findBomProduct(selected.value, mes.bomGuide) : null))
-const processGuide = computed(() => (selected.value ? findProcessGuide(selected.value, mes.processGuide) : null))
-const processRows = computed(() =>
-  (processGuide.value?.steps || []).map((name, idx) => ({ seq: idx + 1, name }))
-)
 const checklist = computed(() =>
   selected.value ? buildAuditChecklist(selected.value, mes.bomGuide, mes.processGuide) : []
 )

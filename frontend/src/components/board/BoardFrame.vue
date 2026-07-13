@@ -15,10 +15,6 @@
     <div class="board-frame__body">
       <slot />
     </div>
-    <span class="board-frame__corner board-frame__corner--tl" />
-    <span class="board-frame__corner board-frame__corner--tr" />
-    <span class="board-frame__corner board-frame__corner--bl" />
-    <span class="board-frame__corner board-frame__corner--br" />
   </section>
 </template>
 
@@ -37,17 +33,18 @@ defineEmits(['tab-change'])
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: linear-gradient(180deg, rgba(8, 28, 58, 0.92) 0%, rgba(5, 18, 40, 0.96) 100%);
-  border: 1px solid rgba(0, 180, 255, 0.25);
-  box-shadow: inset 0 0 24px rgba(0, 120, 255, 0.06);
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(31, 41, 55, 0.06);
 }
 
 .board-frame__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
-  border-bottom: 1px solid rgba(0, 180, 255, 0.15);
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f2f5;
   flex-shrink: 0;
 }
 
@@ -58,23 +55,25 @@ defineEmits(['tab-change'])
 }
 
 .board-frame__tab {
-  padding: 3px 10px;
+  padding: 4px 10px;
   font-size: 11px;
-  color: #6d8fb3;
+  color: #64748b;
   cursor: pointer;
   border: 1px solid transparent;
+  border-radius: 6px;
   transition: all 0.2s;
 }
 
 .board-frame__tab--active {
-  color: #e8f4ff;
-  border-color: rgba(0, 180, 255, 0.45);
-  background: rgba(0, 120, 255, 0.12);
+  color: #172033;
+  border-color: #e8eaf0;
+  background: #f3f6f9;
+  font-weight: 600;
 }
 
 .board-frame__extra {
   font-size: 10px;
-  color: #5a7a9a;
+  color: #94a3b8;
 }
 
 .board-frame__body {
@@ -83,18 +82,4 @@ defineEmits(['tab-change'])
   padding: 8px 10px;
   overflow: hidden;
 }
-
-.board-frame__corner {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border-color: #00c8ff;
-  border-style: solid;
-  pointer-events: none;
-}
-
-.board-frame__corner--tl { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
-.board-frame__corner--tr { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
-.board-frame__corner--bl { bottom: -1px; left: -1px; border-width: 0 0 2px 2px; }
-.board-frame__corner--br { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
 </style>

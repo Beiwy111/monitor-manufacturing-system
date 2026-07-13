@@ -32,7 +32,7 @@
     </div>
 
     <div class="ruoyi-table-wrap">
-      <el-table :data="todos" border stripe highlight-current-row @row-click="goTodo">
+      <el-table :data="todos" highlight-current-row @row-click="goTodo">
         <el-table-column prop="type" label="类型" width="90" align="center" />
         <el-table-column prop="title" label="待办内容" min-width="220" show-overflow-tooltip />
         <el-table-column prop="ref" label="单号" width="150" show-overflow-tooltip />
@@ -43,8 +43,6 @@
         </el-table-column>
       </el-table>
     </div>
-
-    <OperationLogPanel :logs="recentLogs" />
   </div>
 </template>
 
@@ -53,7 +51,6 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useMesStore } from '@/stores/mes'
-import OperationLogPanel from '@/components/mes/OperationLogPanel.vue'
 
 const props = defineProps({
   roleKey: { type: String, required: true },
@@ -67,7 +64,6 @@ const userStore = useUserStore()
 const mesStore = useMesStore()
 
 const todos = computed(() => mesStore.todosForRole(props.roleKey, userStore.userInfo?.username))
-const recentLogs = computed(() => mesStore.operationLogs.slice(0, 12))
 
 function goTodo(row) {
   if (row.path) router.push(row.path)
