@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="900" viewBox="0 0 640 900">
+  <rect width="640" height="900" fill="#fafafa"/>
+  <rect x="40" y="40" width="560" height="820" fill="#fff" stroke="#dcdfe6"/>
+  <text x="320" y="90" text-anchor="middle" font-size="28" font-family="Microsoft YaHei, sans-serif" fill="#303133">教育行业采购合同</text>
+  <text x="80" y="150" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">甲方：广州教育设备有限公司</text>
+  <text x="80" y="190" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">产品：15.6寸商用显示器</text>
+  <text x="80" y="230" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">数量：100 台</text>
+  <text x="80" y="270" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">交期：2026-08-10</text>
+  <text x="80" y="310" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">金额：¥68,000.00</text>
+  <text x="80" y="380" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#909399">（模拟合同扫描件 · CO202607004）</text>
+</svg>

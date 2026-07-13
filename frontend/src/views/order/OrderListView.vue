@@ -1,0 +1,323 @@
+<template>
+
+  <MesPageShell
+
+    :status-items="statusItems"
+
+    toolbar-title="客户订单"
+
+    :status-options="ORDER_STATUS"
+
+    :toolbar-actions="[{ label: '新建订单', key: 'create', type: 'primary' }]"
+
+    :detail-rows="rows"
+
+    :logs="mes.operationLogs.slice(0, 10)"
+
+    v-model:model-keyword="keyword"
+
+    v-model:model-status="statusFilter"
+
+    @toolbar-action="onAction"
+
+  >
+
+    <template #table>
+
+      <div v-if="mes.pendingSubmitToPlanner.length" class="pending-block">
+
+        <div class="pending-block__title">已审核待提交计划员（{{ mes.pendingSubmitToPlanner.length }}）</div>
+
+        <el-table :data="mes.pendingSubmitToPlanner" border stripe size="small" style="margin-bottom: 12px">
+
+          <el-table-column prop="id" label="订单号" width="140" />
+
+          <el-table-column prop="customerName" label="客户" min-width="120" />
+
+          <el-table-column prop="productModel" label="型号" width="140" />
+
+          <el-table-column label="操作" width="140">
+
+            <template #default="{ row }">
+
+              <el-button link type="primary" @click="submitToPlanner(row.id)">提交计划员</el-button>
+
+            </template>
+
+          </el-table-column>
+
+        </el-table>
+
+      </div>
+
+
+
+      <el-table :data="filtered" border stripe highlight-current-row style="width:100%" @current-change="onRowClick">
+
+        <el-table-column prop="id" label="订单号" width="140" />
+
+        <el-table-column prop="customerName" label="客户" min-width="140" />
+
+        <el-table-column prop="productModel" label="产品型号" width="140" />
+
+        <el-table-column prop="panelType" label="面板" width="70" />
+
+        <el-table-column prop="quantity" label="数量" width="80" />
+
+        <el-table-column prop="deliveryDate" label="交付日期" width="110" />
+
+        <el-table-column prop="status" label="状态" width="90">
+
+          <template #default="{ row }"><StatusBadge :status="row.status" /></template>
+
+        </el-table-column>
+
+        <el-table-column label="操作" width="72" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removeOrder(row)">删除</el-button>
+          </template>
+        </el-table-column>
+
+      </el-table>
+
+    </template>
+
+    <template #detail-actions>
+
+      <el-button v-if="selected?.status==='待审核'" size="small" @click="submitAudit">提交审核</el-button>
+
+      <el-button v-if="selected?.status==='已审核'" type="primary" size="small" @click="submitToPlanner(selected.id)">提交计划员</el-button>
+
+      <el-button v-if="selected" type="danger" size="small" plain @click="removeOrder(selected)">删除订单</el-button>
+
+    </template>
+
+  </MesPageShell>
+
+  <el-dialog v-model="dialogVisible" title="新建客户订单" width="480px">
+
+    <el-form :model="form" label-width="100px">
+
+      <el-form-item label="客户">
+
+        <el-select v-model="form.customerId" style="width:100%">
+
+          <el-option v-for="c in mes.customers" :key="c.id" :label="c.name" :value="c.id" />
+
+        </el-select>
+
+      </el-form-item>
+
+      <el-form-item label="产品型号">
+
+        <el-select v-model="form.productModel" style="width:100%">
+
+          <el-option v-for="m in productOptions" :key="m.code" :label="`${m.name}（${m.code}）`" :value="m.name" />
+
+        </el-select>
+
+      </el-form-item>
+
+      <el-form-item label="面板类型"><el-input v-model="form.panelType" placeholder="LCD / OLED" /></el-form-item>
+
+      <el-form-item label="数量"><el-input-number v-model="form.quantity" :min="1" style="width:100%" /></el-form-item>
+
+      <el-form-item label="交付日期"><el-date-picker v-model="form.deliveryDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
+
+      <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item>
+
+    </el-form>
+
+    <template #footer>
+
+      <el-button @click="dialogVisible=false">取消</el-button>
+
+      <el-button type="primary" @click="create">保存</el-button>
+
+    </template>
+
+  </el-dialog>
+
+</template>
+
+
+
+<script setup>
+
+import { computed, ref, reactive } from 'vue'
+
+import { ElMessage } from 'element-plus'
+
+import { useMesStore } from '@/stores/mes'
+
+import { useUserStore } from '@/stores/user'
+
+import { ORDER_STATUS } from '@/mock/constants'
+
+import { useMesFilter, detailRows } from '@/composables/useMesPage'
+import { useMesDelete } from '@/composables/useMesDelete'
+
+import MesPageShell from '@/components/mes/MesPageShell.vue'
+
+import StatusBadge from '@/components/mes/StatusBadge.vue'
+
+
+
+const mes = useMesStore()
+
+const userStore = useUserStore()
+const { runDelete } = useMesDelete(mes, userStore)
+
+const dialogVisible = ref(false)
+
+const productOptions = computed(() => mes.productModels || [])
+const defaultDelivery = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+
+const form = reactive({
+  customerId: null,
+  productModel: '',
+  panelType: 'LCD',
+  quantity: 100,
+  deliveryDate: defaultDelivery,
+  remark: ''
+})
+
+function resetForm() {
+  const firstCustomer = mes.customers[0]
+  const firstProduct = productOptions.value[0]
+  form.customerId = firstCustomer?.id ?? null
+  form.productModel = firstProduct?.name || firstProduct?.code || ''
+  form.panelType = firstProduct?.panelType || 'LCD'
+  form.quantity = 100
+  form.deliveryDate = defaultDelivery
+  form.remark = ''
+}
+
+
+
+const { keyword, statusFilter, selected, filtered, onRowClick } = useMesFilter(
+
+  computed(() => mes.orders),
+
+  ['id', 'customerName', 'productModel']
+
+)
+
+
+
+const statusItems = computed(() => [
+
+  { label: '订单总数', value: mes.orders.length },
+
+  { label: '待审核', value: mes.pendingOrders.length, warn: true },
+
+  { label: '待计划', value: mes.pendingPlanOrders.length, warn: mes.pendingPlanOrders.length > 0 },
+
+  { label: '生产中', value: mes.orders.filter(o => o.status === '生产中').length }
+
+])
+
+
+
+const rows = computed(() => detailRows(selected.value, [
+
+  { key: 'id', label: '订单号' }, { key: 'customerName', label: '客户' },
+
+  { key: 'productModel', label: '型号' }, { key: 'quantity', label: '数量' },
+
+  { key: 'deliveryDate', label: '交付日' }, { key: 'status', label: '状态' },
+
+  { key: 'remark', label: '备注' }
+
+]))
+
+
+
+function onAction(key) {
+  if (key === 'create') {
+    resetForm()
+    dialogVisible.value = true
+  }
+}
+
+async function create() {
+  try {
+    const customer = mes.customers.find((c) => c.id === form.customerId)
+    await mes.createOrder(
+      { ...form, customerName: customer?.name || '' },
+      userStore.username,
+      userStore.roleKey
+    )
+    ElMessage.success('订单已创建，请提交审核')
+    dialogVisible.value = false
+  } catch (e) {
+    ElMessage.error(e?.message || '创建订单失败')
+  }
+}
+
+function submitAudit() {
+
+  if (selected.value) mes.submitOrder(selected.value.id, userStore.username, userStore.roleKey)
+
+  ElMessage.success('已提交审核')
+
+}
+
+async function submitToPlanner(orderId) {
+
+  const ok = await mes.submitOrderToPlanner(orderId, userStore.username, userStore.roleKey)
+
+  if (ok !== false) {
+
+    ElMessage.success('已提交计划员，请计划员编制生产计划')
+
+  } else {
+
+    ElMessage.warning('订单状态不允许提交计划员')
+
+  }
+
+}
+
+function removeOrder(row) {
+  if (!row) return
+  runDelete({
+    action: 'deleteOrder',
+    payload: { orderId: row.id },
+    message: `确定删除订单 ${row.id}？关联计划、工单、发货等记录将一并删除。`,
+    onSuccess: () => {
+      if (selected.value?.id === row.id) selected.value = null
+    }
+  }).catch(() => {})
+}
+
+</script>
+
+
+
+<style scoped>
+
+.pending-block {
+
+  padding: 12px 0 4px;
+
+  border-bottom: 1px solid #e8ecf0;
+
+  margin-bottom: 8px;
+
+}
+
+.pending-block__title {
+
+  font-size: 14px;
+
+  font-weight: 600;
+
+  color: #001b3f;
+
+  margin-bottom: 8px;
+
+}
+
+</style>
+

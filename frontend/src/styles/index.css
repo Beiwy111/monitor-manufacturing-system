@@ -1,0 +1,65 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--layout-surface, #f8fafa);
+}
+
+.page-card {
+  background: #fff;
+  border: 1px solid var(--layout-border, #e8eceb);
+  border-radius: var(--layout-card-radius, 12px);
+  padding: 16px;
+}
+
+.page-title {
+  font-size: var(--fs-page-title);
+  font-weight: var(--heading-weight);
+  line-height: var(--lh-heading);
+  color: var(--heading-color);
+  margin-bottom: 16px;
+}
+
+.page-hint {
+  font-size: var(--fs-caption);
+  font-weight: var(--body-weight);
+  line-height: var(--lh-body);
+  color: var(--text-placeholder);
+  margin-bottom: 16px;
+}
+
+.el-table {
+  width: 100%;
+}
+
+.el-table .cell {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.el-table th.el-table__cell,
+.el-table td.el-table__cell {
+  padding: 8px 0;
+}
+
+.el-table .el-button + .el-button {
+  margin-left: 4px;
+}
+
+.el-table__body-wrapper,
+.el-table__inner-wrapper {
+  max-width: 100%;
+}
+
+.el-dialog {
+  max-width: calc(100vw - 48px);
+}
+
+.el-dialog .el-dialog__body {
+  overflow-x: hidden;
+}

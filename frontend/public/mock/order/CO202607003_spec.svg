@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="900" viewBox="0 0 640 900">
+  <rect width="640" height="900" fill="#eef2f7"/>
+  <rect x="40" y="40" width="560" height="820" fill="#fff" stroke="#dcdfe6"/>
+  <text x="320" y="90" text-anchor="middle" font-size="26" font-family="Microsoft YaHei, sans-serif" fill="#303133">4K显示器技术规格书</text>
+  <text x="80" y="150" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">客户：上海视觉设计工作室</text>
+  <text x="80" y="190" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">型号：27寸4K显示器</text>
+  <text x="80" y="230" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">分辨率：3840×2160 HDR</text>
+  <text x="80" y="270" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">数量：40 台</text>
+  <text x="80" y="310" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">交期：2026-08-05</text>
+  <text x="80" y="350" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#606266">金额：¥84,000.00</text>
+  <text x="80" y="420" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#909399">（模拟规格说明书 · CO202607003）</text>
+</svg>

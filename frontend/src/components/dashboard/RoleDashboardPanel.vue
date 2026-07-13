@@ -1,0 +1,170 @@
+<template>
+  <div class="role-dashboard">
+    <div class="dashboard-header">
+      <h1>{{ config.title }}</h1>
+      <p>{{ config.subtitle }}</p>
+    </div>
+
+    <div class="kpi-row">
+      <div v-for="(kpi, index) in config.kpis" :key="index" class="kpi-item">
+        <div class="kpi-label">{{ kpi.label }}</div>
+        <div class="kpi-value" :class="'status-' + kpi.status">{{ kpi.value }}</div>
+      </div>
+    </div>
+
+    <div class="content-split">
+      <section class="panel-block">
+        <div class="block-title">待办事项</div>
+        <el-table :data="config.todos" border stripe size="small">
+          <el-table-column prop="title" label="事项" min-width="200" />
+          <el-table-column prop="module" label="模块" width="120" />
+          <el-table-column prop="priority" label="优先级" width="80" />
+          <el-table-column prop="status" label="状态" width="90">
+            <template #default="{ row }">
+              <span class="status-tag" :class="statusClass(row.status)">{{ row.status }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </section>
+
+      <section class="panel-block">
+        <div class="block-title">快捷入口</div>
+        <div class="quick-links">
+          <router-link
+            v-for="link in config.quickLinks"
+            :key="link.path"
+            :to="link.path"
+            class="quick-link"
+          >
+            {{ link.title }}
+          </router-link>
+        </div>
+        <div class="block-title" style="margin-top: 24px">系统提示</div>
+        <p class="hint-text">业务数据来自后端数据库实时快照，登录后自动加载。待办与 KPI 随订单、计划、工单状态变化而更新。</p>
+      </section>
+    </div>
+  </div>
+</template>
+
+<script setup>
+defineProps({
+  config: { type: Object, required: true }
+})
+
+function statusClass(status) {
+  if (status === '进行中') return 'tag-processing'
+  if (status === '待处理') return 'tag-warning'
+  return 'tag-normal'
+}
+</script>
+
+<style scoped>
+.role-dashboard {
+  padding: 0;
+  font-weight: 400;
+}
+.dashboard-header h1 {
+  margin: 0 0 8px;
+  font-size: var(--fs-dashboard-title);
+  font-weight: 500;
+  line-height: var(--lh-heading);
+  color: var(--layout-text, #111827);
+  letter-spacing: -0.02em;
+}
+.dashboard-header p {
+  margin: 0 0 20px;
+  font-size: var(--fs-body-sm);
+  font-weight: 300;
+  line-height: var(--lh-lead);
+  color: var(--layout-text-secondary, #6b7280);
+}
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.kpi-item {
+  background: #fff;
+  border: 1px solid var(--layout-border, #e8eceb);
+  border-radius: var(--layout-card-radius, 12px);
+  padding: 14px 16px;
+}
+.kpi-label {
+  font-size: var(--fs-kpi-label);
+  font-weight: 300;
+  color: var(--text-placeholder);
+  margin-bottom: 6px;
+}
+.kpi-value {
+  font-size: var(--fs-kpi-value);
+  font-weight: 500;
+  line-height: var(--lh-tight);
+  color: var(--layout-text, #111827);
+}
+.kpi-value.status-success { color: #16a34a; }
+.kpi-value.status-processing { color: var(--layout-accent, #2d8a66); }
+.kpi-value.status-warning { color: #d97706; }
+.kpi-value.status-danger { color: #dc2626; }
+.kpi-value.status-normal { color: #374151; }
+.content-split {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 16px;
+}
+.panel-block {
+  background: #fff;
+  border: 1px solid var(--layout-border, #e8eceb);
+  border-radius: var(--layout-card-radius, 12px);
+  padding: 16px;
+}
+.block-title {
+  font-size: var(--fs-body-sm);
+  font-weight: 500;
+  color: var(--layout-text, #111827);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--layout-border, #e8eceb);
+}
+.quick-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.quick-link {
+  display: block;
+  padding: 10px 12px;
+  border: 1px solid var(--layout-border, #e8eceb);
+  border-radius: 10px;
+  color: var(--layout-accent, #2d8a66);
+  text-decoration: none;
+  font-size: var(--fs-body-sm);
+  font-weight: 400;
+  transition: background 0.2s, border-color 0.2s;
+}
+.quick-link:hover {
+  background: var(--layout-accent-soft, rgba(45, 138, 102, 0.12));
+  border-color: var(--layout-accent-border, rgba(45, 138, 102, 0.28));
+}
+.hint-text {
+  margin: 0;
+  font-size: var(--fs-caption);
+  font-weight: 300;
+  color: var(--text-placeholder);
+  line-height: var(--lh-lead);
+}
+.status-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: var(--fs-tag);
+  font-weight: 400;
+}
+.tag-processing { background: var(--layout-accent-soft); color: var(--layout-accent); }
+.tag-warning { background: #fff7e6; color: #d97706; }
+.tag-normal { background: #f3f4f6; color: #6b7280; }
+@media (max-width: 1200px) {
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  .content-split { grid-template-columns: 1fr; }
+}
+</style>

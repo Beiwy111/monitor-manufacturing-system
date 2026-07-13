@@ -1,0 +1,400 @@
+﻿after_sales_case	case_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+after_sales_case	case_no	varchar	varchar(50)	NO	UNI	NULL	
+after_sales_case	order_id	bigint	bigint unsigned	YES	MUL	NULL	
+after_sales_case	delivery_id	bigint	bigint unsigned	YES	MUL	NULL	
+after_sales_case	material_id	bigint	bigint unsigned	YES	MUL	NULL	
+after_sales_case	batch_no	varchar	varchar(80)	YES		NULL	
+after_sales_case	customer_name	varchar	varchar(150)	NO		NULL	
+after_sales_case	contact_name	varchar	varchar(100)	YES		NULL	
+after_sales_case	contact_phone	varchar	varchar(30)	YES		NULL	
+after_sales_case	problem_description	varchar	varchar(1000)	NO		NULL	
+after_sales_case	problem_type	varchar	varchar(50)	YES		NULL	
+after_sales_case	case_level	varchar	varchar(20)	NO		GENERAL	
+after_sales_case	case_status	varchar	varchar(20)	NO	MUL	OPEN	
+after_sales_case	trace_result	varchar	varchar(1000)	YES		NULL	
+after_sales_case	handle_result	varchar	varchar(1000)	YES		NULL	
+after_sales_case	service_user_id	bigint	bigint unsigned	YES	MUL	NULL	
+after_sales_case	opened_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+after_sales_case	closed_at	datetime	datetime	YES		NULL	
+after_sales_case	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+after_sales_case	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+andon_alarm	alarm_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+andon_alarm	alarm_no	varchar	varchar(50)	NO	UNI	NULL	
+andon_alarm	work_order_id	bigint	bigint unsigned	YES	MUL	NULL	
+andon_alarm	dispatch_id	bigint	bigint unsigned	YES	MUL	NULL	
+andon_alarm	equipment_id	bigint	bigint unsigned	YES	MUL	NULL	
+andon_alarm	alarm_type	varchar	varchar(30)	NO		NULL	
+andon_alarm	alarm_level	varchar	varchar(20)	NO		GENERAL	
+andon_alarm	alarm_description	varchar	varchar(500)	NO		NULL	
+andon_alarm	alarm_status	varchar	varchar(20)	NO	MUL	OPEN	
+andon_alarm	reported_by	bigint	bigint unsigned	NO	MUL	NULL	
+andon_alarm	reported_at	datetime	datetime	NO	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED
+andon_alarm	received_by	bigint	bigint unsigned	YES	MUL	NULL	
+andon_alarm	received_at	datetime	datetime	YES		NULL	
+andon_alarm	closed_by	bigint	bigint unsigned	YES	MUL	NULL	
+andon_alarm	closed_at	datetime	datetime	YES		NULL	
+andon_alarm	close_result	varchar	varchar(500)	YES		NULL	
+andon_alarm	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+andon_alarm	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+bom	bom_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+bom	parent_material_id	bigint	bigint unsigned	NO	MUL	NULL	
+bom	child_material_id	bigint	bigint unsigned	NO	MUL	NULL	
+bom	quantity	decimal	decimal(18,4)	NO		NULL	
+bom	loss_rate	decimal	decimal(8,4)	NO		0.0000	
+bom	version_no	varchar	varchar(30)	NO		V1.0	
+bom	effective_date	date	date	NO		NULL	
+bom	expire_date	date	date	YES		NULL	
+bom	status	tinyint	tinyint	NO		1	
+bom	remark	varchar	varchar(255)	YES		NULL	
+bom	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+bom	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+cost_settlement	settlement_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+cost_settlement	settlement_no	varchar	varchar(50)	NO	UNI	NULL	
+cost_settlement	work_order_id	bigint	bigint unsigned	NO	UNI	NULL	
+cost_settlement	order_id	bigint	bigint unsigned	YES	MUL	NULL	
+cost_settlement	material_cost	decimal	decimal(18,2)	NO		0.00	
+cost_settlement	labor_cost	decimal	decimal(18,2)	NO		0.00	
+cost_settlement	equipment_cost	decimal	decimal(18,2)	NO		0.00	
+cost_settlement	quality_cost	decimal	decimal(18,2)	NO		0.00	
+cost_settlement	other_cost	decimal	decimal(18,2)	NO		0.00	
+cost_settlement	total_cost	decimal	decimal(18,2)	NO		0.00	
+cost_settlement	settlement_period	varchar	varchar(20)	NO	MUL	NULL	
+cost_settlement	settlement_status	varchar	varchar(20)	NO	MUL	DRAFT	
+cost_settlement	confirmed_by	bigint	bigint unsigned	YES	MUL	NULL	
+cost_settlement	confirmed_at	datetime	datetime	YES		NULL	
+cost_settlement	exported_at	datetime	datetime	YES		NULL	
+cost_settlement	remark	varchar	varchar(500)	YES		NULL	
+cost_settlement	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+cost_settlement	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+customer_order	order_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+customer_order	order_no	varchar	varchar(50)	NO	UNI	NULL	
+customer_order	customer_name	varchar	varchar(150)	NO	MUL	NULL	
+customer_order	customer_contact	varchar	varchar(100)	YES		NULL	
+customer_order	customer_phone	varchar	varchar(30)	YES		NULL	
+customer_order	order_date	date	date	NO		NULL	
+customer_order	required_delivery_date	date	date	YES		NULL	
+customer_order	order_amount	decimal	decimal(18,2)	NO		0.00	
+customer_order	audit_status	varchar	varchar(20)	NO	MUL	PENDING	
+customer_order	audit_user_id	bigint	bigint unsigned	YES	MUL	NULL	
+customer_order	audit_at	datetime	datetime	YES		NULL	
+customer_order	audit_opinion	varchar	varchar(500)	YES		NULL	
+customer_order	remark	varchar	varchar(500)	YES		NULL	
+customer_order	created_by	bigint	bigint unsigned	YES	MUL	NULL	
+customer_order	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+customer_order	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+customer_order_item	order_item_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+customer_order_item	order_id	bigint	bigint unsigned	NO	MUL	NULL	
+customer_order_item	material_id	bigint	bigint unsigned	NO	MUL	NULL	
+customer_order_item	product_name	varchar	varchar(150)	NO		NULL	
+customer_order_item	specification	varchar	varchar(255)	YES		NULL	
+customer_order_item	quantity	decimal	decimal(18,4)	NO		NULL	
+customer_order_item	unit	varchar	varchar(20)	NO		NULL	
+customer_order_item	unit_price	decimal	decimal(18,4)	NO		0.0000	
+customer_order_item	line_amount	decimal	decimal(18,2)	NO		0.00	
+customer_order_item	delivery_date	date	date	YES		NULL	
+customer_order_item	item_status	varchar	varchar(20)	NO	MUL	PENDING	
+customer_order_item	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+customer_order_item	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+delivery_order	delivery_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+delivery_order	delivery_no	varchar	varchar(50)	NO	UNI	NULL	
+delivery_order	order_id	bigint	bigint unsigned	YES	MUL	NULL	
+delivery_order	work_order_id	bigint	bigint unsigned	YES	MUL	NULL	
+delivery_order	customer_name	varchar	varchar(150)	NO		NULL	
+delivery_order	material_id	bigint	bigint unsigned	NO	MUL	NULL	
+delivery_order	batch_no	varchar	varchar(80)	YES		NULL	
+delivery_order	delivery_quantity	decimal	decimal(18,4)	NO		NULL	
+delivery_order	delivery_date	date	date	NO		NULL	
+delivery_order	logistics_company	varchar	varchar(100)	YES		NULL	
+delivery_order	logistics_no	varchar	varchar(100)	YES		NULL	
+delivery_order	receiver_name	varchar	varchar(100)	YES		NULL	
+delivery_order	receiver_phone	varchar	varchar(30)	YES		NULL	
+delivery_order	receiver_address	varchar	varchar(255)	YES		NULL	
+delivery_order	delivery_status	varchar	varchar(20)	NO	MUL	PREPARED	
+delivery_order	shipped_by	bigint	bigint unsigned	YES	MUL	NULL	
+delivery_order	remark	varchar	varchar(500)	YES		NULL	
+delivery_order	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+delivery_order	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+dispatch_task	dispatch_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+dispatch_task	dispatch_no	varchar	varchar(50)	NO	UNI	NULL	
+dispatch_task	work_order_id	bigint	bigint unsigned	NO	MUL	NULL	
+dispatch_task	step_id	bigint	bigint unsigned	YES	MUL	NULL	
+dispatch_task	operator_id	bigint	bigint unsigned	NO	MUL	NULL	
+dispatch_task	equipment_id	bigint	bigint unsigned	YES	MUL	NULL	
+dispatch_task	assigned_quantity	decimal	decimal(18,4)	NO		NULL	
+dispatch_task	accepted_quantity	decimal	decimal(18,4)	NO		0.0000	
+dispatch_task	completed_quantity	decimal	decimal(18,4)	NO		0.0000	
+dispatch_task	assigned_by	bigint	bigint unsigned	YES	MUL	NULL	
+dispatch_task	assigned_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+dispatch_task	accepted_at	datetime	datetime	YES		NULL	
+dispatch_task	status	varchar	varchar(20)	NO	MUL	ASSIGNED	
+dispatch_task	remark	varchar	varchar(500)	YES		NULL	
+dispatch_task	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+dispatch_task	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+equipment	equipment_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+equipment	equipment_code	varchar	varchar(50)	NO	UNI	NULL	
+equipment	equipment_name	varchar	varchar(100)	NO		NULL	
+equipment	equipment_type	varchar	varchar(50)	YES		NULL	
+equipment	workshop	varchar	varchar(100)	YES		NULL	
+equipment	workstation	varchar	varchar(100)	YES		NULL	
+equipment	manufacturer	varchar	varchar(100)	YES		NULL	
+equipment	model	varchar	varchar(100)	YES		NULL	
+equipment	purchase_date	date	date	YES		NULL	
+equipment	status	varchar	varchar(20)	NO	MUL	IDLE	
+equipment	last_maintenance_at	datetime	datetime	YES		NULL	
+equipment	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+equipment	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+equipment_maintenance_record	maintenance_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+equipment_maintenance_record	maintenance_no	varchar	varchar(50)	NO	UNI	NULL	
+equipment_maintenance_record	equipment_id	bigint	bigint unsigned	NO	MUL	NULL	
+equipment_maintenance_record	alarm_id	bigint	bigint unsigned	YES	MUL	NULL	
+equipment_maintenance_record	maintenance_type	varchar	varchar(30)	NO		NULL	
+equipment_maintenance_record	fault_description	varchar	varchar(500)	YES		NULL	
+equipment_maintenance_record	maintenance_content	varchar	varchar(1000)	NO		NULL	
+equipment_maintenance_record	start_time	datetime	datetime	YES		NULL	
+equipment_maintenance_record	end_time	datetime	datetime	YES		NULL	
+equipment_maintenance_record	downtime_minutes	int	int	NO		0	
+equipment_maintenance_record	maintenance_result	varchar	varchar(20)	NO		COMPLETED	
+equipment_maintenance_record	maintainer_id	bigint	bigint unsigned	NO	MUL	NULL	
+equipment_maintenance_record	cost_amount	decimal	decimal(18,2)	NO		0.00	
+equipment_maintenance_record	remark	varchar	varchar(500)	YES		NULL	
+equipment_maintenance_record	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+equipment_maintenance_record	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+inventory	inventory_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+inventory	material_id	bigint	bigint unsigned	NO	MUL	NULL	
+inventory	warehouse_code	varchar	varchar(50)	NO		NULL	
+inventory	warehouse_name	varchar	varchar(100)	NO		NULL	
+inventory	location_code	varchar	varchar(50)	YES		NULL	
+inventory	batch_no	varchar	varchar(80)	YES		NULL	
+inventory	quantity_on_hand	decimal	decimal(18,4)	NO		0.0000	
+inventory	quantity_reserved	decimal	decimal(18,4)	NO		0.0000	
+inventory	quantity_available	decimal	decimal(18,4)	NO		0.0000	
+inventory	inventory_status	varchar	varchar(20)	NO	MUL	NORMAL	
+inventory	last_transaction_at	datetime	datetime	YES		NULL	
+inventory	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+inventory	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+inventory_transaction	transaction_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+inventory_transaction	transaction_no	varchar	varchar(50)	NO	UNI	NULL	
+inventory_transaction	inventory_id	bigint	bigint unsigned	YES	MUL	NULL	
+inventory_transaction	material_id	bigint	bigint unsigned	NO	MUL	NULL	
+inventory_transaction	transaction_type	varchar	varchar(30)	NO	MUL	NULL	
+inventory_transaction	quantity	decimal	decimal(18,4)	NO		NULL	
+inventory_transaction	warehouse_code	varchar	varchar(50)	NO		NULL	
+inventory_transaction	location_code	varchar	varchar(50)	YES		NULL	
+inventory_transaction	batch_no	varchar	varchar(80)	YES		NULL	
+inventory_transaction	related_purchase_order_id	bigint	bigint unsigned	YES	MUL	NULL	
+inventory_transaction	related_work_order_id	bigint	bigint unsigned	YES	MUL	NULL	
+inventory_transaction	handled_by	bigint	bigint unsigned	YES	MUL	NULL	
+inventory_transaction	handled_at	datetime	datetime	NO	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED
+inventory_transaction	remark	varchar	varchar(500)	YES		NULL	
+inventory_transaction	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+material	material_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+material	material_code	varchar	varchar(50)	NO	UNI	NULL	
+material	material_name	varchar	varchar(150)	NO		NULL	
+material	material_type	varchar	varchar(30)	NO	MUL	NULL	
+material	specification	varchar	varchar(255)	YES		NULL	
+material	unit	varchar	varchar(20)	NO		NULL	
+material	safety_stock	decimal	decimal(18,4)	NO		0.0000	
+material	standard_cost	decimal	decimal(18,4)	NO		0.0000	
+material	status	tinyint	tinyint	NO		1	
+material	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+material	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+nonconforming_product	nonconforming_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+nonconforming_product	nonconforming_no	varchar	varchar(50)	NO	UNI	NULL	
+nonconforming_product	inspection_id	bigint	bigint unsigned	YES	MUL	NULL	
+nonconforming_product	work_order_id	bigint	bigint unsigned	YES	MUL	NULL	
+nonconforming_product	work_report_id	bigint	bigint unsigned	YES	MUL	NULL	
+nonconforming_product	material_id	bigint	bigint unsigned	NO	MUL	NULL	
+nonconforming_product	batch_no	varchar	varchar(80)	YES		NULL	
+nonconforming_product	defect_type	varchar	varchar(100)	NO		NULL	
+nonconforming_product	defect_description	varchar	varchar(500)	YES		NULL	
+nonconforming_product	quantity	decimal	decimal(18,4)	NO		NULL	
+nonconforming_product	severity	varchar	varchar(20)	NO		GENERAL	
+nonconforming_product	handle_method	varchar	varchar(30)	NO		PENDING	
+nonconforming_product	handle_status	varchar	varchar(20)	NO	MUL	PENDING	
+nonconforming_product	registered_by	bigint	bigint unsigned	YES	MUL	NULL	
+nonconforming_product	registered_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+nonconforming_product	handled_by	bigint	bigint unsigned	YES	MUL	NULL	
+nonconforming_product	handled_at	datetime	datetime	YES		NULL	
+nonconforming_product	remark	varchar	varchar(500)	YES		NULL	
+nonconforming_product	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+nonconforming_product	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+operation_log	log_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+operation_log	user_id	bigint	bigint unsigned	YES	MUL	NULL	
+operation_log	module_name	varchar	varchar(100)	NO		NULL	
+operation_log	operation_type	varchar	varchar(50)	NO		NULL	
+operation_log	business_table	varchar	varchar(100)	YES	MUL	NULL	
+operation_log	business_id	bigint	bigint unsigned	YES		NULL	
+operation_log	operation_content	varchar	varchar(500)	YES		NULL	
+operation_log	ip_address	varchar	varchar(64)	YES		NULL	
+operation_log	result_status	varchar	varchar(20)	NO		SUCCESS	
+operation_log	error_message	varchar	varchar(500)	YES		NULL	
+operation_log	operated_at	datetime	datetime	NO	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED
+permission	permission_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+permission	role_id	bigint	bigint unsigned	YES	MUL	NULL	
+permission	permission_code	varchar	varchar(100)	NO	UNI	NULL	
+permission	permission_name	varchar	varchar(100)	NO		NULL	
+permission	resource_type	varchar	varchar(30)	NO		MENU	
+permission	resource_path	varchar	varchar(255)	YES		NULL	
+permission	parent_id	bigint	bigint unsigned	YES	MUL	NULL	
+permission	sort_no	int	int	NO		0	
+permission	status	tinyint	tinyint	NO		1	
+permission	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+permission	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+process_route	route_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+process_route	material_id	bigint	bigint unsigned	NO	MUL	NULL	
+process_route	route_code	varchar	varchar(50)	NO	MUL	NULL	
+process_route	route_name	varchar	varchar(150)	NO		NULL	
+process_route	version_no	varchar	varchar(30)	NO		V1.0	
+process_route	status	tinyint	tinyint	NO		1	
+process_route	created_by	bigint	bigint unsigned	YES	MUL	NULL	
+process_route	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+process_route	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+process_step	step_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+process_step	route_id	bigint	bigint unsigned	NO	MUL	NULL	
+process_step	step_no	int	int	NO		NULL	
+process_step	step_code	varchar	varchar(50)	NO		NULL	
+process_step	step_name	varchar	varchar(150)	NO		NULL	
+process_step	standard_work_hours	decimal	decimal(10,2)	NO		0.00	
+process_step	standard_equipment_type	varchar	varchar(50)	YES		NULL	
+process_step	quality_required	tinyint	tinyint	NO		0	
+process_step	status	tinyint	tinyint	NO		1	
+process_step	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+process_step	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+production_plan	plan_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+production_plan	plan_no	varchar	varchar(50)	NO	UNI	NULL	
+production_plan	plan_name	varchar	varchar(150)	NO		NULL	
+production_plan	source_order_id	bigint	bigint unsigned	YES	MUL	NULL	
+production_plan	planned_start_date	date	date	NO		NULL	
+production_plan	planned_end_date	date	date	NO		NULL	
+production_plan	priority	varchar	varchar(20)	NO		NORMAL	
+production_plan	plan_status	varchar	varchar(20)	NO	MUL	DRAFT	
+production_plan	planner_id	bigint	bigint unsigned	YES	MUL	NULL	
+production_plan	approved_by	bigint	bigint unsigned	YES	MUL	NULL	
+production_plan	approved_at	datetime	datetime	YES		NULL	
+production_plan	remark	varchar	varchar(500)	YES		NULL	
+production_plan	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+production_plan	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+production_plan_item	plan_item_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+production_plan_item	plan_id	bigint	bigint unsigned	NO	MUL	NULL	
+production_plan_item	order_item_id	bigint	bigint unsigned	YES	MUL	NULL	
+production_plan_item	material_id	bigint	bigint unsigned	NO	MUL	NULL	
+production_plan_item	planned_quantity	decimal	decimal(18,4)	NO		NULL	
+production_plan_item	completed_quantity	decimal	decimal(18,4)	NO		0.0000	
+production_plan_item	planned_start_date	date	date	YES		NULL	
+production_plan_item	planned_end_date	date	date	YES		NULL	
+production_plan_item	item_status	varchar	varchar(20)	NO		PENDING	
+production_plan_item	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+production_plan_item	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+purchase_order	purchase_order_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+purchase_order	purchase_order_no	varchar	varchar(50)	NO	UNI	NULL	
+purchase_order	supplier_name	varchar	varchar(150)	NO		NULL	
+purchase_order	supplier_contact	varchar	varchar(100)	YES		NULL	
+purchase_order	supplier_phone	varchar	varchar(30)	YES		NULL	
+purchase_order	purchase_date	date	date	NO		NULL	
+purchase_order	expected_arrival_date	date	date	YES		NULL	
+purchase_order	total_amount	decimal	decimal(18,2)	NO		0.00	
+purchase_order	status	varchar	varchar(20)	NO	MUL	DRAFT	
+purchase_order	purchaser_id	bigint	bigint unsigned	YES	MUL	NULL	
+purchase_order	approved_by	bigint	bigint unsigned	YES	MUL	NULL	
+purchase_order	approved_at	datetime	datetime	YES		NULL	
+purchase_order	remark	varchar	varchar(500)	YES		NULL	
+purchase_order	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+purchase_order	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+purchase_order_item	purchase_order_item_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+purchase_order_item	purchase_order_id	bigint	bigint unsigned	NO	MUL	NULL	
+purchase_order_item	material_id	bigint	bigint unsigned	NO	MUL	NULL	
+purchase_order_item	quantity	decimal	decimal(18,4)	NO		NULL	
+purchase_order_item	received_quantity	decimal	decimal(18,4)	NO		0.0000	
+purchase_order_item	unit	varchar	varchar(20)	NO		NULL	
+purchase_order_item	unit_price	decimal	decimal(18,4)	NO		0.0000	
+purchase_order_item	line_amount	decimal	decimal(18,2)	NO		0.00	
+purchase_order_item	item_status	varchar	varchar(20)	NO		PENDING	
+purchase_order_item	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+purchase_order_item	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+quality_inspection	inspection_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+quality_inspection	inspection_no	varchar	varchar(50)	NO	UNI	NULL	
+quality_inspection	work_order_id	bigint	bigint unsigned	YES	MUL	NULL	
+quality_inspection	work_report_id	bigint	bigint unsigned	YES	MUL	NULL	
+quality_inspection	material_id	bigint	bigint unsigned	NO	MUL	NULL	
+quality_inspection	batch_no	varchar	varchar(80)	YES		NULL	
+quality_inspection	inspection_type	varchar	varchar(30)	NO		NULL	
+quality_inspection	sample_quantity	decimal	decimal(18,4)	NO		0.0000	
+quality_inspection	qualified_quantity	decimal	decimal(18,4)	NO		0.0000	
+quality_inspection	unqualified_quantity	decimal	decimal(18,4)	NO		0.0000	
+quality_inspection	inspection_result	varchar	varchar(20)	NO	MUL	PENDING	
+quality_inspection	inspector_id	bigint	bigint unsigned	NO	MUL	NULL	
+quality_inspection	inspected_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+quality_inspection	remark	varchar	varchar(500)	YES		NULL	
+quality_inspection	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+quality_inspection	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+role	role_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+role	role_code	varchar	varchar(50)	NO	UNI	NULL	
+role	role_name	varchar	varchar(100)	NO	UNI	NULL	
+role	role_description	varchar	varchar(255)	YES		NULL	
+role	status	tinyint	tinyint	NO		1	
+role	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+role	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+user	user_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+user	role_id	bigint	bigint unsigned	YES	MUL	NULL	
+user	username	varchar	varchar(50)	NO	UNI	NULL	
+user	password_hash	varchar	varchar(255)	NO		NULL	
+user	real_name	varchar	varchar(100)	NO		NULL	
+user	employee_no	varchar	varchar(50)	YES	UNI	NULL	
+user	phone	varchar	varchar(30)	YES		NULL	
+user	email	varchar	varchar(100)	YES		NULL	
+user	department	varchar	varchar(100)	YES		NULL	
+user	status	tinyint	tinyint	NO		1	
+user	last_login_at	datetime	datetime	YES		NULL	
+user	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+user	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+work_order	work_order_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+work_order	work_order_no	varchar	varchar(50)	NO	UNI	NULL	
+work_order	plan_id	bigint	bigint unsigned	YES	MUL	NULL	
+work_order	plan_item_id	bigint	bigint unsigned	YES	MUL	NULL	
+work_order	material_id	bigint	bigint unsigned	NO	MUL	NULL	
+work_order	route_id	bigint	bigint unsigned	YES	MUL	NULL	
+work_order	planned_quantity	decimal	decimal(18,4)	NO		NULL	
+work_order	completed_quantity	decimal	decimal(18,4)	NO		0.0000	
+work_order	qualified_quantity	decimal	decimal(18,4)	NO		0.0000	
+work_order	unqualified_quantity	decimal	decimal(18,4)	NO		0.0000	
+work_order	planned_start_time	datetime	datetime	YES		NULL	
+work_order	planned_end_time	datetime	datetime	YES		NULL	
+work_order	actual_start_time	datetime	datetime	YES		NULL	
+work_order	actual_end_time	datetime	datetime	YES		NULL	
+work_order	status	varchar	varchar(20)	NO	MUL	DRAFT	
+work_order	created_by	bigint	bigint unsigned	YES	MUL	NULL	
+work_order	released_by	bigint	bigint unsigned	YES	MUL	NULL	
+work_order	released_at	datetime	datetime	YES		NULL	
+work_order	remark	varchar	varchar(500)	YES		NULL	
+work_order	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+work_order	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+work_progress	progress_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+work_progress	work_order_id	bigint	bigint unsigned	NO	MUL	NULL	
+work_progress	dispatch_id	bigint	bigint unsigned	YES	MUL	NULL	
+work_progress	progress_date	date	date	NO	MUL	NULL	
+work_progress	progress_percent	decimal	decimal(5,2)	NO		0.00	
+work_progress	completed_quantity	decimal	decimal(18,4)	NO		0.0000	
+work_progress	current_status	varchar	varchar(20)	NO		RUNNING	
+work_progress	progress_description	varchar	varchar(500)	YES		NULL	
+work_progress	recorded_by	bigint	bigint unsigned	YES	MUL	NULL	
+work_progress	recorded_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+work_report	report_id	bigint	bigint unsigned	NO	PRI	NULL	auto_increment
+work_report	report_no	varchar	varchar(50)	NO	UNI	NULL	
+work_report	work_order_id	bigint	bigint unsigned	NO	MUL	NULL	
+work_report	dispatch_id	bigint	bigint unsigned	YES	MUL	NULL	
+work_report	step_id	bigint	bigint unsigned	YES	MUL	NULL	
+work_report	operator_id	bigint	bigint unsigned	NO	MUL	NULL	
+work_report	equipment_id	bigint	bigint unsigned	YES	MUL	NULL	
+work_report	report_date	date	date	NO	MUL	NULL	
+work_report	start_time	datetime	datetime	YES		NULL	
+work_report	end_time	datetime	datetime	YES		NULL	
+work_report	completed_quantity	decimal	decimal(18,4)	NO		0.0000	
+work_report	qualified_quantity	decimal	decimal(18,4)	NO		0.0000	
+work_report	unqualified_quantity	decimal	decimal(18,4)	NO		0.0000	
+work_report	work_hours	decimal	decimal(10,2)	NO		0.00	
+work_report	report_status	varchar	varchar(20)	NO		SUBMITTED	
+work_report	confirmed_by	bigint	bigint unsigned	YES	MUL	NULL	
+work_report	confirmed_at	datetime	datetime	YES		NULL	
+work_report	remark	varchar	varchar(500)	YES		NULL	
+work_report	created_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+work_report	updated_at	datetime	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
