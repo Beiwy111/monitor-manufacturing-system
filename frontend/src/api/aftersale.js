@@ -27,3 +27,31 @@ export function closeCase(data) {
 export function insertCase(data) {
   return request.post('/afterSales/afterSalesCase/insert', data)
 }
+
+export function fetchRcaAnalysis(caseNo, force = false) {
+  return request.get('/afterSales/rca/analysis', { params: { caseNo, force } })
+}
+
+export function dispatchRcaTasks(data) {
+  return request.post('/afterSales/rca/dispatch', data)
+}
+
+export function fetchRcaTasks(department) {
+  return request.get('/afterSales/rca/tasks', { params: { department } })
+}
+
+export function confirmRcaRootCause(data) {
+  return request.post('/afterSales/rca/confirm-root-cause', data)
+}
+
+export function updateRcaTask(data) {
+  return request.post('/afterSales/rca/task/update', data)
+}
+
+export function fetchRcaTaskProgress(caseNo) {
+  return request.get('/afterSales/rca/task/progress', { params: { caseNo } })
+}
+
+export function fetchAfterSalesTriage(caseNo, force = false) {
+  return request.get('/afterSales/triage', { params: { caseNo, force } })
+}

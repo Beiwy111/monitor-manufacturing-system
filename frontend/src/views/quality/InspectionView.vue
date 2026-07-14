@@ -28,6 +28,25 @@
           <el-tag>待检 {{ pendingKpi.rawMaterial }} 单</el-tag>
         </button>
       </div>
+
+      <div class="qc-smart-lab" @click="openSmartVision(null)">
+        <div class="qc-smart-lab__glow" />
+        <div class="qc-smart-lab__content">
+          <div class="qc-smart-lab__icon">🔬</div>
+          <div class="qc-smart-lab__text">
+            <h3>AI 智能外观检测</h3>
+            <p>上传屏幕照片 · YOLOv8 实时识别划痕与表面缺陷 · 输出类型与置信度</p>
+          </div>
+          <el-button type="primary" size="large" round @click.stop="openSmartVision(null)">
+            打开智能检测窗口
+          </el-button>
+        </div>
+        <div class="qc-smart-lab__stats">
+          <span><b>YOLOv8-Seg</b>分割模型</span>
+          <span><b>实时</b>缺陷标注</span>
+          <span><b>辅助</b>人工判定</span>
+        </div>
+      </div>
     </section>
 
     <!-- Step 1：单据选择 -->
@@ -77,6 +96,9 @@
           <el-tag :type="statusTagType(selected?.inspectionStatus)" size="small">{{ selected?.inspectionStatusCn }}</el-tag>
         </div>
         <el-button type="primary" :disabled="!canGoReport" @click="finishInspect">查看报告（可选）→</el-button>
+        <el-button type="warning" plain @click="openSmartVision(selected)">
+          🔬 智能外观检测
+        </el-button>
       </div>
 
       <div v-if="isFinished" class="qc-flow-page__sample">
@@ -91,6 +113,7 @@
         :inspection="selected"
         :sample-quantity="sampleQuantity"
         @complete="finishInspect"
+        @open-smart-vision="openSmartVision(selected)"
       />
 
       <QcMaterialInspect
@@ -193,6 +216,13 @@
         <el-button type="danger" :loading="acting" @click="doFail">确认</el-button>
       </template>
     </el-dialog>
+
+    <SmartVisionWorkbench
+      v-model="smartVisionVisible"
+      :inspection="smartVisionInspection"
+      :unit-label="smartVisionUnitLabel"
+      @applied="onSmartVisionApplied"
+    />
   </div>
 </template>
 
@@ -213,6 +243,7 @@ import { FP_STATIONS } from '@/config/fpInspectionStations'
 import QcFiveStepWorkbench from '@/components/quality/QcFiveStepWorkbench.vue'
 import QcMaterialInspect from '@/components/quality/QcMaterialInspect.vue'
 import QualityReportPanel from '@/components/quality/QualityReportPanel.vue'
+import SmartVisionWorkbench from '@/components/quality/SmartVisionWorkbench.vue'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -243,6 +274,9 @@ const rawMaterials = ref([])
 const incomingDialog = ref(false)
 const incomingSaving = ref(false)
 const failDialog = ref(false)
+const smartVisionVisible = ref(false)
+const smartVisionInspection = ref(null)
+const smartVisionUnitLabel = ref('')
 const incomingForm = reactive({ materialId: null, batchNo: '', lotQuantity: 100, sampleQuantity: 10 })
 const failForm = reactive({ defectReason: '', defectType: '外观缺陷', defectQuantity: 1, severity: 'GENERAL' })
 
@@ -763,6 +797,23 @@ async function doPass() {
   }
 }
 
+function openSmartVision(inspection) {
+  smartVisionInspection.value = inspection || selected.value || null
+  smartVisionUnitLabel.value = fiveStepRef.value?.currentUnitLabel || ''
+  smartVisionVisible.value = true
+}
+
+function onSmartVisionApplied(payload) {
+  if (isFinished.value && fiveStepRef.value?.applyVisionRemark) {
+    fiveStepRef.value.applyVisionRemark(payload)
+    return
+  }
+  if (payload?.summary) {
+    actionRemark.value = payload.summary
+    ElMessage.success('检测结论已写入质检备注')
+  }
+}
+
 function openFailDialog() {
   const unqual = fpReportSnapshot.value?.unqualifiedQuantity || reportDetail.value?.unqualifiedQuantity || 1
   Object.assign(failForm, { defectReason: '', defectType: '外观缺陷', defectQuantity: Math.max(1, unqual) })
@@ -871,7 +922,94 @@ watch(routeCategory, (val) => {
   grid-template-columns: 1fr 1fr;
   gap: 24px;
   max-width: 900px;
+  margin: 0 auto 24px;
+}
+
+.qc-smart-lab {
+  position: relative;
+  max-width: 900px;
   margin: 0 auto;
+  padding: 24px 28px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f8fbff 0%, #f5f3ff 45%, #f0fdf4 100%);
+  border: 2px solid #dbeafe;
+  color: #1e293b;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.08);
+}
+
+.qc-smart-lab:hover {
+  transform: translateY(-3px);
+  border-color: #93c5fd;
+  box-shadow: 0 12px 32px rgba(64, 158, 255, 0.15);
+}
+
+.qc-smart-lab__glow {
+  position: absolute;
+  top: -40%;
+  right: -10%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(147, 197, 253, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.qc-smart-lab__content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.qc-smart-lab__icon {
+  font-size: 44px;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid #e0e7ff;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+}
+
+.qc-smart-lab__text {
+  flex: 1;
+  min-width: 200px;
+}
+
+.qc-smart-lab__text h3 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.qc-smart-lab__text p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.qc-smart-lab__stats {
+  position: relative;
+  display: flex;
+  gap: 20px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.qc-smart-lab__stats b {
+  margin-right: 4px;
+  color: #2563eb;
 }
 
 .qc-cat-card {

@@ -8,6 +8,12 @@
       </span>
     </div>
 
+    <div v-if="isAdminDemo" class="ruoyi-operator-bar ruoyi-operator-bar--binding">
+      <p class="ruoyi-operator-bar__meta">
+        演示模式：以第 8 道工序操作员 <strong>韩操作（han_operator）</strong> 身份操作真实派工
+      </p>
+    </div>
+
     <div v-if="binding" class="ruoyi-operator-bar ruoyi-operator-bar--binding">
       <p class="ruoyi-operator-bar__meta">
         固定车间：<strong>{{ binding.workshopName }}</strong>
@@ -71,13 +77,15 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useMesStore } from '@/stores/mes'
 import { DISPATCH_REPORTABLE, DISPATCH_ACTIVE } from '@/mock/constants'
-import { operatorBinding, pickCurrentDispatch, stageProgressLabel } from '@/utils/operatorWorkshop'
+import { pickCurrentDispatch, stageProgressLabel } from '@/utils/operatorWorkshop'
+import { useOperatorIdentity } from '@/composables/useOperatorIdentity'
 import { triggerAlarm } from '@/api/business'
 import { getTodayAttendance, checkIn, checkOut } from '@/api/attendance'
 import RoleWorkbench from '@/components/workbench/RoleWorkbench.vue'
 
 const userStore = useUserStore()
 const mes = useMesStore()
+const { operatorUsername, binding, reportPath, isAdminDemo, loginUsername } = useOperatorIdentity()
 const showAlarm = ref(false)
 const alarmDesc = ref('')
 const acting = ref(false)
@@ -85,16 +93,13 @@ const todayRecord = ref(null)
 const checkingIn = ref(false)
 const checkingOut = ref(false)
 
-const username = computed(() => userStore.userInfo?.username)
-const binding = computed(() => operatorBinding(username.value))
-const myDispatches = computed(() => mes.myDispatches(username.value))
+const myDispatches = computed(() => mes.myDispatches(operatorUsername.value))
 const activeCount = computed(() => myDispatches.value.filter(d => DISPATCH_REPORTABLE.includes(d.status)).length)
 const pendingAccept = computed(() => myDispatches.value.filter(d => d.status === '已分配').length)
 const currentDispatch = computed(() => pickCurrentDispatch(
   myDispatches.value.filter((d) => DISPATCH_ACTIVE.includes(d.status))
 ))
 
-const reportPath = '/production/report'
 
 const shortcuts = computed(() => [
   { label: '我的派工', path: '/production/my-dispatch' },
@@ -168,7 +173,7 @@ async function accept() {
   if (!currentDispatch.value || acting.value) return
   acting.value = true
   try {
-    await mes.acceptDispatch(currentDispatch.value.id, username.value, 'operator')
+    await mes.acceptDispatch(currentDispatch.value.id, operatorUsername.value, 'operator')
     ElMessage.success('已接收派工')
   } catch (e) {
     ElMessage.error(e?.message || '接收失败')
@@ -181,7 +186,7 @@ async function start() {
   if (!currentDispatch.value || acting.value) return
   acting.value = true
   try {
-    await mes.startDispatch(currentDispatch.value.id, username.value, 'operator')
+    await mes.startDispatch(currentDispatch.value.id, operatorUsername.value, 'operator')
     ElMessage.success('已开始生产')
   } catch (e) {
     ElMessage.error(e?.message || '开始生产失败')
@@ -208,7 +213,7 @@ async function submitAlarm() {
       alarmType: 'EQUIPMENT',
       alarmLevel: 'IMPORTANT',
       description: alarmDesc.value.trim(),
-      operator: username.value
+      operator: loginUsername.value
     })
     ElMessage.success('安灯已上报，设备维护人员将收到报警')
     showAlarm.value = false

@@ -49,6 +49,50 @@ public class AfterSalesController {
         return Result.success(afterSalesService.caseKpi());
     }
 
+    @GetMapping("/rca/analysis")
+    public Result<Map<String, Object>> rcaAnalysis(@RequestParam String caseNo,
+                                                   @RequestParam(defaultValue = "false") boolean force) {
+        if (caseNo == null || caseNo.isBlank())
+            throw new BusinessException("caseNo 不能为空");
+        return Result.success(afterSalesService.buildRcaAnalysis(caseNo, force));
+    }
+
+    @PostMapping("/rca/dispatch")
+    public Result<Map<String, Object>> dispatchRca(@RequestBody Map<String, Object> body) {
+        String caseNo = str(body, "caseNo");
+        if (caseNo.isBlank()) throw new BusinessException("caseNo 不能为空");
+        Object raw = body.get("departments");
+        List<String> departments = raw instanceof List<?> list
+                ? list.stream().map(String::valueOf).toList() : List.of();
+        return Result.success("协同任务派发成功", afterSalesService.dispatchRcaTasks(caseNo, departments));
+    }
+
+    @GetMapping("/rca/tasks")
+    public Result<List<Map<String, Object>>> rcaTasks(@RequestParam String department) {
+        return Result.success(afterSalesService.listRcaTasks(department));
+    }
+
+    @PostMapping("/rca/confirm-root-cause")
+    public Result<Map<String,Object>> confirmRootCause(@RequestBody Map<String,Object> body) {
+        return Result.success("最终根因已确认", afterSalesService.confirmRootCause(body));
+    }
+
+    @PostMapping("/rca/task/update")
+    public Result<Map<String,Object>> updateRcaTask(@RequestBody Map<String,Object> body) {
+        return Result.success("协同任务已更新", afterSalesService.updateRcaTask(body));
+    }
+
+    @GetMapping("/rca/task/progress")
+    public Result<Map<String,Object>> taskProgress(@RequestParam String caseNo) {
+        return Result.success(afterSalesService.rcaTaskProgress(caseNo));
+    }
+
+    @GetMapping("/triage")
+    public Result<Map<String,Object>> triage(@RequestParam String caseNo,
+                                             @RequestParam(defaultValue = "false") boolean force) {
+        return Result.success(afterSalesService.triageCase(caseNo, force));
+    }
+
     // ── 状态流转 ──────────────────────────────────────────────
 
     @PostMapping("/case/accept")

@@ -75,3 +75,13 @@ export function createIncomingInspection(data) {
 export function updateInspectionSampling(data) {
   return request.post('/quality/inspection/updateSampling', data)
 }
+
+/** YOLO 智能外观检测：上传图片，返回缺陷类型与标注结果 */
+export function detectAppearance(file) {
+  const form = new FormData()
+  form.append('file', file)
+  return request.post('/quality/vision/detect', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000
+  })
+}

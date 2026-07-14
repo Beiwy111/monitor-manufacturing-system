@@ -311,6 +311,94 @@ public class EquipmentServiceImpl implements EquipmentService {
         return r;
     }
 
+    @Override
+    public List<Map<String, Object>> calcHealthList() {
+        List<Equipment> equipments = equipmentMapper.equipmentList();
+        List<AndonAlarm> alarms = andonAlarmMapper.alarmList();
+        List<EquipmentMaintenanceRecord> records = equipmentMaintenanceRecordMapper.maintenanceList();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime since7d = now.minusDays(7);
+        LocalDateTime since30d = now.minusDays(30);
+        Map<Long, Equipment> eqMap = equipmentMap();
+        Map<Long, User> userMap = userMap();
+
+        Map<Long, Long> alarm7dCount = alarms.stream()
+                .filter(a -> a.getEquipmentId() != null && a.getReportedAt() != null && a.getReportedAt().isAfter(since7d))
+                .collect(Collectors.groupingBy(AndonAlarm::getEquipmentId, Collectors.counting()));
+        Map<Long, List<AndonAlarm>> alarm7dByEq = alarms.stream()
+                .filter(a -> a.getEquipmentId() != null && a.getReportedAt() != null && a.getReportedAt().isAfter(since7d))
+                .collect(Collectors.groupingBy(AndonAlarm::getEquipmentId));
+        Map<Long, Long> faultCount30d = records.stream()
+                .filter(r -> r.getEquipmentId() != null && r.getStartTime() != null && r.getStartTime().isAfter(since30d))
+                .filter(r -> "REPAIR".equals(r.getMaintenanceType()) || "OVERHAUL".equals(r.getMaintenanceType()))
+                .collect(Collectors.groupingBy(EquipmentMaintenanceRecord::getEquipmentId, Collectors.counting()));
+        Map<Long, List<EquipmentMaintenanceRecord>> recordsByEq = records.stream()
+                .filter(r -> r.getEquipmentId() != null)
+                .collect(Collectors.groupingBy(EquipmentMaintenanceRecord::getEquipmentId));
+
+        return equipments.stream().map(eq -> {
+            Long eqId = eq.getEquipmentId();
+            String code = safe(eq.getEquipmentCode());
+            int runHours = simulateRunHours(code);
+            int deductRun = runHours > 800 ? 20 : runHours > 500 ? 10 : 0;
+
+            long alarm7d = alarm7dCount.getOrDefault(eqId, 0L);
+            int deductAlarm = alarm7d >= 10 ? 30 : alarm7d >= 6 ? 20 : alarm7d >= 3 ? 10 : 0;
+
+            int daysSinceMaint;
+            if (eq.getLastMaintenanceAt() != null) {
+                daysSinceMaint = (int) Duration.between(eq.getLastMaintenanceAt(), now).toDays();
+            } else {
+                daysSinceMaint = 999;
+            }
+            int deductMaint = daysSinceMaint > 90 ? 25 : daysSinceMaint > 60 ? 18 : daysSinceMaint > 30 ? 10 : 0;
+
+            long fault30d = faultCount30d.getOrDefault(eqId, 0L);
+            int deductNc = fault30d >= 10 ? 25 : fault30d >= 5 ? 15 : fault30d >= 2 ? 5 : 0;
+
+            int score = Math.max(0, 100 - deductRun - deductAlarm - deductMaint - deductNc);
+            String level = scoreToLevel(score);
+
+            List<Map<String, Object>> alarmList7d = alarm7dByEq.getOrDefault(eqId, List.of()).stream()
+                    .sorted((a, b) -> b.getReportedAt().compareTo(a.getReportedAt()))
+                    .map(a -> alarmView(a, eqMap, userMap))
+                    .collect(Collectors.toList());
+            List<Map<String, Object>> maintList = recordsByEq.getOrDefault(eqId, List.of()).stream()
+                    .sorted((a, b) -> {
+                        LocalDateTime ta = a.getStartTime() != null ? a.getStartTime() : LocalDateTime.MIN;
+                        LocalDateTime tb = b.getStartTime() != null ? b.getStartTime() : LocalDateTime.MIN;
+                        return tb.compareTo(ta);
+                    })
+                    .limit(5)
+                    .map(r -> maintenanceView(r, eqMap, userMap))
+                    .collect(Collectors.toList());
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("equipmentId", eqId);
+            result.put("equipmentCode", code);
+            result.put("equipmentName", safe(eq.getEquipmentName()));
+            result.put("equipmentType", safe(eq.getEquipmentType()));
+            result.put("workshop", safe(eq.getWorkshop()));
+            result.put("status", safe(eq.getStatus()));
+            result.put("statusCn", equipmentStatusCn(eq.getStatus()));
+            result.put("lastMaintenanceAt", fmt(eq.getLastMaintenanceAt()));
+            result.put("healthScore", score);
+            result.put("healthLevel", level);
+            result.put("runHours", runHours);
+            result.put("alarm7d", alarm7d);
+            result.put("daysSinceMaint", daysSinceMaint);
+            result.put("faultCount30d", fault30d);
+            result.put("deductRun", deductRun);
+            result.put("deductAlarm", deductAlarm);
+            result.put("deductMaint", deductMaint);
+            result.put("deductNc", deductNc);
+            result.put("advice", genAdvice(score, code, alarm7d, daysSinceMaint, fault30d));
+            result.put("alarmList7d", alarmList7d);
+            result.put("maintList", maintList);
+            return result;
+        }).sorted(Comparator.comparingInt(a -> (Integer) a.get("healthScore"))).collect(Collectors.toList());
+    }
+
     // ===== 内部辅助 =====
     private boolean isProductionEquipment(Equipment equipment) {
         if (equipment == null) {
@@ -520,6 +608,25 @@ public class EquipmentServiceImpl implements EquipmentService {
         return switch (db) {
             case "COMPLETED" -> "已完成"; case "UNRESOLVED" -> "未解决"; case "TEMPORARY_FIXED" -> "临时修复"; default -> db;
         };
+    }
+
+    private String scoreToLevel(int s) {
+        return s >= 85 ? "GOOD" : s >= 65 ? "WARN" : s >= 40 ? "ALERT" : "DANGER";
+    }
+
+    private int simulateRunHours(String code) {
+        return 100 + (Math.abs(code.hashCode()) % 900);
+    }
+
+    private String genAdvice(int score, String code, long alarm7d, int daysSinceMaint, long faultCount30d) {
+        if (score >= 85) return code + " 运行状态优良，无需干预。";
+        List<String> parts = new ArrayList<>();
+        if (alarm7d >= 6) parts.add("近7天报警 " + alarm7d + " 次，频率异常");
+        if (daysSinceMaint > 60) parts.add("已 " + daysSinceMaint + " 天未维保，超出保养周期");
+        if (faultCount30d >= 5) parts.add("近30天故障维修 " + faultCount30d + " 次，故障率偏高");
+        if (parts.isEmpty()) parts.add("健康度有所下降，建议关注");
+        String urgency = score < 40 ? "立即" : score < 65 ? "8小时内" : "本周内";
+        return code + " 健康度 " + score + "，" + String.join("；", parts) + "，建议 " + urgency + " 安排维护。";
     }
 
     private String safe(String v) { return v == null ? "" : v; }

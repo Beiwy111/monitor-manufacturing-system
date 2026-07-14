@@ -211,13 +211,6 @@
         <div v-else class="order-track-empty">请在上方表格选择订单查看详情</div>
       </div>
     </div>
-
-    <PlannerAgentDialog
-      v-model="plannerVisible"
-      :default-order-ids="plannerOrderIds"
-      combined-batch
-      @success="onPlannerSuccess"
-    />
   </div>
 </template>
 
@@ -228,7 +221,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { ORDER_STATUS } from '@/mock/constants'
 import { fetchOrderPlanningContext } from '@/api/planner'
-import PlannerAgentDialog from '@/components/mes/PlannerAgentDialog.vue'
+import { navigateToSmartScheduling } from '@/composables/usePlannerAgent'
 
 const router = useRouter()
 const mes = useMesStore()
@@ -241,8 +234,6 @@ const sel = ref(null)
 const tableRef = ref(null)
 const selectedRows = ref([])
 const lockedModel = ref('')
-const plannerVisible = ref(false)
-const plannerOrderIds = ref([])
 const detailTab = ref('basic')
 const tableLoading = ref(false)
 const ctxLoading = ref(false)
@@ -697,8 +688,11 @@ async function handleSmartSchedule() {
     }
   }
 
-  plannerOrderIds.value = targets.map((t) => t.id)
-  plannerVisible.value = true
+  navigateToSmartScheduling(router, {
+    orderIds: targets.map((t) => t.id),
+    combined: targets.length > 1,
+    from: route.fullPath
+  })
 }
 
 function goGantt() {

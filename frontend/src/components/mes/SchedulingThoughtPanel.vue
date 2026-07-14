@@ -1,6 +1,6 @@
 <template>
-  <div class="thought-shell" :class="{ 'thought-shell--embedded': embedded }">
-    <div v-if="!embedded" class="thought-shell__hero">
+  <div class="thought-shell" :class="shellClass">
+    <div v-if="!embedded && !fullscreen" class="thought-shell__hero">
       <div class="thought-shell__hero-left">
         <h3>{{ title }}</h3>
         <p>{{ subtitle }}</p>
@@ -17,7 +17,7 @@
       </div>
     </div>
 
-    <div v-else class="thought-shell__bar">
+    <div v-else-if="embedded && !fullscreen" class="thought-shell__bar">
       <div>
         <h3>{{ title }}</h3>
         <p>{{ subtitle }}</p>
@@ -29,7 +29,7 @@
       </div>
     </div>
 
-    <div class="thought-layout" :class="{ 'thought-layout--embedded': embedded }">
+    <div class="thought-layout" :class="layoutClass">
       <div class="thought-stream">
         <div class="thought-stream__header">
           <span class="thought-stream__title">
@@ -44,7 +44,7 @@
           <div>点击「重新分析」后，Agent 将按步骤展示订单、库存、设备、人员的推演路径</div>
         </div>
 
-        <div class="thought-list">
+        <div class="thought-list" ref="thoughtListRef">
           <div
             v-for="(item, idx) in thoughtStream"
             :key="item.key || idx"
@@ -79,7 +79,11 @@
               </div>
 
               <div class="thought-item__summary">
-                {{ item.summary || item.thought || item.detail }}
+                {{ item.displaySummary ?? item.summary ?? item.thought ?? item.detail }}
+                <span
+                  v-if="running && idx === thoughtStream.length - 1 && (item.displaySummary ?? '').length < (item.summary || item.thought || item.detail || '').length"
+                  class="thought-cursor"
+                >|</span>
               </div>
 
               <div v-if="expandedKey === item.key" class="thought-item__expand">
@@ -108,14 +112,14 @@
             </div>
           </div>
 
-          <div v-if="running" class="thought-item thought-item--pending">
+          <div v-if="showPendingLoader" class="thought-item thought-item--pending">
             <div class="thought-item__rail">
               <div class="thought-item__avatar thought-item__avatar--loading">
                 <el-icon class="is-loading"><Loading /></el-icon>
               </div>
             </div>
             <div class="thought-item__card thought-item__card--pending">
-              <div class="thought-item__text">{{ pendingText }}</div>
+              <div class="thought-item__text">{{ pendingLoaderText }}</div>
             </div>
           </div>
         </div>
@@ -176,6 +180,7 @@ const props = defineProps({
   title: { type: String, default: '智能排产引擎' },
   subtitle: { type: String, default: '订单 → 库存 → 物料 → 设备 → 人员 → 车间分配 → 生产计划' },
   embedded: { type: Boolean, default: false },
+  fullscreen: { type: Boolean, default: false },
   thoughtStream: { type: Array, default: () => [] },
   evidenceList: { type: Array, default: () => [] },
   allEvidence: { type: Array, default: () => [] },
@@ -193,6 +198,17 @@ const expandedKey = ref('')
 const expandedEvidenceId = ref('')
 const highlightedEvidenceId = ref('')
 const evidenceListRef = ref(null)
+const thoughtListRef = ref(null)
+
+const shellClass = computed(() => ({
+  'thought-shell--embedded': props.embedded && !props.fullscreen,
+  'thought-shell--fullscreen': props.fullscreen
+}))
+
+const layoutClass = computed(() => ({
+  'thought-layout--embedded': props.embedded && !props.fullscreen,
+  'thought-layout--fullscreen': props.fullscreen
+}))
 
 const AVATAR_COLORS = ['#4f8cff', '#6c5ce7', '#00b894', '#e17055', '#0984e3', '#fdcb6e', '#e84393']
 
@@ -207,6 +223,16 @@ const progressPercent = computed(() => {
     return Math.min(95, Math.round((props.activeIndex / props.totalSteps) * 100))
   }
   return props.thoughtStream.length ? 100 : 0
+})
+
+/** 仅在首步尚未出现时显示加载占位，避免与当前步骤打字内容重复 */
+const showPendingLoader = computed(() => {
+  if (!props.running) return false
+  return props.thoughtStream.length === 0
+})
+
+const pendingLoaderText = computed(() => {
+  return props.pendingText || '正在启动智能排产引擎，接入订单、库存、设备与人员数据…'
 })
 
 const filterKey = computed(() => props.selectedStepKey || '')
@@ -230,20 +256,52 @@ const visibleEvidence = computed(() => {
 
 watch(() => props.activeStepKey, (key) => {
   if (props.running && key) {
-    expandedKey.value = key
+    if (!props.fullscreen) {
+      expandedKey.value = key
+    } else {
+      expandedKey.value = ''
+    }
     emit('select-step', key)
+    scrollThoughtToBottom()
   }
 })
 
 watch(() => props.thoughtStream.length, (len, prev) => {
   if (len > prev && props.running) {
-    const last = props.thoughtStream[len - 1]
-    if (last?.key) expandedKey.value = last.key
+    if (!props.fullscreen) {
+      const last = props.thoughtStream[len - 1]
+      if (last?.key) expandedKey.value = last.key
+    } else {
+      expandedKey.value = ''
+    }
+    scrollThoughtToBottom()
   }
   if (!props.running && len && !expandedKey.value) {
-    expandedKey.value = props.thoughtStream[len - 1]?.key || ''
+    expandedKey.value = props.fullscreen ? '' : (props.thoughtStream[len - 1]?.key || '')
   }
 })
+
+watch(() => visibleEvidence.value.length, (len, prev) => {
+  if (len > prev && props.running) {
+    scrollEvidenceToBottom()
+  }
+})
+
+function scrollThoughtToBottom() {
+  nextTick(() => {
+    const el = thoughtListRef.value
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+  })
+}
+
+function scrollEvidenceToBottom() {
+  nextTick(() => {
+    const el = evidenceListRef.value
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+  })
+}
 
 function stepEvidence(stepKey) {
   const list = props.allEvidence?.length ? props.allEvidence : props.evidenceList
@@ -702,4 +760,148 @@ function metricEntries(ev) {
   border-radius: 6px;
 }
 .evidence-card__source { font-size: 11px; color: #909399; }
+
+/* —— 全屏模式：仿图3简洁双栏 —— */
+.thought-shell--fullscreen {
+  border: none;
+  border-radius: 12px;
+  box-shadow: none;
+  background: #fff;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.thought-layout--fullscreen {
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
+  min-height: 0;
+}
+
+.thought-shell--fullscreen .thought-stream,
+.thought-shell--fullscreen .evidence-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.thought-shell--fullscreen .thought-stream__header,
+.thought-shell--fullscreen .evidence-panel__header {
+  padding: 18px 22px;
+  font-size: 17px;
+  font-weight: 700;
+  background: #fff;
+  border-bottom: 1px solid #eef2f7;
+  flex-shrink: 0;
+}
+
+.thought-shell--fullscreen .thought-stream__hint {
+  font-size: 13px;
+}
+
+.thought-shell--fullscreen .thought-list,
+.thought-shell--fullscreen .evidence-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  padding: 16px 20px;
+}
+
+.thought-shell--fullscreen .thought-list {
+  padding-right: 12px;
+}
+
+.thought-shell--fullscreen .thought-item__avatar {
+  width: 46px;
+  height: 46px;
+  font-size: 14px;
+}
+
+.thought-shell--fullscreen .thought-item__card {
+  padding: 16px 18px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.thought-shell--fullscreen .thought-item__agent {
+  font-size: 16px;
+}
+
+.thought-shell--fullscreen .thought-badge {
+  font-size: 12px;
+  padding: 3px 12px;
+}
+
+.thought-shell--fullscreen .thought-item__summary {
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.thought-cursor {
+  display: inline-block;
+  color: #4f8cff;
+  font-weight: 400;
+  animation: thought-cursor-blink 0.9s step-end infinite;
+  margin-left: 2px;
+}
+
+@keyframes thought-cursor-blink {
+  50% { opacity: 0; }
+}
+
+.thought-shell--fullscreen .thought-item {
+  margin-bottom: 4px;
+}
+
+.thought-shell--fullscreen .thought-item__card {
+  margin-bottom: 8px;
+}
+
+.thought-shell--fullscreen .thought-item__expand {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.thought-shell--fullscreen .thought-item__text,
+.thought-shell--fullscreen .thought-item__expand-action {
+  font-size: 15px;
+}
+
+.thought-shell--fullscreen .thought-item__lines {
+  font-size: 14px;
+}
+
+.thought-shell--fullscreen .thought-item__fold-hint {
+  font-size: 13px;
+}
+
+.thought-shell--fullscreen .evidence-card {
+  padding: 16px 18px;
+  border-radius: 12px;
+}
+
+.thought-shell--fullscreen .evidence-card__title {
+  font-size: 16px;
+}
+
+.thought-shell--fullscreen .evidence-card__snippet {
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.thought-shell--fullscreen .evidence-card__top {
+  font-size: 12px;
+}
+
+.thought-shell--fullscreen .evidence-metric__val {
+  font-size: 14px;
+}
+
+.thought-shell--fullscreen .evidence-empty,
+.thought-shell--fullscreen .thought-empty {
+  font-size: 15px;
+  padding: 64px 24px;
+}
 </style>

@@ -45,6 +45,7 @@
           </div>
         </div>
         <div class="header-user">
+          <NotificationCenter />
           <el-tooltip content="全屏">
             <el-button link class="header-user__btn" @click="toggleFullscreen">
               <el-icon><FullScreen /></el-icon>
@@ -69,6 +70,7 @@
       <el-main class="layout-main ruoyi-app-main" :class="{ 'layout-main--screen': isScreenPage }">
         <router-view />
       </el-main>
+      <AssistantWidget />
     </el-container>
   </el-container>
 </template>
@@ -82,10 +84,14 @@ import {
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import TagsView from '@/components/ruoyi/TagsView.vue'
+import NotificationCenter from '@/components/notification/NotificationCenter.vue'
+import AssistantWidget from '@/components/assistant/AssistantWidget.vue'
+import { useGlobalBusinessMonitor } from '@/composables/useGlobalBusinessMonitor'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+useGlobalBusinessMonitor()
 
 const homePath = computed(() => userStore.dashboardPath)
 const activeMenu = computed(() => route.path)

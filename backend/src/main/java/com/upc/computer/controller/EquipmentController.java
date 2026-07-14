@@ -94,6 +94,12 @@ public class EquipmentController {
         return Result.success(equipmentService.workshopOverview());
     }
 
+    /** 设备健康孪生列表（3D 车间大屏、健康卡片） */
+    @GetMapping("/health/list")
+    public Result<List<Map<String, Object>>> healthList() {
+        return Result.success(equipmentService.calcHealthList());
+    }
+
     // ===== 安灯报警 + 维保闭环动作 =====
     @PostMapping("/triggerAlarm")
     public Result<AndonAlarm> triggerAlarm(@RequestBody EquipmentActionRequest req) {

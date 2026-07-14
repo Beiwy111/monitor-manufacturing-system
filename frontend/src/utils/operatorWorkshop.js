@@ -11,6 +11,15 @@ export const PRIMARY_OPERATORS = {
   bracket: 'han_operator'
 }
 
+/** 系统管理员演示操作员模块时，映射为第 8 道工序（支架底座装配）主责账号 */
+export const ADMIN_DEMO_OPERATOR = PRIMARY_OPERATORS.bracket
+
+/** 解析 MES 操作员 API 使用的登录名（admin → han_operator） */
+export function resolveOperatorUsername(roleKey, username) {
+  if (roleKey === 'admin') return ADMIN_DEMO_OPERATOR
+  return username || ''
+}
+
 export const OPERATOR_BINDINGS = {
   li_operator: { workshopKey: 'mb-1', workshopName: '主板装配一车间', stageName: '主板装配', stageOrder: 1 },
   wu_operator: { workshopKey: 'mb-2', workshopName: '主板装配二车间', stageName: '主板装配', stageOrder: 1 },

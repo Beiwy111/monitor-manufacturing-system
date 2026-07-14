@@ -23,6 +23,15 @@
       </div>
     </div>
 
+    <!-- 3D 车间实景大屏 -->
+    <div class="panel panel--scene">
+      <div class="panel__title">
+        生产车间 3D 实景
+        <el-tag size="small" type="info" style="margin-left:8px">点击设备查看健康详情</el-tag>
+      </div>
+      <FactoryScene ref="factorySceneRef" class="dd-factory" />
+    </div>
+
     <!-- 生产车间总览（8 工序 × 19 车间，活数据） -->
     <div class="panel panel--workshops">
       <div class="panel__title">
@@ -147,9 +156,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import BoardChart from '@/components/board/BoardChart.vue'
+import FactoryScene from '@/views/device/FactoryScene.vue'
 import {
   fetchEquipmentKpi, fetchEquipmentViews, fetchAlarmViews, fetchMaintenanceViews,
-  fetchEquipmentWorkshopOverview
+  fetchEquipmentWorkshopOverview, fetchEquipmentHealth
 } from '@/api/business'
 import { mergeWorkshopData } from '@/composables/useWorkshopScene'
 import { PRODUCTION_STAGES } from '@/utils/productionProgress'
@@ -164,6 +174,7 @@ const STATUS_META = {
 }
 
 const loading = ref(false)
+const factorySceneRef = ref(null)
 const kpi = ref({})
 const equipments = ref([])
 const workshops = ref([])
@@ -298,17 +309,27 @@ function levelType(l) {
 async function loadAll() {
   loading.value = true
   try {
-    const [k, eq, al, mr, overview] = await Promise.all([
+    const [kRes, eqRes, alRes, mrRes, ovRes] = await Promise.allSettled([
       fetchEquipmentKpi(), fetchEquipmentViews(), fetchAlarmViews(), fetchMaintenanceViews(),
       fetchEquipmentWorkshopOverview()
     ])
-    kpi.value = k || {}
-    equipments.value = eq || []
-    alarms.value = al || []
-    maintenance.value = mr || []
-    const wsList = overview?.workshops || []
-    workshops.value = mergeWorkshopData(wsList)
+    const pick = (res, fallback) => (res.status === 'fulfilled' ? (res.value ?? fallback) : fallback)
+    kpi.value = pick(kRes, {})
+    equipments.value = pick(eqRes, [])
+    alarms.value = pick(alRes, [])
+    maintenance.value = pick(mrRes, [])
+    workshops.value = mergeWorkshopData(pick(ovRes, {})?.workshops || [])
     updatedAt.value = new Date()
+    try {
+      const healthList = await fetchEquipmentHealth({ silent: true })
+      factorySceneRef.value?.syncEquipments(Array.isArray(healthList) ? healthList : [])
+    } catch { /* 3D 场景自行轮询 */ }
+    const failed = [kRes, eqRes, alRes, mrRes, ovRes].filter((r) => r.status === 'rejected')
+    if (failed.length === failed.length) {
+      ElMessage.error(failed[0].reason?.message || '加载设备数据失败')
+    } else if (ovRes.status === 'rejected') {
+      console.warn('[DeviceDashboard] 车间总览加载失败，已使用本地车间模板', ovRes.reason)
+    }
   } catch (e) {
     ElMessage.error(e?.message || '加载设备数据失败')
   } finally {
@@ -360,6 +381,9 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .dd-row { display: grid; gap: 14px; }
 .dd-row--charts { grid-template-columns: 1.1fr 1fr 1.2fr; }
 .dd-row--lists { grid-template-columns: 1fr 1fr; }
+
+.panel--scene { padding-bottom: 10px; }
+.dd-factory { width: 100%; }
 
 /* 设备状态墙 */
 .panel--workshops { margin-bottom: 14px; }

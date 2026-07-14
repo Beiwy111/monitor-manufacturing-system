@@ -5,6 +5,11 @@
         <h3 class="qc5__title">显示器专业五步检测</h3>
         <p class="qc5__desc">按行业终检标准逐台完成：坏点 → 色域 → 漏光 → 亮度均匀性 → 屏闪</p>
       </div>
+      <div class="qc5__header-actions">
+        <el-button type="warning" plain @click="$emit('open-smart-vision')">
+          🔬 AI 智能外观检测
+        </el-button>
+      </div>
       <div class="qc5__progress">
         <span>总进度</span>
         <el-progress :percentage="overallPct" :stroke-width="14" :color="progressColor" />
@@ -167,7 +172,7 @@ const props = defineProps({
   sampleQuantity: { type: Number, default: 1 }
 })
 
-defineEmits(['complete', 'update:matrix'])
+defineEmits(['complete', 'update:matrix', 'open-smart-vision'])
 
 const stations = FP_STATIONS
 const simulatorMap = {
@@ -349,7 +354,22 @@ function getInspectionSummary() {
   }
 }
 
-defineExpose({ getInspectionSummary, allDone, matrixRows })
+function applyVisionRemark(payload) {
+  const rec = ensureRecord(activeStationId.value)
+  const prefix = rec.remark ? `${rec.remark}\n` : ''
+  rec.remark = prefix + (payload?.summary || '')
+  if (payload?.defect) {
+    rec.passed = false
+    rec.measuredValue = 'AI检测：外观不合格'
+  } else if (payload?.passed) {
+    rec.measuredValue = rec.measuredValue || 'AI检测：外观正常'
+  }
+  ElMessage.success('AI 检测结论已写入当前工序备注')
+}
+
+const currentUnitLabel = computed(() => currentUnit.value?.serialNo || '')
+
+defineExpose({ getInspectionSummary, allDone, matrixRows, applyVisionRemark, currentUnitLabel })
 </script>
 
 <style scoped>
@@ -367,6 +387,10 @@ defineExpose({ getInspectionSummary, allDone, matrixRows })
   gap: 16px;
   margin-bottom: 12px;
   flex-wrap: wrap;
+}
+
+.qc5__header-actions {
+  flex-shrink: 0;
 }
 
 .qc5__title {

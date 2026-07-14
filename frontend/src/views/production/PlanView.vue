@@ -180,19 +180,18 @@
       </el-tabs>
     </div>
 
-    <PlannerAgentDialog v-model="smartVisible" :default-order-id="smartOrderId" @success="onPlanSaved" />
     <ManualPlanWizard v-model="manualVisible" :default-order-id="manualOrderId" @success="onPlanSaved" />
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { PLAN_STATUS } from '@/mock/constants'
-import PlannerAgentDialog from '@/components/mes/PlannerAgentDialog.vue'
+import { navigateToSmartScheduling } from '@/composables/usePlannerAgent'
 import ManualPlanWizard from '@/components/mes/ManualPlanWizard.vue'
 import PlanGanttChart from '@/components/planner/PlanGanttChart.vue'
 import PlanDetailPanel from '@/components/planner/PlanDetailPanel.vue'
@@ -218,6 +217,7 @@ import { exportPlanRows, formatPlanExportFilename } from '@/utils/planExcelExpor
 const mes = useMesStore()
 const userStore = useUserStore()
 const route = useRoute()
+const router = useRouter()
 
 const activeTab = ref('plans')
 const isFullscreen = ref(false)
@@ -252,9 +252,7 @@ const selectedPlan = ref(null)
 const planSchedules = ref([])
 const planHistory = ref([])
 const selectedOrderContext = ref(null)
-const smartVisible = ref(false)
 const manualVisible = ref(false)
-const smartOrderId = ref('')
 const manualOrderId = ref('')
 
 const operatorName = computed(() => userStore.userInfo?.username || userStore.username || '')
@@ -533,8 +531,8 @@ async function validateSelectedPlan() {
 }
 
 function openSmart(orderId) {
-  smartOrderId.value = orderId || selectedPlan.value?.orderId || pendingOrders.value[0]?.id || ''
-  smartVisible.value = true
+  const id = orderId || selectedPlan.value?.orderId || pendingOrders.value[0]?.id || ''
+  navigateToSmartScheduling(router, { orderId: id })
 }
 
 function openManual(orderId) {
@@ -597,7 +595,7 @@ onMounted(async () => {
   }
   if (route.query.orderId) {
     const orderId = String(route.query.orderId)
-    if (route.query.action === 'schedule') openSmart(orderId)
+    if (route.query.action === 'schedule') navigateToSmartScheduling(router, { orderId })
     else activeTab.value = 'pending'
   }
 })

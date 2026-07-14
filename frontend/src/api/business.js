@@ -130,8 +130,12 @@ export function fetchEquipmentWorkshopOverview() {
   return request.get('/equipment/workshop/overview')
 }
 
-export function fetchAlarmViews() {
-  return request.get('/equipment/alarm/views')
+export function fetchEquipmentHealth(config = {}) {
+  return request.get('/equipment/health/list', config)
+}
+
+export function fetchAlarmViews(opts = {}) {
+  return request.get('/equipment/alarm/views', { silent: !!opts.silent })
 }
 
 export function fetchMaintenanceViews() {

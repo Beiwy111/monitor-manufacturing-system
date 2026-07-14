@@ -12,6 +12,16 @@ ai:
   timeout-seconds: 60
   mock: false
 
+# MES 全局语音助手（NLU/ASR 复用 ai.api-key 与 ai.base-url）
+assistant:
+  confidence-threshold: 0.55
+  nlu:
+    mock: false
+    model: qwen-plus
+  asr:
+    mock: false
+    model: qwen3-asr-flash
+
 # 通义千问（DashScope）— 质检报告 AI 生成
 qwen:
   enabled: true
@@ -66,6 +76,15 @@ logging:
     org.apache.ibatis: debug
     org.mybatis: debug
     java.sql: debug
+
+# YOLO 外观缺陷检测 — 对应项目目录 Mobile-Phone-Defect（运行 start-yolo.bat）
+yolo:
+  enabled: true
+  base-url: http://localhost:8000
+  predict-path: /predict/json
+  timeout-seconds: 90
+  mock: false
+  project-dir: D:/soft/idea/computer/Mobile-Phone-Defect
 
 server:
   port: 8088

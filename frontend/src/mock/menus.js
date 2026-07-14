@@ -98,6 +98,7 @@ export const roleMenus = {
   ],
   aftersale: [
     { menuId: 10, menuName: '售后管理', children: [
+      { menuId: 100, menuName: '调查工作台', path: '/dashboard/aftersale' },
       { menuId: 101, menuName: '售后登记', path: '/aftersale/case' },
       { menuId: 102, menuName: '客户反馈', path: '/aftersale/feedback' },
       { menuId: 103, menuName: '售后处理', path: '/aftersale/process' },

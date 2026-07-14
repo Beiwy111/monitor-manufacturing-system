@@ -27,6 +27,18 @@ public interface AfterSalesService {
     Map<String, Object> getTraceDetail(String caseNo);
     Map<String, Object> caseKpi();
 
+    /** 构建售后 AI 根因分析快照。 */
+    Map<String, Object> buildRcaAnalysis(String caseNo, boolean force);
+
+    /** 根据分析结果生成跨部门协同派发回执。 */
+    Map<String, Object> dispatchRcaTasks(String caseNo, List<String> departments);
+
+    List<Map<String, Object>> listRcaTasks(String department);
+    Map<String,Object> confirmRootCause(Map<String,Object> request);
+    Map<String,Object> updateRcaTask(Map<String,Object> request);
+    Map<String,Object> rcaTaskProgress(String caseNo);
+    Map<String,Object> triageCase(String caseNo, boolean force);
+
     // ── 状态流转 ──────────────────────────────────────────────
     /** OPEN -> PROCESSING：受理案例 */
     AfterSalesCase acceptCase(String caseNo, String operator);

@@ -46,7 +46,7 @@ function buildUserInfo(session) {
   }
 }
 
-const _MENU_VERSION = '8'
+const _MENU_VERSION = '14'
 if (localStorage.getItem('menuVersion') !== _MENU_VERSION) {
   localStorage.removeItem('menus')
   localStorage.setItem('menuVersion', _MENU_VERSION)
@@ -101,17 +101,14 @@ export const useUserStore = defineStore('user', {
       await this.loadMenus()
       this.resetTagsHome()
       if (MES_LIVE_MODE) {
-        try {
-          await useMesStore().hydrateFromApi()
-        } catch (e) {
+        useMesStore().hydrateFromApi().catch((e) => {
           console.warn('MES 数据加载失败，登录仍有效', e)
-        }
+        })
       }
       return this.userInfo
     },
     async loadMenus() {
-      // 菜单结构版本号：改动菜单后递增，强制清除旧缓存
-      const MENU_VERSION = '6'
+      const MENU_VERSION = _MENU_VERSION
       if (localStorage.getItem('menuVersion') !== MENU_VERSION) {
         localStorage.removeItem('menus')
         localStorage.setItem('menuVersion', MENU_VERSION)
@@ -132,7 +129,9 @@ export const useUserStore = defineStore('user', {
     },
     resetTagsHome() {
       const path = this.dashboardPath
-      const title = path === BOARD_PATH ? '生产调度大屏' : '首页'
+      let title = '首页'
+      if (path === BOARD_PATH) title = '生产调度大屏'
+      else if (path === '/dashboard/aftersale') title = '调查工作台'
       useTagsViewStore().visitedViews = [{ path, title, affix: true }]
     },
     async refreshUserInfo() {

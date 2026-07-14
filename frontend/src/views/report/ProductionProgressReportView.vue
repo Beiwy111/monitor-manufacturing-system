@@ -158,16 +158,16 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowRight, Download, Refresh, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
-import { useUserStore } from '@/stores/user'
 import { DISPATCH_REPORTABLE } from '@/mock/constants'
+import { useOperatorIdentity } from '@/composables/useOperatorIdentity'
 import { exportExcelSheets } from '@/utils/excelExport'
 import { finishedGoodsQty, isProductionStep, workshopForStep } from '@/utils/productionProgress'
 
 const mes = useMesStore()
-const userStore = useUserStore()
+const { operatorUsername, operatorDisplayName } = useOperatorIdentity()
 
-const operatorName = computed(() => userStore.userInfo?.realName || userStore.userInfo?.username || '操作员')
-const username = computed(() => userStore.userInfo?.username || '')
+const operatorName = operatorDisplayName
+const username = operatorUsername
 
 const filters = reactive({
   docNo: '',

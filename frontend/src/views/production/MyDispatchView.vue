@@ -17,7 +17,16 @@
         title="暂无派工任务。请生产主管在「工单派工」页将任务派给您。"
         style="margin: 12px 0"
       />
-      <el-table v-else :data="myList" highlight-current-row class="mes-table-light" @current-change="onRowClick">
+      <el-alert
+        v-if="isAdminDemo"
+        type="info"
+        :closable="false"
+        show-icon
+        title="系统管理员以第 8 道工序操作员身份查看派工"
+        style="margin-bottom: 12px"
+      />
+
+      <el-table v-if="myList.length" :data="myList" highlight-current-row class="mes-table-light" @current-change="onRowClick">
         <el-table-column prop="id" label="派工单" width="148" show-overflow-tooltip />
         <el-table-column prop="workOrderNo" label="工单" width="148" show-overflow-tooltip />
         <el-table-column prop="workshopName" label="车间" min-width="120" show-overflow-tooltip />
@@ -54,16 +63,15 @@ import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { DISPATCH_STATUS, DISPATCH_REPORTABLE } from '@/mock/constants'
 import { useMesFilter, detailRows } from '@/composables/useMesPage'
-import { operatorBinding, stageProgressLabel } from '@/utils/operatorWorkshop'
+import { useOperatorIdentity } from '@/composables/useOperatorIdentity'
+import { stageProgressLabel } from '@/utils/operatorWorkshop'
 import MesPageShell from '@/components/mes/MesPageShell.vue'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 
 const mes = useMesStore()
 const userStore = useUserStore()
-const username = computed(() => userStore.userInfo?.username)
-const binding = computed(() => operatorBinding(username.value))
-const reportPath = '/production/report'
-const myList = computed(() => mes.myDispatches(username.value))
+const { operatorUsername, binding, reportPath, isAdminDemo } = useOperatorIdentity()
+const myList = computed(() => mes.myDispatches(operatorUsername.value))
 const { selected, onRowClick } = useMesFilter(myList, ['id'])
 const rows = computed(() => detailRows(selected.value, [
   { key: 'workOrderNo', label: '工单' },
@@ -77,7 +85,7 @@ const rows = computed(() => detailRows(selected.value, [
 async function accept() {
   if (!selected.value) return
   try {
-    const ok = await mes.acceptDispatch(selected.value.id, username.value, userStore.roleKey)
+    const ok = await mes.acceptDispatch(selected.value.id, operatorUsername.value, userStore.roleKey)
     if (ok !== false) {
       ElMessage.success('已接收派工，请点击「开始生产」')
     } else {
@@ -91,7 +99,7 @@ async function accept() {
 async function start() {
   if (!selected.value) return
   try {
-    const ok = await mes.startDispatch(selected.value.id, username.value, userStore.roleKey)
+    const ok = await mes.startDispatch(selected.value.id, operatorUsername.value, userStore.roleKey)
     if (ok !== false) {
       ElMessage.success('已开始生产，可前往报工')
     } else {

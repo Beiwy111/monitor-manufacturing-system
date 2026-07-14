@@ -1,5 +1,14 @@
 <template>
   <div class="op-report-page">
+    <el-alert
+      v-if="isAdminDemo"
+      type="info"
+      :closable="false"
+      show-icon
+      title="系统管理员演示模式"
+      description="操作员模块以第 8 道工序（支架底座装配 · han_operator）身份操作真实派工数据；完成报工后可提交质检，打通生产→质检流程。前 7 道工序须已在系统中完成。"
+      style="margin-bottom: 16px"
+    />
     <!-- 工序选择 -->
     <section v-if="flowStep === 0" class="op-report-page__section">
       <h2 class="op-report-page__heading">选择报工工序</h2>
@@ -58,9 +67,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
-import { useUserStore } from '@/stores/user'
 import { DISPATCH_ACTIVE } from '@/mock/constants'
-import { operatorBinding } from '@/utils/operatorWorkshop'
+import { useOperatorIdentity } from '@/composables/useOperatorIdentity'
 import {
   OPERATOR_PROCESS_STATIONS,
   stationById,
@@ -71,24 +79,24 @@ import OperatorProcessWorkbench from '@/components/production/OperatorProcessWor
 const route = useRoute()
 const router = useRouter()
 const mes = useMesStore()
-const userStore = useUserStore()
 
 const flowStep = ref(0)
 const activeStationId = ref('')
 
 const stations = OPERATOR_PROCESS_STATIONS
-const username = computed(() => userStore.userInfo?.username)
-const binding = computed(() => operatorBinding(username.value))
+const { operatorUsername, binding, isAdminDemo } = useOperatorIdentity()
 const activeStation = computed(() => stationById(activeStationId.value))
 
-const myDispatches = computed(() => mes.myDispatches(username.value))
+const myDispatches = computed(() => mes.myDispatches(operatorUsername.value))
 
 function isMyStation(station) {
+  if (isAdminDemo.value) return station.id === 'bracket'
   if (!binding.value) return true
   return binding.value.stageName === station.stageName
 }
 
 function canEnterStation(station) {
+  if (isAdminDemo.value) return station.id === 'bracket'
   if (!binding.value) return true
   return binding.value.stageName === station.stageName
 }

@@ -379,30 +379,69 @@ export function useSchedulingFlow(template = PLANNER_FLOW_TEMPLATE) {
     visibleSections.value = next
   }
 
-  function animateThoughtStream(steps, evidence, stepMs = 850) {
+  function delay(ms) {
     return new Promise((resolve) => {
-      thoughtStream.value = []
-      evidenceList.value = []
-      let i = 0
-      const reveal = () => {
-        if (i >= steps.length) {
-          evidenceList.value = [...evidence]
-          resolve()
-          return
-        }
-        const step = steps[i]
-        thoughtStream.value = [...thoughtStream.value, step]
-        activeStep.value = i + 1
-        activeStepKey.value = step.key
-        selectedStepKey.value = step.key
-        currentDetail.value = step.summary || step.thought || step.detail
-        evidenceList.value = appendEvidenceForStep(evidence, evidenceList.value, step.key)
-        revealSection(step.section)
-        i += 1
-        timers.push(setTimeout(reveal, stepMs))
-      }
-      reveal()
+      timers.push(setTimeout(resolve, ms))
     })
+  }
+
+  function patchThoughtStep(index, patch) {
+    const next = [...thoughtStream.value]
+    if (!next[index]) return
+    next[index] = { ...next[index], ...patch }
+    thoughtStream.value = next
+  }
+
+  async function typewriterStepSummary(index, fullText, charMs = 42) {
+    const text = fullText || ''
+    if (!text) return
+    for (let i = 1; i <= text.length; i += 1) {
+      const slice = text.slice(0, i)
+      patchThoughtStep(index, { displaySummary: slice })
+      await delay(charMs)
+    }
+  }
+
+  async function streamEvidenceForStep(stepKey, evidence, evidenceMs = 500) {
+    const related = evidence.filter((ev) => (ev.relatedSteps || []).includes(stepKey))
+    for (const ev of related) {
+      if (!evidenceList.value.some((e) => e.id === ev.id)) {
+        evidenceList.value = [...evidenceList.value, ev]
+        await delay(evidenceMs)
+      }
+    }
+  }
+
+  async function animateThoughtStream(steps, evidence, options = {}) {
+    const {
+      stepPauseMs = 1800,
+      charMs = 42,
+      evidenceMs = 520
+    } = typeof options === 'number' ? { stepPauseMs: options } : options
+
+    thoughtStream.value = []
+    evidenceList.value = []
+
+    for (let i = 0; i < steps.length; i += 1) {
+      const step = { ...steps[i], displaySummary: '' }
+      thoughtStream.value = [...thoughtStream.value, step]
+      const index = thoughtStream.value.length - 1
+
+      activeStep.value = i + 1
+      activeStepKey.value = step.key
+      selectedStepKey.value = step.key
+      currentDetail.value = '正在分析…'
+
+      const summaryText = step.summary || step.thought || step.detail || ''
+      await typewriterStepSummary(index, summaryText, charMs)
+      await streamEvidenceForStep(step.key, evidence, evidenceMs)
+      revealSection(step.section)
+      if (i < steps.length - 1) {
+        await delay(stepPauseMs)
+      }
+    }
+
+    evidenceList.value = [...evidence]
   }
 
   function finishWithResult(result) {
@@ -421,7 +460,15 @@ export function useSchedulingFlow(template = PLANNER_FLOW_TEMPLATE) {
     revealSection('result')
   }
 
-  async function runAnimatedPreview(loadFn, { stepMs = 850 } = {}) {
+  async function runAnimatedPreview(loadFn, options = {}) {
+    const flowOptions = typeof options === 'number'
+      ? { stepPauseMs: options }
+      : {
+          stepPauseMs: options.stepPauseMs ?? options.stepMs ?? 850,
+          charMs: options.charMs ?? 32,
+          evidenceMs: options.evidenceMs ?? 380,
+          ...options
+        }
     clearTimers()
     isRunning.value = true
     activeStep.value = 0
@@ -443,7 +490,7 @@ export function useSchedulingFlow(template = PLANNER_FLOW_TEMPLATE) {
       const steps = mergeSteps(template, rawSteps)
       flowSteps.value = steps
       allEvidence.value = evidence
-      await animateThoughtStream(steps, evidence, stepMs)
+      await animateThoughtStream(steps, evidence, flowOptions)
       finishWithResult(result)
       return result
     } catch (e) {

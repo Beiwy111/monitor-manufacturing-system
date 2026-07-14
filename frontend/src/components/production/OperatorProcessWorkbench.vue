@@ -153,9 +153,9 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
-import { useUserStore } from '@/stores/user'
+import { useOperatorIdentity } from '@/composables/useOperatorIdentity'
 import { DISPATCH_REPORTABLE, DISPATCH_ACTIVE } from '@/mock/constants'
-import { operatorBinding, pickCurrentDispatch, stageProgressLabel } from '@/utils/operatorWorkshop'
+import { pickCurrentDispatch, stageProgressLabel } from '@/utils/operatorWorkshop'
 import { dispatchMatchesStage } from '@/config/operatorProcessStations'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 
@@ -164,11 +164,9 @@ const props = defineProps({
 })
 
 const mes = useMesStore()
-const userStore = useUserStore()
-const username = computed(() => userStore.userInfo?.username)
-const binding = computed(() => operatorBinding(username.value))
+const { operatorUsername, binding, operatorDisplayName } = useOperatorIdentity()
 
-const myDispatches = computed(() => mes.myDispatches(username.value))
+const myDispatches = computed(() => mes.myDispatches(operatorUsername.value))
 const activeDispatches = computed(() =>
   myDispatches.value.filter((d) =>
     DISPATCH_ACTIVE.includes(d.status) && dispatchMatchesStage(d, props.station)
@@ -251,7 +249,7 @@ const prepHint = computed(() => {
 async function acceptSelected() {
   if (!selected.value) return
   try {
-    const ok = await mes.acceptDispatch(selected.value.id, username.value, 'operator')
+    const ok = await mes.acceptDispatch(selected.value.id, operatorUsername.value, 'operator')
     if (ok !== false) {
       ElMessage.success('已接收派工，请点击「开始生产」')
     } else {
@@ -265,7 +263,7 @@ async function acceptSelected() {
 async function startSelected() {
   if (!selected.value) return
   try {
-    const ok = await mes.startDispatch(selected.value.id, username.value, 'operator')
+    const ok = await mes.startDispatch(selected.value.id, operatorUsername.value, 'operator')
     if (ok !== false) {
       ElMessage.success('已开始生产，请填写报工信息')
     } else {
@@ -324,9 +322,9 @@ async function submit() {
         endTime: form.endTime,
         remark: form.remark,
         dispatchId: selected.value.id,
-        operatorName: userStore.displayName
+        operatorName: operatorDisplayName.value
       },
-      username.value,
+      operatorUsername.value,
       'operator'
     )
     if (rpt) {
@@ -348,7 +346,7 @@ async function submit() {
 async function submitQc() {
   if (!selected.value) return
   try {
-    const qcId = await mes.submitToInspection(selected.value.id, username.value, 'operator')
+    const qcId = await mes.submitToInspection(selected.value.id, operatorUsername.value, 'operator')
     if (qcId) {
       ElMessage.success('已提交质检，质检员可在「待检任务」中处理')
     } else {

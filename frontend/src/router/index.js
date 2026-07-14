@@ -9,7 +9,7 @@ const dashboardRoutes = [
   { path: 'dashboard/admin', name: 'DashboardAdmin', component: () => import('@/views/dashboard/admin/AdminDashboard.vue'), meta: { title: '系统管理工作台', roleKey: 'admin' } },
   { path: 'dashboard/order', name: 'DashboardOrder', component: () => import('@/views/dashboard/order/OrderDashboard.vue'), meta: { title: '订单管理工作台', roleKey: 'order' } },
   { path: 'dashboard/planner', name: 'DashboardPlanner', component: () => import('@/views/dashboard/planner/PlannerDashboard.vue'), meta: { title: '计划员工作台', roleKey: 'planner' } },
-  { path: 'dashboard/manager', name: 'DashboardManager', component: () => import('@/views/dashboard/manager/ManagerDashboard.vue'), meta: { title: '生产主管工作台', roleKey: 'manager' } },
+  { path: 'dashboard/manager', redirect: BOARD_PATH },
   { path: 'dashboard/operator', name: 'DashboardOperator', component: () => import('@/views/dashboard/operator/OperatorDashboard.vue'), meta: { title: '生产操作员工作台', roleKey: 'operator' } },
   { path: 'dashboard/quality', name: 'DashboardQuality', component: () => import('@/views/dashboard/quality/QualityDashboard.vue'), meta: { title: '质检员工作台', roleKey: 'quality' } },
   { path: 'dashboard/warehouse', name: 'DashboardWarehouse', component: () => import('@/views/dashboard/warehouse/WarehouseDashboard.vue'), meta: { title: '仓库管理工作台', roleKey: 'warehouse' } },
@@ -33,6 +33,7 @@ const businessRoutes = [
   { path: 'order/audit', component: () => import('@/views/order/OrderAuditView.vue'), meta: { title: '订单审核' } },
   { path: 'order/track', component: () => import('@/views/order/OrderTrackView.vue'), meta: { title: '订单跟踪' } },
   { path: 'production/plan', component: () => import('@/views/production/PlanView.vue'), meta: { title: '生产计划工作台' } },
+  { path: 'production/smart-scheduling', component: () => import('@/views/production/PlannerSmartSchedulingView.vue'), meta: { title: '智能排产', layout: 'screen' } },
   { path: 'production/work-order', component: () => import('@/views/production/WorkOrderView.vue'), meta: { title: '生产工单', roleKey: 'manager' } },
   { path: 'production/dispatch', component: () => import('@/views/production/DispatchView.vue'), meta: { title: '工单派工', roleKey: 'manager' } },
   { path: 'production/my-dispatch', component: () => import('@/views/production/MyDispatchView.vue'), meta: { title: '我的派工' } },
@@ -139,11 +140,11 @@ router.beforeEach(async (to, from, next) => {
       mesStore.hydrateFromApi().catch(() => {})
     }
   }
-  if (MANAGER_ONLY_PATHS.has(to.path) && userStore.roleKey !== 'manager') {
+  if (MANAGER_ONLY_PATHS.has(to.path) && userStore.roleKey !== 'manager' && userStore.roleKey !== 'admin') {
     next(home())
     return
   }
-  if (to.meta.roleKey && to.meta.roleKey !== userStore.roleKey) {
+  if (to.meta.roleKey && to.meta.roleKey !== userStore.roleKey && userStore.roleKey !== 'admin') {
     next(home())
     return
   }

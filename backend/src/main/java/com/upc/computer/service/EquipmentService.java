@@ -58,6 +58,9 @@ public interface EquipmentService {
     /** 八道生产工序 × 19 车间总览（与生产主管大屏同一数据源） */
     Map<String, Object> workshopOverview();
 
+    /** 设备健康孪生：逐台计算健康分、扣分明细、智能建议 */
+    List<Map<String, Object>> calcHealthList();
+
     /** 触发安灯报警：设备置为故障(FAULT)，创建 OPEN 报警 */
     AndonAlarm triggerAlarm(Long equipmentId, String alarmType, String alarmLevel, String description, String operator);
 

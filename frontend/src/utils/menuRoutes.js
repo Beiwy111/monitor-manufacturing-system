@@ -1,3 +1,5 @@
+import { getMenusByRoleKey } from '@/mock/menus'
+
 /** sys_menu.menuCode → 前端路由 path */
 export const MENU_PATH_MAP = {
   'system:role': '/system/role',
@@ -201,6 +203,9 @@ const ROLE_MENU_EXTRAS = {
       { menuId: 9074, menuName: '库存流水', path: '/warehouse/flow' },
       { menuId: 9075, menuName: '库存预警', path: '/warehouse/alert' }
     ]
+  },
+  aftersale: {
+    afterSales: [{ menuId: 9100, menuName: '调查工作台', path: '/dashboard/aftersale' }]
   }
 }
 
@@ -215,8 +220,56 @@ const MODULE_NAME_MAP = {
   quality: '质量管理',
   warehouse: '仓储管理',
   equipment: '设备管理',
+  device: '设备管理',
   afterSales: '售后成本',
-  attendance: '考勤管理'
+  aftersale: '售后管理',
+  cost: '成本管理',
+  customer: '客户门户',
+  attendance: '考勤管理',
+  devWorkbench: '角色工作台',
+  plan: '计划管理'
+}
+
+/** 管理员侧边栏固定顺序（系统管理、考勤管理保持不变） */
+const ADMIN_MENU_ORDER = [
+  { type: 'system' },
+  { type: 'attendance' },
+  { roleKey: 'order', menuName: '订单管理', workbench: { menuId: 8801, menuName: '订单管理工作台', path: '/dashboard/order' } },
+  { roleKey: 'purchase', menuName: '采购管理', workbench: { menuId: 8806, menuName: '采购员工作台', path: '/dashboard/purchase' } },
+  { roleKey: 'planner', menuName: '计划管理', workbench: { menuId: 8802, menuName: '计划员工作台', path: '/dashboard/planner' } },
+  {
+    roleKey: 'manager',
+    menuName: '生产主管',
+    workbench: { menuId: 8811, menuName: '生产调度大屏', path: BOARD_PATH }
+  },
+  {
+    roleKey: 'operator',
+    menuName: '操作员',
+    workbench: { menuId: 8804, menuName: '工序报工', path: '/production/report' }
+  },
+  { roleKey: 'quality', menuName: '质检', workbench: { menuId: 8805, menuName: '质检员工作台', path: '/dashboard/quality' } },
+  { roleKey: 'warehouse', menuName: '仓储', workbench: { menuId: 8807, menuName: '仓储管理工作台', path: '/dashboard/warehouse' } },
+  { roleKey: 'device', menuName: '设备维护', workbench: { menuId: 8808, menuName: '设备维护工作台', path: '/dashboard/device' } },
+  { roleKey: 'aftersale', menuName: '售后', workbench: { menuId: 8809, menuName: '售后调查工作台', path: '/dashboard/aftersale' } },
+  { roleKey: 'cost', menuName: '财务管理', workbench: { menuId: 8810, menuName: '财务成本工作台', path: '/dashboard/cost' } }
+]
+
+const ADMIN_SECTION_MENU_ID = {
+  order: 8101,
+  purchase: 8102,
+  planner: 8103,
+  manager: 8104,
+  operator: 8105,
+  quality: 8106,
+  warehouse: 8107,
+  device: 8108,
+  aftersale: 8109,
+  cost: 8110
+}
+
+/** 管理员侧栏合并时仅纳入的子分组（避免物料/成品质检菜单重复扁平化） */
+const ADMIN_ROLE_GROUP_WHITELIST = {
+  quality: new Set(['物料质量管理'])
 }
 
 export function resolveMenuPath(menu) {
@@ -237,7 +290,7 @@ export function normalizeMenus(apiMenus, roleKey, fallbackMenus) {
   let menus = (apiMenus || []).map((m) => normalizeNode(m)).filter(Boolean)
 
   if (roleKey === 'admin') {
-    menus = mergeAdminExtras(menus)
+    menus = mergeAdminDevMenus(menus)
   } else {
     menus = mergeRoleExtras(menus, roleKey)
   }
@@ -249,7 +302,7 @@ export function normalizeMenus(apiMenus, roleKey, fallbackMenus) {
   return dedupeEquipmentMenus(sanitizeMenus(stripManagerOnlyFromMenus(menus, roleKey)))
 }
 
-function mergeRoleExtras(menus, roleKey) {
+function mergeRoleExtras(menus, roleKey, { strict = true } = {}) {
   const extras = ROLE_MENU_EXTRAS[roleKey]
   if (!extras) return menus
   const result = menus.map((m) => ({
@@ -286,7 +339,7 @@ function mergeRoleExtras(menus, roleKey) {
       if (!paths.has(item.path)) group.children.push(item)
     })
   })
-  if (roleKey === 'operator') {
+  if (strict && roleKey === 'operator') {
     const allowedProduction = new Set([
       '/production/my-dispatch',
       '/production/report',
@@ -328,16 +381,48 @@ function normalizeNode(node) {
   }
 }
 
-function mergeAdminExtras(menus) {
-  const system = menus.find((m) => m.menuCode === 'system' || m.menuName === '系统管理')
-  const extras = [{ menuId: 901, menuName: '菜单管理', path: '/system/menu' }]
-  if (system) {
-    const paths = new Set(system.children.map((c) => c.path))
-    extras.forEach((e) => {
-      if (!paths.has(e.path)) system.children.push(e)
+function isSystemMenuGroup(m) {
+  return m?.menuCode === 'system' || m?.menuName === '系统管理'
+}
+
+function isAttendanceMenuGroup(m) {
+  return m?.menuCode === 'attendance' || m?.menuName === '考勤管理'
+}
+
+function cloneMenuGroup(group) {
+  return {
+    ...group,
+    children: [...(group.children || [])]
+  }
+}
+
+function mergeMenuGroups(target, incoming) {
+  for (const group of incoming || []) {
+    if (!group?.children?.length) continue
+    const key = group.menuCode || group.menuName
+    let existing = target.find(
+      (m) => (m.menuCode && m.menuCode === group.menuCode)
+        || m.menuName === group.menuName
+    )
+    if (!existing) {
+      target.push(cloneMenuGroup(group))
+      continue
+    }
+    const paths = new Set((existing.children || []).map((c) => c.path))
+    group.children.forEach((item) => {
+      if (item.path && !paths.has(item.path)) {
+        existing.children.push({ ...item })
+        paths.add(item.path)
+      }
     })
-  } else {
-    menus.unshift({
+  }
+}
+
+function ensureSystemGroup(menus) {
+  let system = menus.find(isSystemMenuGroup)
+  const extras = [{ menuId: 901, menuName: '菜单管理', path: '/system/menu' }]
+  if (!system) {
+    system = {
       menuId: 1,
       menuCode: 'system',
       menuName: '系统管理',
@@ -348,15 +433,30 @@ function mergeAdminExtras(menus) {
         { menuId: 14, menuName: '菜单管理', path: '/system/menu' },
         { menuId: 15, menuName: '操作日志', path: '/system/log' }
       ]
+    }
+    menus.unshift(system)
+  } else {
+    const paths = new Set(system.children.map((c) => c.path))
+    extras.forEach((e) => {
+      if (!paths.has(e.path)) system.children.push(e)
     })
   }
-  let attendance = menus.find((m) => m.menuCode === 'attendance' || m.menuName === '考勤管理')
+  return system
+}
+
+function ensureAttendanceGroup(menus) {
+  let attendance = menus.find(isAttendanceMenuGroup)
   const attendanceItems = [
     { menuId: 9201, menuName: '考勤记录', path: '/attendance/record' },
     { menuId: 9202, menuName: '考勤统计', path: '/attendance/statistics' }
   ]
   if (!attendance) {
-    attendance = { menuId: 92, menuCode: 'attendance', menuName: '考勤管理', children: [...attendanceItems] }
+    attendance = {
+      menuId: 92,
+      menuCode: 'attendance',
+      menuName: '考勤管理',
+      children: [...attendanceItems]
+    }
     menus.push(attendance)
   } else {
     const paths = new Set((attendance.children || []).map((c) => c.path))
@@ -364,7 +464,94 @@ function mergeAdminExtras(menus) {
       if (!paths.has(e.path)) attendance.children.push(e)
     })
   }
-  return menus.filter((m) => m.children?.length)
+  return attendance
+}
+
+function appendRoleExtrasToSection(section, roleKey) {
+  const extras = ROLE_MENU_EXTRAS[roleKey]
+  if (!extras || !section) return section
+  const paths = new Set((section.children || []).map((c) => c.path))
+  Object.values(extras).flat().forEach((item) => {
+    if (item.path && !paths.has(item.path)) {
+      section.children.push({ ...item })
+      paths.add(item.path)
+    }
+  })
+  return section
+}
+
+/** 将某角色 mock 菜单扁平化为管理员一级分组 */
+function buildAdminRoleSection(roleKey, menuName, workbenchItems = []) {
+  const groups = getMenusByRoleKey(roleKey)
+  const whitelist = ADMIN_ROLE_GROUP_WHITELIST[roleKey]
+  const effectiveGroups = whitelist
+    ? groups.filter((g) => whitelist.has(g.menuName))
+    : groups
+  const children = []
+  const paths = new Set()
+  const usedNames = new Set()
+
+  const pushChild = (item, groupLabel) => {
+    if (!item?.path || paths.has(item.path)) return
+    let label = item.menuName || item.path
+    if (usedNames.has(label) && groupLabel) {
+      label = `${groupLabel} · ${label}`
+    }
+    usedNames.add(item.menuName || label)
+    children.push({ ...item, menuName: label })
+    paths.add(item.path)
+  }
+
+  ;(Array.isArray(workbenchItems) ? workbenchItems : workbenchItems ? [workbenchItems] : [])
+    .forEach((item) => pushChild(item, ''))
+
+  for (const group of effectiveGroups) {
+    const groupLabel = effectiveGroups.length > 1 ? (group.menuName || '') : ''
+    for (const item of group.children || []) {
+      pushChild(item, groupLabel)
+    }
+  }
+
+  const section = {
+    menuId: ADMIN_SECTION_MENU_ID[roleKey] || 8199,
+    menuCode: `dev_${roleKey}`,
+    menuName,
+    children
+  }
+  appendRoleExtrasToSection(section, roleKey)
+  return section
+}
+
+/** 管理员：按固定顺序组装各角色完整功能 */
+function mergeAdminDevMenus(apiMenus) {
+  const preserved = (apiMenus || [])
+    .filter((m) => isSystemMenuGroup(m) || isAttendanceMenuGroup(m))
+    .map(cloneMenuGroup)
+  const scratch = [...preserved]
+  ensureSystemGroup(scratch)
+  ensureAttendanceGroup(scratch)
+
+  const ordered = []
+  for (const spec of ADMIN_MENU_ORDER) {
+    if (spec.type === 'system') {
+      const system = scratch.find(isSystemMenuGroup)
+      if (system) ordered.push(cloneMenuGroup(system))
+      continue
+    }
+    if (spec.type === 'attendance') {
+      const attendance = scratch.find(isAttendanceMenuGroup)
+      if (attendance) ordered.push(cloneMenuGroup(attendance))
+      continue
+    }
+    if (spec.roleKey) {
+      ordered.push(buildAdminRoleSection(spec.roleKey, spec.menuName, spec.workbench))
+    }
+  }
+  return ordered.filter((m) => m?.children?.length)
+}
+
+function mergeAdminExtras(menus) {
+  return mergeAdminDevMenus(menus)
 }
 
 /** 各角色登录后的默认首页 */
@@ -378,7 +565,7 @@ const ROLE_HOME_PATH = {
   purchase: '/dashboard/purchase',
   warehouse: '/warehouse/inventory',
   device: '/dashboard/device',
-  aftersale: '/aftersale/case',
+  aftersale: '/dashboard/aftersale',
   cost: '/cost/report',
   customer: '/customer/home'
 }
@@ -390,9 +577,9 @@ export function getHomePath(roleKey) {
 /** @deprecated 请使用 getHomePath(roleKey) */
 export const HOME_PATH = BOARD_PATH
 
-/** 生产调度大屏、生产工单、工单派工仅生产主管可见 */
+/** 生产调度大屏、生产工单、工单派工：生产主管与系统管理员可见 */
 export function stripManagerOnlyFromMenus(menus, roleKey) {
-  if (roleKey === 'manager') return menus
+  if (roleKey === 'manager' || roleKey === 'admin') return menus
   return (menus || [])
     .map((m) => ({
       ...m,

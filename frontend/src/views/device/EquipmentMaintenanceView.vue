@@ -233,15 +233,20 @@ function isAlarmOpen(s) {
 async function loadAll() {
   loading.value = true
   try {
-    const [k, eq, al, mr, overview] = await Promise.all([
+    const [kRes, eqRes, alRes, mrRes, ovRes] = await Promise.allSettled([
       fetchEquipmentKpi(), fetchEquipmentViews(), fetchAlarmViews(), fetchMaintenanceViews(),
       fetchEquipmentWorkshopOverview()
     ])
-    kpi.value = k || {}
-    equipments.value = eq || []
-    alarms.value = al || []
-    records.value = mr || []
-    workshops.value = mergeWorkshopData(overview?.workshops || [])
+    const pick = (res, fallback) => (res.status === 'fulfilled' ? (res.value ?? fallback) : fallback)
+    kpi.value = pick(kRes, {})
+    equipments.value = pick(eqRes, [])
+    alarms.value = pick(alRes, [])
+    records.value = pick(mrRes, [])
+    workshops.value = mergeWorkshopData(pick(ovRes, {})?.workshops || [])
+    const failed = [kRes, eqRes, alRes, mrRes, ovRes].filter((r) => r.status === 'rejected')
+    if (failed.length === failed.length) {
+      ElMessage.error(failed[0].reason?.message || '加载设备数据失败')
+    }
   } catch (e) {
     ElMessage.error(e?.message || '加载设备数据失败')
   } finally {

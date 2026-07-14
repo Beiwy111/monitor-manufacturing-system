@@ -66,10 +66,10 @@ async function load() {
 }
 
 function statusType(s) {
-  return { OPEN: 'danger', PROCESSING: 'warning', RESOLVED: 'primary', CLOSED: 'info' }[s] || 'info'
+  return { OPEN: 'danger', TRACING: 'warning', PROCESSING: 'warning', RESOLVED: 'primary', CLOSED: 'info', CANCELLED: 'info' }[s] || 'info'
 }
 function levelType(s) {
-  return { LOW: '', MEDIUM: 'warning', HIGH: 'danger', CRITICAL: 'danger' }[s] || ''
+  return { GENERAL: '', IMPORTANT: 'warning', URGENT: 'danger', LOW: '', MEDIUM: 'warning', HIGH: 'danger', CRITICAL: 'danger' }[s] || ''
 }
 
 function goDetail(row) {

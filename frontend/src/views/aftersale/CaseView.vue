@@ -97,9 +97,9 @@
               查看追溯
             </el-button>
           </div>
-          <div v-if="!traceDetail" class="empty-hint">点击「查看追溯」加载订单→质检→不良品完整链路</div>
+          <div v-if="!traceDetail" class="empty-hint">点击「查看追溯」加载固定八环反向链路（客户反馈→发货→入库→成品质检→生产→领料→物料质检→供应商）</div>
           <div v-else class="trace-chain">
-            <div v-for="(step, idx) in traceDetail.traceChain" :key="idx" class="trace-step">
+            <div v-for="(step, idx) in traceDetail.traceChain" :key="idx" class="trace-step" :class="{ missing: step.missing }">
               <div class="step-icon" :class="'step-' + step.type">
                 {{ stepIcon(step.type) }}
               </div>
@@ -107,6 +107,9 @@
                 <div class="step-title">{{ step.title }}</div>
                 <div class="step-no">{{ step.no }}</div>
                 <div class="step-desc" v-if="step.desc">{{ step.desc }}</div>
+                <div class="step-people" v-if="step.people?.length">
+                  {{ step.people.map(p => p.role + '：' + p.name).join('，') }}
+                </div>
               </div>
               <div v-if="idx < traceDetail.traceChain.length-1" class="step-arrow">↓</div>
             </div>
@@ -191,8 +194,9 @@
 <!-- SCRIPT_PLACEHOLDER -->
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { fetchCaseViews, fetchAfterSalesKpi, fetchTraceDetail, acceptCase, resolveCase, closeCase, insertCase } from '@/api/aftersale'
 import KpiStrip from '@/components/module/KpiStrip.vue'
@@ -202,6 +206,7 @@ import ModulePanelSection from '@/components/module/ModulePanelSection.vue'
 import { moduleStatusType } from '@/constants/moduleStatus'
 
 const userStore = useUserStore()
+const route = useRoute()
 
 const list        = ref([])
 const kpi         = ref({})
@@ -261,10 +266,14 @@ function statusTagType(s) {
   return moduleStatusType('aftersaleCase', s)
 }
 function levelTagType(s) {
-  return { LOW: '', MEDIUM: 'warning', HIGH: 'danger', CRITICAL: 'danger' }[s] || ''
+  return { GENERAL: '', IMPORTANT: 'warning', URGENT: 'danger', LOW: '', MEDIUM: 'warning', HIGH: 'danger', CRITICAL: 'danger' }[s] || ''
 }
 function stepIcon(type) {
-  return { order: '📋', material: '📦', quality: '🔍', defect: '⚠️', aftersale: '🛎' }[type] || '●'
+  return {
+    feedback: '🛎', delivery: '🚚', inbound: '📥', quality: '🔍', production: '🏭',
+    material: '📦', material_quality: '🧪', supplier: '🤝',
+    order: '📋', defect: '⚠️', aftersale: '🛎'
+  }[type] || '●'
 }
 
 async function loadData() {
@@ -377,7 +386,16 @@ async function doSaveNew() {
   finally { saving.value = false }
 }
 
-onMounted(loadData)
+onMounted(async () => {
+  await loadData()
+  const caseNo = String(route.query.caseNo || '')
+  if (!caseNo) return
+  const target = list.value.find(item => item.caseNo === caseNo)
+  if (target) {
+    await nextTick()
+    onSelect(target)
+  }
+})
 </script>
 
 <style scoped>
@@ -400,6 +418,14 @@ onMounted(loadData)
 .step-icon.step-quality  { background: #e8f5e9; border-color: #a5d6a7; }
 .step-icon.step-defect   { background: #fff3e0; border-color: #ffcc80; }
 .step-icon.step-aftersale{ background: #fce4ec; border-color: #f48fb1; }
+.step-icon.step-feedback { background: #fce4ec; border-color: #f48fb1; }
+.step-icon.step-delivery { background: #e3f2fd; border-color: #90caf9; }
+.step-icon.step-inbound  { background: #e0f7fa; border-color: #80deea; }
+.step-icon.step-production { background: #ede7f6; border-color: #b39ddb; }
+.step-icon.step-material_quality { background: #e8f5e9; border-color: #a5d6a7; }
+.step-icon.step-supplier { background: #fff8e1; border-color: #ffe082; }
+.trace-step.missing { opacity: .45; }
+.step-people { font-size: 11px; color: #2f6fce; font-weight: 600; margin-top: 2px; }
 .step-body   { padding-left: 8px; margin-bottom: 4px; }
 .step-title  { font-size: 11px; color: #8492a6; }
 .step-no     { font-size: 13px; font-weight: 600; color: #2c3e50; }

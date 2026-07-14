@@ -39,6 +39,9 @@ public class MesRuntimeStore {
         if (state.operationLogs == null) {
             state.operationLogs = new ArrayList<>();
         }
+        if (state.voiceNotices == null) {
+            state.voiceNotices = new ArrayList<>();
+        }
         if (state.extras == null) {
             state.extras = new HashMap<>();
         }
@@ -104,6 +107,8 @@ public class MesRuntimeStore {
         private List<Map<String, Object>> issueTasks = new ArrayList<>();
         private List<Map<String, Object>> stockFlows = new ArrayList<>();
         private List<Map<String, Object>> operationLogs = new ArrayList<>();
+        /** 语音助手跨模块协办通知（只进对方通知中心，不改业务数据） */
+        private List<Map<String, Object>> voiceNotices = new ArrayList<>();
         private Map<String, Map<String, Object>> extras = new HashMap<>();
         private long logSeq;
 
@@ -137,6 +142,14 @@ public class MesRuntimeStore {
 
         public void setOperationLogs(List<Map<String, Object>> operationLogs) {
             this.operationLogs = operationLogs;
+        }
+
+        public List<Map<String, Object>> getVoiceNotices() {
+            return voiceNotices;
+        }
+
+        public void setVoiceNotices(List<Map<String, Object>> voiceNotices) {
+            this.voiceNotices = voiceNotices;
         }
 
         public Map<String, Map<String, Object>> getExtras() {

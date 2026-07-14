@@ -52,6 +52,8 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useMesStore } from '@/stores/mes'
 
+import { resolveOperatorUsername } from '@/utils/operatorWorkshop'
+
 const props = defineProps({
   roleKey: { type: String, required: true },
   statusItems: { type: Array, default: () => [] },
@@ -63,7 +65,12 @@ const router = useRouter()
 const userStore = useUserStore()
 const mesStore = useMesStore()
 
-const todos = computed(() => mesStore.todosForRole(props.roleKey, userStore.userInfo?.username))
+const todos = computed(() => {
+  const username = props.roleKey === 'operator'
+    ? resolveOperatorUsername(userStore.roleKey, userStore.userInfo?.username)
+    : userStore.userInfo?.username
+  return mesStore.todosForRole(props.roleKey, username)
+})
 
 function goTodo(row) {
   if (row.path) router.push(row.path)
