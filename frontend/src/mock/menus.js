@@ -16,6 +16,7 @@ export const roleMenus = {
   order: [
     { menuId: 3, menuName: '订单管理', children: [
       { menuId: 31, menuName: '客户订单', path: '/order/list' },
+      { menuId: 309, menuName: 'AI识图下单', path: '/order/ai-screenshot' },
       { menuId: 32, menuName: '订单审核', path: '/order/audit' },
       { menuId: 33, menuName: '订单跟踪', path: '/order/track' }
     ]}
@@ -70,7 +71,8 @@ export const roleMenus = {
     ]}
   ],
   purchase: [
-    { menuId: 7, menuName: '采购管理', children: [
+    { menuId: 7, menuCode: 'purchase', menuName: '采购管理', children: [
+      { menuId: 9060, menuName: '采购工作台', path: '/purchase/workbench' },
       { menuId: 71, menuName: '采购需求', path: '/purchase/demand' },
       { menuId: 72, menuName: '采购订单', path: '/purchase/order' },
       { menuId: 73, menuName: '供应商管理', path: '/purchase/supplier' }
@@ -78,19 +80,15 @@ export const roleMenus = {
   ],
   warehouse: [
     { menuId: 8, menuName: '仓储管理', children: [
-      { menuId: 81, menuName: '采购入库', path: '/warehouse/purchase-in' },
-      { menuId: 82, menuName: '生产领料', path: '/warehouse/issue' },
-      { menuId: 83, menuName: '成品入库', path: '/warehouse/inbound' },
-      { menuId: 84, menuName: '发货出库', path: '/delivery/list' },
-      { menuId: 85, menuName: '库存查询', path: '/warehouse/inventory' },
-      { menuId: 86, menuName: '库存流水', path: '/warehouse/flow' },
-      { menuId: 87, menuName: '库存预警', path: '/warehouse/alert' }
+      { menuId: 81, menuName: '入库', path: '/warehouse/inbound-hub' },
+      { menuId: 82, menuName: '出库', path: '/warehouse/outbound-hub' },
+      { menuId: 83, menuName: '库存容量查询', path: '/warehouse/capacity' },
+      { menuId: 84, menuName: '库位图', path: '/warehouse/location-map' }
     ]}
   ],
   device: [
     { menuId: 9, menuName: '设备管理', children: [
       { menuId: 91, menuName: '设备台账', path: '/device/equipment' },
-      { menuId: 92, menuName: '设备状态', path: '/device/status' },
       { menuId: 93, menuName: '安灯报警', path: '/device/alarm' },
       { menuId: 94, menuName: '维修处理', path: '/device/maintenance' },
       { menuId: 95, menuName: '维护记录', path: '/device/records' }

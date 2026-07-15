@@ -179,6 +179,8 @@ public class MesActionCatalog {
         sb.append("  aftersale.resolve       售后标记解决（前提：处理中；必须有 solution 解决方案）\n");
         sb.append("  aftersale.close         关闭售后案例\n");
         sb.append("  device.diagnose         设备健康诊断/保养建议（\"EQ-003健康怎么样\"\"哪台设备该保养了\"\"设备健康总览\"）\n");
+        sb.append("  warehouse.query_inventory 查询库存明细（\"查库存\"\"库存有多少\"\"MAT-001库存多少\"\"玻璃基板还有多少\"）——从数据库实时读取物料现存、库位与预警状态\n");
+        sb.append("  order.create            对话下单/新建客户订单（\"给深圳华创下200台27寸4K显示器\"\"我要下一个订单\"），caseClue.customerName 填客户名，caseClue.keyword 填产品型号，params.qty 填数量，params.remark 填交期(YYYY-MM-DD，没说留空)\n");
         sb.append("  notify.send             跨模块协办通知（\"通知生产EQ-003故障相关派工暂缓\"\"提醒质检今天抽检\"），params.targetModule 填目标模块码，params.remark 填要转达的内容——通知只进对方通知中心，不改对方业务数据\n");
         for (ActionSpec s : specs.values()) {
             sb.append("  ").append(String.format("%-23s", s.code)).append(' ').append(s.nluHint).append('\n');

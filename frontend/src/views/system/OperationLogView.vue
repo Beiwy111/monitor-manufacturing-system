@@ -68,12 +68,11 @@
 import { computed, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Delete } from '@element-plus/icons-vue'
-import { useMesStore } from '@/stores/mes'
 import { useRuoyiTable } from '@/composables/useRuoyiTable'
 import { deleteOperationLog, fetchOperationLogList, fetchUserList } from '@/api/system'
 import { mapOperationLogFromApi } from '@/utils/systemMappers'
 
-const mes = useMesStore()
+
 const loading = ref(false)
 const logs = ref([])
 
@@ -102,7 +101,6 @@ async function reload() {
   try {
     const [logRows, userRows] = await Promise.all([fetchOperationLogList(), fetchUserList()])
     logs.value = (logRows || []).map((l) => mapOperationLogFromApi(l, userRows || []))
-    await mes.hydrateFromApi()
   } catch (e) {
     ElMessage.error(e?.message || '加载操作日志失败')
   } finally {

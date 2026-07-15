@@ -2,7 +2,7 @@
   <div class="nc-wrap" v-click-outside="close">
     <!-- 触发按钮 -->
     <button class="nc-trigger" @click="toggle" :class="{ active: open }">
-      <span class="nc-trigger__icon">🔔</span>
+      <el-icon class="nc-trigger__icon"><Bell /></el-icon>
       <span v-if="store.unreadCount > 0" class="nc-badge">
         {{ store.unreadCount > 99 ? '99+' : store.unreadCount }}
       </span>
@@ -77,6 +77,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { Bell } from '@element-plus/icons-vue'
 import { useNotificationStore, NOTIF_TYPE } from '@/stores/notification.js'
 
 const store = useNotificationStore()
@@ -146,29 +147,46 @@ const vClickOutside = {
 /* 触发按钮 */
 .nc-trigger {
   position: relative;
-  width: 36px; height: 36px;
-  border-radius: 9px;
-  background: rgba(255,255,255,.12);
-  border: 1px solid rgba(255,255,255,.18);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background .15s;
-  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+  color: var(--layout-text-caption, #7e838b);
+  padding: 0;
 }
-.nc-trigger:hover, .nc-trigger.active {
-  background: rgba(255,255,255,.22);
+.nc-trigger:hover,
+.nc-trigger.active {
+  color: var(--layout-text-title, #25272a);
+  background: var(--btn-secondary-hover-bg, #f3f5f0);
 }
-.nc-trigger__icon { font-size: 17px; line-height: 1; }
+.nc-trigger__icon {
+  font-size: 18px;
+  line-height: 1;
+}
 .nc-badge {
-  position: absolute; top: -4px; right: -4px;
-  background: #ef4444; color: #fff;
-  font-size: 10px; font-weight: 700;
-  min-width: 17px; height: 17px;
-  border-radius: 9px; padding: 0 3px;
-  display: flex; align-items: center; justify-content: center;
-  border: 2px solid #fff;
-  box-shadow: 0 1px 4px rgba(239,68,68,.4);
-  animation: badge-pop .25s ease;
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background: #c45c5c;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  padding: 0 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--layout-content-bg, #fff);
+  box-shadow: 0 1px 3px rgba(196, 92, 92, 0.35);
+  animation: badge-pop 0.25s ease;
 }
 @keyframes badge-pop {
   0%   { transform: scale(0); }

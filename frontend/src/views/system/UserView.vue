@@ -14,8 +14,8 @@
       </aside>
 
       <div class="ruoyi-split__main">
-        <div class="ruoyi-query">
-          <el-form :inline="true" :model="query" @submit.prevent="handleSearch">
+        <div class="ruoyi-query user-view__query">
+          <el-form :inline="true" :model="query" class="user-view__query-form" @submit.prevent="handleSearch">
             <el-form-item label="登录名称">
               <el-input v-model="query.username" placeholder="请输入登录名称" clearable style="width: 160px" />
             </el-form-item>
@@ -29,26 +29,22 @@
                 <el-option label="待分配角色" value="待分配角色" />
               </el-select>
             </el-form-item>
-            <el-form-item>
+            <el-form-item class="user-view__query-btns">
               <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
               <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
+              <span class="user-view__btn-gap" aria-hidden="true" />
+              <el-button type="primary" :icon="Plus" @click="openDialog()">新增</el-button>
+              <el-button type="success" :icon="Edit" :disabled="!selectedRow" @click="openDialog(selectedRow)">修改</el-button>
+              <el-button type="danger" :icon="Delete" :disabled="!selectedRows.length" @click="handleDelete">删除</el-button>
+              <el-button type="warning" :icon="Download" @click="exportCsv">导出</el-button>
             </el-form-item>
           </el-form>
+          <el-tooltip content="刷新">
+            <el-button circle :icon="Refresh" class="user-view__refresh" @click="reload" />
+          </el-tooltip>
         </div>
 
-        <div class="ruoyi-toolbar">
-          <el-button type="primary" :icon="Plus" @click="openDialog()">新增</el-button>
-          <el-button type="success" :icon="Edit" :disabled="!selectedRow" @click="openDialog(selectedRow)">修改</el-button>
-          <el-button type="danger" :icon="Delete" :disabled="!selectedRows.length" @click="handleDelete">删除</el-button>
-          <el-button type="warning" :icon="Download" @click="exportCsv">导出</el-button>
-          <div class="ruoyi-toolbar__right">
-            <el-tooltip content="刷新">
-              <el-button circle :icon="Refresh" @click="reload" />
-            </el-tooltip>
-          </div>
-        </div>
-
-        <div class="ruoyi-table-wrap">
+        <div class="ruoyi-table-wrap user-view__table">
           <el-table
             v-loading="loading"
             :data="pageData"
@@ -57,9 +53,9 @@
             @selection-change="handleSelectionChange"
           >
             <el-table-column type="selection" width="50" align="center" />
-            <el-table-column prop="id" label="用户编号" width="90" align="center" />
+            <el-table-column prop="id" label="用户编号" width="120" align="center" />
             <el-table-column prop="username" label="登录名称" width="120" show-overflow-tooltip />
-            <el-table-column prop="realName" label="用户名称" width="100" />
+            <el-table-column prop="realName" label="用户名称" width="110" show-overflow-tooltip />
             <el-table-column prop="roleName" label="角色" width="120" align="center">
               <template #default="{ row }">
                 <el-tag v-if="row.pendingRole" type="warning" size="small">待分配</el-tag>
@@ -102,7 +98,7 @@
             v-model:current-page="pageNum"
             v-model:page-size="pageSize"
             :total="filtered.length"
-            :page-sizes="[10, 20, 50]"
+            :page-sizes="[11, 20, 50]"
             layout="total, sizes, prev, pager, next, jumper"
             background
           />
@@ -198,6 +194,7 @@ const {
   query, pageNum, pageSize, selectedRows, selectedRow, filtered, pageData,
   handleSearch, handleReset, handleSelectionChange
 } = useRuoyiTable(userList, {
+  pageSize: 11,
   filterFn(list, q) {
     return list.filter((u) => {
       if (activeDept.value && activeDept.value !== 'all' && u.department !== activeDept.value) return false
@@ -241,7 +238,6 @@ async function reload() {
     const [userRows, roleRows] = await Promise.all([fetchUserList(), fetchRoleList()])
     roles.value = (roleRows || []).map((r) => mapRoleFromApi(r, userRows || []))
     users.value = (userRows || []).map((u) => mapUserFromApi(u, roleRows || []))
-    await mes.hydrateFromApi()
   } catch (e) {
     ElMessage.error(e?.message || '加载用户数据失败')
   } finally {
@@ -348,6 +344,38 @@ function exportCsv() {
 </script>
 
 <style scoped>
+.user-view__query {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+
+.user-view__query-form {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-view__query-btns :deep(.el-form-item__content) {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.user-view__btn-gap {
+  display: inline-block;
+  width: 8px;
+}
+
+.user-view__refresh {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.user-view__table :deep(.el-table th.el-table__cell .cell) {
+  white-space: nowrap;
+}
+
 .form-tip {
   margin-top: 6px;
   font-size: 12px;

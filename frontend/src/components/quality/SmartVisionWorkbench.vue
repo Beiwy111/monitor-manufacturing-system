@@ -490,8 +490,8 @@ function reset() {
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr) minmax(300px, 360px);
   gap: 0;
-  min-height: calc(100vh - 180px);
-  max-height: calc(100vh - 140px);
+  min-height: calc(100vh - 124px);
+  max-height: var(--layout-content-min-h, calc(100vh - 92px));
 }
 
 .sv-side {
@@ -518,7 +518,7 @@ function reset() {
   overflow-y: auto;
   overflow-x: hidden;
   min-width: 0;
-  max-height: calc(100vh - 140px);
+  max-height: var(--layout-content-min-h, calc(100vh - 92px));
 }
 
 .sv-card {

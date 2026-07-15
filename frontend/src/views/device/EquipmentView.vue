@@ -16,6 +16,12 @@
           <el-tag :type="statusType(row.status)" size="small">{{ row.statusCn }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="未闭环报警" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag v-if="Number(row.openAlarmCount) > 0" type="danger" size="small">{{ row.openAlarmCount }}</el-tag>
+          <span v-else>0</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="lastMaintenanceAt" label="最近维护" width="150" />
     </el-table>
     <div v-if="selected" class="eq-detail">

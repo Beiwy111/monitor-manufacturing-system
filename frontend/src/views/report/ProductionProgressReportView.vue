@@ -368,7 +368,7 @@ function exportExcel() {
   exportExcelSheets([
     { name: '制令单进度', headers: mainHeaders, rows: mainRows },
     { name: '工序明细', headers: detailHeaders, rows: detailExportRows }
-  ], `生产制令单进度表_${operatorName.value}_${date}.xls`)
+  ], `生产制令单进度表_${operatorName.value}_${date}.xlsx`)
 
   ElMessage.success(`已导出 ${mainRows.length} 条制令单、${detailExportRows.length} 条工序明细`)
 }
@@ -385,7 +385,7 @@ watch(filteredRows, (list) => {
 
 onMounted(async () => {
   try {
-    await mes.hydrateFromApi()
+    await mes.hydrateForPage()
   } catch {
     /* ignore */
   }

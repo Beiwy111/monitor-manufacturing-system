@@ -90,7 +90,23 @@ export function savePurchaseOrderDraft(data) {
   return request.post('/purchase/order/saveDraft', data)
 }
 
-// ============ AI 采购单据解析 ============
+// ============ 订单 AI 识图下单（微信截图 → 提取订单字段） ============
+
+export function parseOrderWechatScreenshot(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post('/order/ai/screenshot/parse', formData, { timeout: 90000 })
+}
+
+/** @deprecated 请使用 parseOrderWechatScreenshot */
+export function parseOrderAiOcr(file, orderId) {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (orderId) formData.append('orderId', orderId)
+  return request.post('/order/ai/ocr/parse', formData, { timeout: 90000 })
+}
+
+// ============ AI 采购单据解析（采购模块保留接口，前端入口已迁至订单审核） ============
 
 export function parseAiDocument(file) {
   const formData = new FormData()

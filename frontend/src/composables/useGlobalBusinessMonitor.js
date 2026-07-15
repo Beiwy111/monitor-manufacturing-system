@@ -4,7 +4,7 @@ import { fetchVoiceNotices } from '@/api/assistant'
 import { useNotificationStore, NOTIF_TYPE } from '@/stores/notification'
 import { useUserStore } from '@/stores/user'
 
-const POLL_INTERVAL = 8000
+const POLL_INTERVAL = 15000
 
 /** 协办通知目标模块 → 可见角色（admin 全可见） */
 const NOTICE_AUDIENCE = {

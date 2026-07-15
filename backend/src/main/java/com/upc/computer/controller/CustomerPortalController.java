@@ -68,6 +68,11 @@ public class CustomerPortalController {
         return Result.success(customerPortalService.listProducts());
     }
 
+    @GetMapping("/products/{materialId}")
+    public Result<Map<String, Object>> productDetail(@PathVariable Long materialId) {
+        return Result.success(customerPortalService.getProductDetail(materialId));
+    }
+
     @GetMapping("/feedbacks")
     public Result<List<Map<String, Object>>> feedbacks(@RequestHeader(value = "Authorization", required = false) String authorization) {
         return Result.success(customerPortalService.listFeedbacks(requireSession(authorization)));

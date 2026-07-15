@@ -411,7 +411,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 
 <style scoped>
 .quality-dashboard-page {
-  min-height: calc(100vh - 120px);
+  min-height: var(--layout-content-min-h, calc(100vh - 92px));
 }
 
 .clickable :deep(.el-table__row) {

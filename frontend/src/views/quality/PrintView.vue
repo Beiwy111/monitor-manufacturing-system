@@ -48,7 +48,7 @@
         <!-- 质检报告 -->
         <template v-if="current?.key==='inspection-report' && detail">
           <div class="report-header">
-            <div class="report-logo">显示器制造 MES</div>
+            <div class="report-logo">{{ APP_TITLE }}</div>
             <div class="report-title">质量检验报告</div>
             <div class="report-no">报告编号：{{ detail.inspectionNo }}</div>
           </div>
@@ -115,7 +115,7 @@
         <!-- 质检记录汇总 -->
         <template v-if="current?.key==='inspection-list'">
           <div class="report-header">
-            <div class="report-logo">显示器制造 MES</div>
+            <div class="report-logo">{{ APP_TITLE }}</div>
             <div class="report-title">质检记录汇总表</div>
             <div class="report-no">打印时间：{{ now }}</div>
           </div>
@@ -152,7 +152,7 @@
         <!-- 不合格品处理报告 -->
         <template v-if="current?.key==='nonconforming-report' && ncDetail">
           <div class="report-header">
-            <div class="report-logo">显示器制造 MES</div>
+            <div class="report-logo">{{ APP_TITLE }}</div>
             <div class="report-title">不合格品处理报告</div>
             <div class="report-no">报告编号：{{ ncDetail.nonconformingNo }}</div>
           </div>
@@ -192,7 +192,7 @@
         <!-- 不合格品清单 -->
         <template v-if="current?.key==='nonconforming-list'">
           <div class="report-header">
-            <div class="report-logo">显示器制造 MES</div>
+            <div class="report-logo">{{ APP_TITLE }}</div>
             <div class="report-title">不合格品清单</div>
             <div class="report-no">打印时间：{{ now }}</div>
           </div>
@@ -227,6 +227,7 @@ import { ElMessage } from 'element-plus'
 import { fetchInspectionViews, fetchInspectionDetail, fetchInspectionItems, fetchNonconformingViews } from '@/api/quality'
 import { postRefreshQualityReport } from '@/api/mes'
 import { useUserStore } from '@/stores/user'
+import { APP_TITLE } from '@/constants/brand'
 import { exportInspectionReportExcel, exportInspectionBatchExcel } from '@/utils/qualityExcelExport'
 
 const userStore = useUserStore()

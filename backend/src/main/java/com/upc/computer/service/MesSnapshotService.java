@@ -22,6 +22,11 @@ public class MesSnapshotService {
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+    /** BOM remark 中合法的组件类别标签（remark 为产品说明/BOM 备注时不应作为类别展示） */
+    private static final Set<String> ASSEMBLY_GROUP_LABELS = Set.of(
+            "显示面板", "背光模组", "主控电路", "结构附件", "成品", "其他"
+    );
+
     @Autowired
     private UserMapper userMapper;
     @Autowired
@@ -79,7 +84,35 @@ public class MesSnapshotService {
     @Autowired
     private OrderOcrService orderOcrService;
 
+    /** 快照短缓存：避免路由切换/多页面并发重复查全库 */
+    private volatile Map<String, Object> snapshotCache;
+    private volatile long snapshotCacheAt;
+    private static final long SNAPSHOT_CACHE_MS = 30_000;
+
+    public void invalidateSnapshotCache() {
+        snapshotCache = null;
+        snapshotCacheAt = 0;
+    }
+
     public Map<String, Object> buildSnapshot() {
+        long now = System.currentTimeMillis();
+        Map<String, Object> hit = snapshotCache;
+        if (hit != null && now - snapshotCacheAt < SNAPSHOT_CACHE_MS) {
+            return hit;
+        }
+        synchronized (this) {
+            now = System.currentTimeMillis();
+            if (snapshotCache != null && now - snapshotCacheAt < SNAPSHOT_CACHE_MS) {
+                return snapshotCache;
+            }
+            Map<String, Object> built = doBuildSnapshot();
+            snapshotCache = built;
+            snapshotCacheAt = System.currentTimeMillis();
+            return built;
+        }
+    }
+
+    private Map<String, Object> doBuildSnapshot() {
         List<User> users = userMapper.userList();
         List<Role> roles = roleMapper.roleList();
         List<CustomerOrder> orders = customerOrderMapper.customerOrderList();
@@ -98,7 +131,7 @@ public class MesSnapshotService {
         List<PurchaseOrderItem> purchaseItems = purchaseOrderItemMapper.purchaseOrderItemList();
         List<DeliveryOrder> deliveries = deliveryOrderMapper.deliveryList();
         List<Equipment> equipmentList = equipmentMapper.equipmentList();
-        List<AndonAlarm> alarms = andonAlarmMapper.alarmList();
+        List<AndonAlarm> alarms = andonAlarmMapper.listRecentAlarms(500);
         List<AfterSalesCase> aftersaleCases = afterSalesCaseMapper.afterSalesCaseList();
         List<CostSettlement> settlements = costSettlementMapper.settlementList();
         List<OperationLog> dbLogs = operationLogMapper.operationLogList();
@@ -1100,19 +1133,45 @@ public class MesSnapshotService {
             return "成品";
         }
         String code = mat.getMaterialCode() != null ? mat.getMaterialCode() : "";
-        if (code.startsWith("MAT-P")) {
+        String name = mat.getMaterialName() != null ? mat.getMaterialName() : "";
+        String spec = mat.getSpecification() != null ? mat.getSpecification() : "";
+        String text = code + " " + name + " " + spec;
+        if (code.startsWith("MAT-P") || text.contains("面板")) {
             return "显示面板";
         }
-        if (code.startsWith("MAT-B")) {
+        if (code.startsWith("MAT-B") || text.contains("背光")) {
             return "背光模组";
         }
-        if (code.startsWith("MAT-M")) {
+        if (code.startsWith("MAT-M") || text.contains("主控") || text.contains("驱动") || text.contains("芯片") || text.contains("PCB")) {
             return "主控电路";
         }
-        if (code.startsWith("MAT-S")) {
+        if (code.startsWith("MAT-S") || text.contains("边框") || text.contains("电源") || text.contains("结构")) {
             return "结构附件";
         }
         return "其他";
+    }
+
+    /** 优先使用 remark 中的标准类别标签；remark 为 BOM 说明/乱码时回退到物料推断 */
+    private String resolveBomAssemblyGroup(Bom bom, Material child) {
+        if (bom != null && bom.getRemark() != null && !bom.getRemark().isBlank()) {
+            String label = bom.getRemark().replace("主控电路-驱动芯片", "主控电路").trim();
+            if (ASSEMBLY_GROUP_LABELS.contains(label)) {
+                return label;
+            }
+            String remark = label;
+            if (!remark.contains("?")
+                    && !remark.toUpperCase(Locale.ROOT).contains("BOM")
+                    && !remark.contains("需要")
+                    && !remark.contains("每台")
+                    && remark.length() <= 12) {
+                // 兼容历史数据：短 remark 且像类别名
+                if (remark.contains("面板")) return "显示面板";
+                if (remark.contains("背光")) return "背光模组";
+                if (remark.contains("主控") || remark.contains("驱动") || remark.contains("电路")) return "主控电路";
+                if (remark.contains("结构") || remark.contains("边框") || remark.contains("电源")) return "结构附件";
+            }
+        }
+        return resolveAssemblyGroup(child);
     }
 
     private Map<String, Object> buildBomGuide(List<Material> materials, Map<Long, Material> materialById) {
@@ -1157,9 +1216,7 @@ public class MesSnapshotService {
                 Map<String, Object> comp = new LinkedHashMap<>();
                 comp.put("materialCode", child.getMaterialCode());
                 comp.put("materialName", child.getMaterialName());
-                comp.put("assemblyGroup", bom.getRemark() != null && !bom.getRemark().isBlank()
-                        ? bom.getRemark().replace("主控电路-驱动芯片", "主控电路")
-                        : resolveAssemblyGroup(child));
+                comp.put("assemblyGroup", resolveBomAssemblyGroup(bom, child));
                 comp.put("quantity", bom.getQuantity() != null ? bom.getQuantity().doubleValue() : 1.0);
                 comp.put("unit", child.getUnit());
                 comp.put("specification", child.getSpecification());

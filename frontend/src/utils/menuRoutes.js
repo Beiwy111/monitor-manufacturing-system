@@ -8,10 +8,10 @@ export const MENU_PATH_MAP = {
   'system:operationLog': '/system/log',
   'system:menu': '/system/menu',
   'system:board': '/system/board',
-  'material:material': '/warehouse/inventory',
-  'material:bom': '/warehouse/inventory',
-  'material:inventory': '/warehouse/inventory',
-  'material:transaction': '/warehouse/flow',
+  'material:material': '/warehouse/capacity',
+  'material:bom': '/warehouse/capacity',
+  'material:inventory': '/warehouse/capacity',
+  'material:transaction': '/warehouse/capacity',
   'order:customerOrder': '/order/list',
   'order:orderItem': '/order/list',
   'order:delivery': '/delivery/list',
@@ -25,7 +25,7 @@ export const MENU_PATH_MAP = {
   'production:progress': '/production/progress',
   'purchase:purchaseOrder': '/purchase/order',
   'purchase:purchaseOrderItem': '/purchase/order',
-  'purchase:aiDocument': '/purchase/ai-document',
+  'purchase:aiDocument': '/order/audit',
   'quality:inspection': '/quality/inspection',
   'quality:nonconforming': '/quality/material/defect',
   'quality:defect': '/quality/material/defect',
@@ -46,13 +46,18 @@ export const MENU_PATH_MAP = {
   'quality:fp:records': '/quality/fp/records',
   'quality:fp:trace': '/quality/fp/trace',
   'quality:fp:print': '/quality/fp/print',
-  'warehouse:purchaseIn': '/warehouse/purchase-in',
-  'warehouse:issue': '/warehouse/issue',
-  'warehouse:inbound': '/warehouse/inbound',
-  'warehouse:inventory': '/warehouse/inventory',
-  'warehouse:flow': '/warehouse/flow',
-  'warehouse:alert': '/warehouse/alert',
+  'warehouse:purchaseIn': '/warehouse/inbound-hub',
+  'warehouse:issue': '/warehouse/outbound-hub',
+  'warehouse:inbound': '/warehouse/inbound-hub',
+  'warehouse:inventory': '/warehouse/capacity',
+  'warehouse:flow': '/warehouse/capacity',
+  'warehouse:alert': '/warehouse/location-map',
+  'warehouse:locationMap': '/warehouse/location-map',
+  'warehouse:inboundHub': '/warehouse/inbound-hub',
+  'warehouse:outboundHub': '/warehouse/outbound-hub',
+  'warehouse:capacity': '/warehouse/capacity',
   'order:list': '/order/list',
+  'order:aiScreenshot': '/order/ai-screenshot',
   'order:audit': '/order/audit',
   'order:track': '/order/track',
   'plan:plan': '/production/plan',
@@ -65,6 +70,7 @@ export const MENU_PATH_MAP = {
   'device:alarm': '/device/alarm',
   'device:maintenance': '/device/maintenance',
   'device:records': '/device/records',
+  'purchase:workbench': '/purchase/workbench',
   'purchase:demand': '/purchase/demand',
   'purchase:order': '/purchase/order',
   'purchase:supplier': '/purchase/supplier',
@@ -106,8 +112,8 @@ export const MANAGER_ONLY_PATHS = new Set([
 ])
 
 /** 已下线、需从导航中移除的菜单（按 path 或 menuCode 匹配） */
-const REMOVED_MENU_PATHS = new Set(['/purchase/arrival'])
-const REMOVED_MENU_CODES = new Set(['purchase:arrival'])
+const REMOVED_MENU_PATHS = new Set(['/purchase/arrival', '/device/status'])
+const REMOVED_MENU_CODES = new Set(['purchase:arrival', 'device:status'])
 
 /** 设备模块 menuCode 别名（后端 sys_menu 可能为 device 或 equipment） */
 const EQUIPMENT_MODULE_CODES = new Set(['equipment', 'device'])
@@ -158,6 +164,7 @@ export function sanitizeMenus(menus) {
 const ROLE_MENU_EXTRAS = {
   order: {
     order: [
+      { menuId: 9030, menuName: 'AI识图下单', path: '/order/ai-screenshot' },
       { menuId: 9031, menuName: '订单审核', path: '/order/audit' },
       { menuId: 9032, menuName: '订单跟踪', path: '/order/track' }
     ]
@@ -189,24 +196,27 @@ const ROLE_MENU_EXTRAS = {
   },
   purchase: {
     purchase: [
+      { menuId: 9060, menuName: '采购工作台', path: '/purchase/workbench' },
       { menuId: 9061, menuName: '采购需求', path: '/purchase/demand' },
       { menuId: 9062, menuName: '采购订单', path: '/purchase/order' },
-      { menuId: 9064, menuName: '供应商管理', path: '/purchase/supplier' },
-      { menuId: 9065, menuName: 'AI 单据录入', path: '/purchase/ai-document' }
+      { menuId: 9064, menuName: '供应商管理', path: '/purchase/supplier' }
     ]
   },
   warehouse: {
     warehouse: [
-      { menuId: 9071, menuName: '采购入库', path: '/warehouse/purchase-in' },
-      { menuId: 9072, menuName: '生产领料', path: '/warehouse/issue' },
-      { menuId: 9073, menuName: '成品入库', path: '/warehouse/inbound' },
-      { menuId: 9074, menuName: '库存流水', path: '/warehouse/flow' },
-      { menuId: 9075, menuName: '库存预警', path: '/warehouse/alert' }
+      { menuId: 9071, menuName: '入库', path: '/warehouse/inbound-hub' },
+      { menuId: 9072, menuName: '出库', path: '/warehouse/outbound-hub' },
+      { menuId: 9073, menuName: '库存容量查询', path: '/warehouse/capacity' },
+      { menuId: 9074, menuName: '库位图', path: '/warehouse/location-map' }
     ]
   },
   aftersale: {
     afterSales: [{ menuId: 9100, menuName: '调查工作台', path: '/dashboard/aftersale' }]
-  }
+  },
+  device: {
+    equipment: [{ menuId: 9091, menuName: '3D 车间大屏', path: '/dashboard/device' }]
+  },
+  customer: {}
 }
 
 /** 按模块 menuCode 推断前端一级模块名 */
@@ -323,7 +333,9 @@ function mergeRoleExtras(menus, roleKey, { strict = true } = {}) {
         result.push(group)
       }
     } else {
+      const moduleName = MODULE_NAME_MAP[moduleCode] || moduleCode
       group = result.find((m) => m.menuCode === moduleCode)
+        || result.find((m) => m.menuName === moduleName)
       if (!group) {
         group = {
           menuId: 9000 + moduleCode.length,
@@ -335,9 +347,14 @@ function mergeRoleExtras(menus, roleKey, { strict = true } = {}) {
       }
     }
     const paths = new Set(group.children.map((c) => c.path))
+    const toAdd = []
     items.forEach((item) => {
-      if (!paths.has(item.path)) group.children.push(item)
+      if (!paths.has(item.path)) {
+        toAdd.push(item)
+        paths.add(item.path)
+      }
     })
+    if (toAdd.length) group.children.unshift(...toAdd)
   })
   if (strict && roleKey === 'operator') {
     const allowedProduction = new Set([
@@ -554,24 +571,44 @@ function mergeAdminExtras(menus) {
   return mergeAdminDevMenus(menus)
 }
 
-/** 各角色登录后的默认首页 */
+/** 各角色登录后的默认首页（功能工作台；智能对话从侧栏进入） */
+export const CHAT_PATH = '/chat'
 const ROLE_HOME_PATH = {
-  admin: '/system/user',
+  admin: '/dashboard/admin',
   manager: BOARD_PATH,
-  order: '/order/list',
-  planner: '/production/plan',
-  operator: '/production/my-dispatch',
+  order: '/dashboard/order',
+  planner: '/dashboard/planner',
+  operator: '/dashboard/operator',
   quality: '/dashboard/quality',
   purchase: '/dashboard/purchase',
-  warehouse: '/warehouse/inventory',
+  warehouse: '/dashboard/warehouse',
   device: '/dashboard/device',
   aftersale: '/dashboard/aftersale',
-  cost: '/cost/report',
+  cost: '/dashboard/cost',
   customer: '/customer/home'
+}
+
+const ROLE_HOME_TITLE = {
+  admin: '系统管理工作台',
+  manager: '生产调度大屏',
+  order: '订单管理工作台',
+  planner: '计划员工作台',
+  operator: '生产操作员工作台',
+  quality: '质检员工作台',
+  purchase: '采购员工作台',
+  warehouse: '仓库管理工作台',
+  device: '设备维护工作台',
+  aftersale: '调查工作台',
+  cost: '财务/成本工作台',
+  customer: '产品中心'
 }
 
 export function getHomePath(roleKey) {
   return ROLE_HOME_PATH[roleKey] || '/system/user'
+}
+
+export function getHomeTitle(roleKey) {
+  return ROLE_HOME_TITLE[roleKey] || '首页'
 }
 
 /** @deprecated 请使用 getHomePath(roleKey) */

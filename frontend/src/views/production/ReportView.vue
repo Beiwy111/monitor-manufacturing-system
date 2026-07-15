@@ -139,7 +139,7 @@ function syncFromRoute() {
 
 onMounted(async () => {
   try {
-    await mes.hydrateFromApi()
+    await mes.hydrateForPage()
   } catch { /* ignore */ }
   syncFromRoute()
 })

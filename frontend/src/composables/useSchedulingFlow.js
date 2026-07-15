@@ -392,7 +392,7 @@ export function useSchedulingFlow(template = PLANNER_FLOW_TEMPLATE) {
     thoughtStream.value = next
   }
 
-  async function typewriterStepSummary(index, fullText, charMs = 42) {
+  async function typewriterStepSummary(index, fullText, charMs = 20) {
     const text = fullText || ''
     if (!text) return
     for (let i = 1; i <= text.length; i += 1) {
@@ -402,7 +402,7 @@ export function useSchedulingFlow(template = PLANNER_FLOW_TEMPLATE) {
     }
   }
 
-  async function streamEvidenceForStep(stepKey, evidence, evidenceMs = 500) {
+  async function streamEvidenceForStep(stepKey, evidence, evidenceMs = 220) {
     const related = evidence.filter((ev) => (ev.relatedSteps || []).includes(stepKey))
     for (const ev of related) {
       if (!evidenceList.value.some((e) => e.id === ev.id)) {
@@ -414,9 +414,9 @@ export function useSchedulingFlow(template = PLANNER_FLOW_TEMPLATE) {
 
   async function animateThoughtStream(steps, evidence, options = {}) {
     const {
-      stepPauseMs = 1800,
-      charMs = 42,
-      evidenceMs = 520
+      stepPauseMs = 700,
+      charMs = 20,
+      evidenceMs = 220
     } = typeof options === 'number' ? { stepPauseMs: options } : options
 
     thoughtStream.value = []
@@ -464,9 +464,9 @@ export function useSchedulingFlow(template = PLANNER_FLOW_TEMPLATE) {
     const flowOptions = typeof options === 'number'
       ? { stepPauseMs: options }
       : {
-          stepPauseMs: options.stepPauseMs ?? options.stepMs ?? 850,
-          charMs: options.charMs ?? 32,
-          evidenceMs: options.evidenceMs ?? 380,
+          stepPauseMs: options.stepPauseMs ?? options.stepMs ?? 500,
+          charMs: options.charMs ?? 20,
+          evidenceMs: options.evidenceMs ?? 200,
           ...options
         }
     clearTimers()

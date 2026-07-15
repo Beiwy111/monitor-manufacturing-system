@@ -1,12 +1,16 @@
 <template>
   <footer class="home-footer">
     <div class="footer-inner">
-      <div class="footer-title">电脑显示器制造 MES 系统</div>
-      <div class="footer-desc">面向 LCD/OLED 显示器制造企业的制造执行系统</div>
-      <div class="footer-copy">© 2026 Display Manufacturing MES</div>
+      <div class="footer-title">{{ APP_TITLE }}</div>
+      <div class="footer-desc">晶程 · 面向 LCD/OLED 显示器制造企业的制造执行系统</div>
+      <div class="footer-copy">© 2026 {{ BRAND_NAME }} MES</div>
     </div>
   </footer>
 </template>
+
+<script setup>
+import { APP_TITLE, BRAND_NAME } from '@/constants/brand'
+</script>
 
 <style scoped>
 .home-footer {

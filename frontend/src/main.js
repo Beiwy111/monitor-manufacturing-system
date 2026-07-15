@@ -12,6 +12,13 @@ import './styles/home.css'
 import './styles/mes.css'
 import './styles/ruoyi.css'
 import { MES_LIVE_MODE } from '@/config/mes'
+import { BRAND_LOGO } from '@/constants/brand'
+
+const favicon = document.querySelector('link[rel="icon"]')
+if (favicon) {
+  favicon.type = 'image/png'
+  favicon.href = BRAND_LOGO
+}
 
 const app = createApp(App)
 const pinia = createPinia()

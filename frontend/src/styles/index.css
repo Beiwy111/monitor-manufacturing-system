@@ -13,7 +13,7 @@ html, body, #app {
 }
 
 .page-card {
-  background: var(--layout-content-bg, #fff);
+  background: transparent;
   border: 1px solid var(--layout-border, #e8e8e3);
   border-radius: var(--layout-card-radius, 10px);
   padding: 20px;

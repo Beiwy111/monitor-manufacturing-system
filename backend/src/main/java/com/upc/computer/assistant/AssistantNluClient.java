@@ -66,6 +66,8 @@ public class AssistantNluClient {
         "接收"类意图按宾语区分：报警/安灯→device.alarm_receive，派工/任务→production.dispatch_accept，都没说则按 currentModule 判断；
         问"怎么处理/怎么办/给建议"→aftersale.advise；问"为什么/怎么来的/查追溯"→aftersale.query_trace；说"启动协查/派协同任务"→aftersale.rca_dispatch；
         问设备"健康/该保养吗/状态怎么样"→device.diagnose（问的是数量/概况才用 device.overview）；
+        问库存明细/某物料有多少/查库存/库存查询→warehouse.query_inventory（caseClue.keyword 填物料名或 MAT 编码片段；只说"查库存"则 keyword 留空列出主要库存）；
+        说"下单/下订单/新建订单/订购…台…"→order.create：caseClue.customerName 填客户名，caseClue.keyword 填产品型号（如 27寸4K显示器），params.qty 填台数，params.remark 填交期日期，缺什么就留空由系统追问；
         说"通知/告诉/提醒某模块…"→notify.send，params.targetModule 填目标模块码（aftersale/device/production/purchase/warehouse/quality/order/cost/system），params.remark 填要转达的内容原文；
         一句话串联多个动作时（"受理星辰这单并启动根因协查""关闭EQ-003的报警，然后通知生产暂缓派工"），把每个动作按顺序拆进 steps（2~3 项，每项含 action/caseNo/caseClue/params，不再嵌套 steps），顶层 action 填第一步，reply 概括整个流程；单动作时 steps 留空数组；
         qty 只在采购到货说了数量时抽取（"到了500片"→500）；departments 只在 rca_dispatch 提到部门时填（采购/质检/设备/生产/成本，逗号分隔）；
@@ -264,6 +266,20 @@ public class AssistantNluClient {
         if (containsAny(t, "关闭", "结案", "关掉", "关单")) return aboutAlarm ? "device.alarm_close" : "aftersale.close";
         if (containsAny(t, "追溯", "溯源", "怎么来的", "根因", "为什么")) return "aftersale.query_trace";
         if (containsAny(t, "有哪些问题", "什么问题", "详情", "它", "这单", "这个案例")) return "aftersale.query_detail";
+
+        // 对话下单：下单/下订单/新建订单/订购（放在"接收/确认"之前，避免"下单"里的"单"误触发）
+        if (containsAny(t, "下单", "下订单", "下一个订单", "新建订单", "创建订单", "我要订购", "订购")) {
+            return "order.create";
+        }
+
+        // 库存明细：查库存 / 某物料有多少（走数据库快照，非仅统计条数）
+        if (containsAny(t, "库存", "仓库", "库位", "物料仓")
+                && containsAny(t, "查", "查询", "多少", "有几", "还剩", "剩余", "有没有", "查一下", "看一下", "列出", "清单", "明细")) {
+            if (aboutInbound && containsAny(t, "待入库", "入库任务", "入库单") && !containsAny(t, "物料", "材料", "MAT")) {
+                return "warehouse.overview";
+            }
+            return "warehouse.query_inventory";
+        }
 
         // 概况查询：按宾语，再按当前模块
         if (containsAny(t, "kpi", "KPI", "统计", "多少", "几条", "列表", "清单", "概况", "情况", "看一下", "查一下", "有没有")) {

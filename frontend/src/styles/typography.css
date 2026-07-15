@@ -5,6 +5,7 @@
 :root {
   --font-sans: Inter, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-num: Inter, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-display: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
 
   /* 文字颜色层级 */
   --text-main: #25272a;
@@ -14,17 +15,17 @@
   --text-inverse: #ffffff;
   --heading-color: #25272a;
 
-  /* 字重层级：标题 700 / 模块标题与表头 600 / 菜单与标签 500 / 正文 400 */
+  /* 字重层级：标题 700 / 模块标题与表头 700 / 菜单与标签 600 / 正文 500 */
   --heading-weight: 700;
-  --module-weight: 600;
-  --body-weight: 400;
-  --body-weight-medium: 400;
-  --brand-weight: 600;
-  --nav-weight: 500;
-  --nav-weight-active: 600;
-  --btn-weight: 500;
-  --table-head-weight: 600;
-  --label-weight: 500;
+  --module-weight: 700;
+  --body-weight: 500;
+  --body-weight-medium: 600;
+  --brand-weight: 700;
+  --nav-weight: 600;
+  --nav-weight-active: 700;
+  --btn-weight: 600;
+  --table-head-weight: 700;
+  --label-weight: 600;
 
   --fs-base: 14px;
   --fs-body-sm: 13px;
@@ -66,6 +67,12 @@
   --ls-login-header: 0.02em;
 
   --nav-height: 56px;
+
+  /* 管理后台顶栏与内容区高度（贴边布局，无外边距） */
+  --layout-header-h: 52px;
+  --layout-main-padding-y: 0px;
+  --layout-content-min-h: calc(100vh - var(--layout-header-h));
+  --layout-viewport-h: calc(100vh - var(--layout-header-h));
 }
 
 @media (max-width: 768px) {
@@ -128,6 +135,25 @@ h1, h2, h3, h4, h5, h6 {
 .el-sub-menu__title {
   font-weight: var(--nav-weight) !important;
   font-size: var(--fs-nav) !important;
+}
+
+.el-form-item__label {
+  font-weight: var(--label-weight) !important;
+}
+
+.el-input__inner,
+.el-textarea__inner,
+.el-select__wrapper,
+.el-select .el-input__inner {
+  font-weight: var(--body-weight) !important;
+}
+
+.el-tag {
+  font-weight: var(--body-weight-medium) !important;
+}
+
+.el-dropdown-menu__item {
+  font-weight: var(--body-weight) !important;
 }
 
 .el-table th.el-table__cell {

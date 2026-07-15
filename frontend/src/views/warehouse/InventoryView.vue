@@ -68,12 +68,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import CatalogSection from './components/InventoryCatalogSection.vue'
 import { fetchWarehouseCatalog, fetchWarehouseTransactions } from '@/api/warehouse'
 import { useMesStore } from '@/stores/mes'
 
 const mes = useMesStore()
+const route = useRoute()
 const activeTab = ref('finished')
 const loading = ref(false)
 const catalogRows = ref([])
@@ -131,10 +133,10 @@ const filteredFlows = computed(() => {
 async function loadData() {
   loading.value = true
   try {
-    await mes.hydrateFromApi()
     const [catalog, transactions] = await Promise.all([
       fetchWarehouseCatalog(),
-      fetchWarehouseTransactions()
+      fetchWarehouseTransactions(),
+      mes.hydrateForPage()
     ])
     catalogRows.value = catalog || []
     transactionRows.value = transactions || []
@@ -144,6 +146,16 @@ async function loadData() {
 }
 
 onMounted(loadData)
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (tab === 'flow' || tab === 'raw' || tab === 'finished') {
+      activeTab.value = tab
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

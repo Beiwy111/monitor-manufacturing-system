@@ -440,7 +440,7 @@ async function validatePlanRow(row, { silent = true } = {}) {
 async function refresh() {
   tableLoading.value = true
   try {
-    await mes.hydrateFromApi()
+    await mes.hydrateForPage()
     await loadSchedules(mes.plans, true)
     const orderIds = mes.pendingPlanOrders.map((o) => o.id)
     await prefetchOrderContexts(orderIds)
@@ -583,7 +583,7 @@ watch(isFullscreen, (v) => {
 onMounted(async () => {
   tableLoading.value = true
   try {
-    if (!mes.hydrated) await mes.hydrateFromApi()
+    if (!mes.hydrated) await mes.hydrateForPage()
     await loadSchedules(mes.plans, true)
     await prefetchOrderContexts(mes.pendingPlanOrders.map((o) => o.id))
     if (pagedRows.value.length) {
@@ -608,7 +608,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .wb {
   margin: -12px;
-  min-height: calc(100vh - 98px);
+  min-height: var(--layout-viewport-h, calc(100vh - 52px));
   background: #f5f5f5;
   padding: 12px;
   font-size: 13px;
@@ -616,7 +616,7 @@ onBeforeUnmount(() => {
 }
 
 .wb__panel {
-  height: calc(100vh - 122px);
+  height: var(--layout-content-min-h, calc(100vh - 92px));
   display: flex;
   flex-direction: column;
   background: #fff;

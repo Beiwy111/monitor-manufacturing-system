@@ -282,9 +282,9 @@ export function usePlannerAgent(options = {}) {
           userStore.roleKey
         )
       }, {
-        stepPauseMs: 2000,
-        charMs: 48,
-        evidenceMs: 580
+        stepPauseMs: 900,
+        charMs: 20,
+        evidenceMs: 240
       })
       phase.value = 'review'
     } catch (e) {
@@ -356,7 +356,7 @@ export function usePlannerAgent(options = {}) {
       })
       ElMessage.success(res?.message || `已生成 ${submitPlanCount.value} 个计划并提交生产主管`)
       onSuccess?.()
-      await mes.hydrateFromApi()
+      await mes.hydrateForPage()
     } catch (e) {
       ElMessage.error(e?.message || '创建计划失败')
     } finally {

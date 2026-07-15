@@ -4,7 +4,7 @@ import { getMenusByRoleKey } from '@/mock/menus'
 import { login as loginApi, getUserInfo, getMenus } from '@/api/auth'
 import { MES_LIVE_MODE } from '@/config/mes'
 import { useMesStore } from '@/stores/mes'
-import { normalizeMenus, getHomePath, BOARD_PATH, stripManagerOnlyFromMenus, sanitizeMenus } from '@/utils/menuRoutes'
+import { normalizeMenus, getHomePath, getHomeTitle, stripManagerOnlyFromMenus, sanitizeMenus } from '@/utils/menuRoutes'
 import { useTagsViewStore } from '@/stores/tagsView'
 
 /** 是否使用 Mock 登录（后端接口就绪后改为 false） */
@@ -46,17 +46,33 @@ function buildUserInfo(session) {
   }
 }
 
-const _MENU_VERSION = '14'
-if (localStorage.getItem('menuVersion') !== _MENU_VERSION) {
-  localStorage.removeItem('menus')
-  localStorage.setItem('menuVersion', _MENU_VERSION)
+const _MENU_VERSION = '21'
+
+/**
+ * 登录态存 sessionStorage（按浏览器标签页隔离）：
+ * 可以同时开多个标签页登录不同账号，互不顶号；刷新当前标签页登录态仍在。
+ */
+const authStorage = window.sessionStorage
+
+// 兼容旧版本：把遗留在 localStorage 的登录态迁移进当前标签页，然后清掉全局副本
+for (const k of ['token', 'userInfo', 'menus', 'menuVersion']) {
+  const legacy = localStorage.getItem(k)
+  if (legacy !== null) {
+    if (authStorage.getItem(k) === null) authStorage.setItem(k, legacy)
+    localStorage.removeItem(k)
+  }
+}
+
+if (authStorage.getItem('menuVersion') !== _MENU_VERSION) {
+  authStorage.removeItem('menus')
+  authStorage.setItem('menuVersion', _MENU_VERSION)
 }
 
 export const useUserStore = defineStore('user', {
   state: () => ({
-    token: localStorage.getItem('token') || '',
-    userInfo: JSON.parse(localStorage.getItem('userInfo') || 'null'),
-    menus: sanitizeMenus(JSON.parse(localStorage.getItem('menus') || '[]'))
+    token: authStorage.getItem('token') || '',
+    userInfo: JSON.parse(authStorage.getItem('userInfo') || 'null'),
+    menus: sanitizeMenus(JSON.parse(authStorage.getItem('menus') || '[]'))
   }),
   getters: {
     isLoggedIn: (state) => !!state.token,
@@ -83,8 +99,8 @@ export const useUserStore = defineStore('user', {
         }
         this.token = data.token
         this.userInfo = data
-        localStorage.setItem('token', data.token)
-        localStorage.setItem('userInfo', JSON.stringify(data))
+        authStorage.setItem('token', data.token)
+        authStorage.setItem('userInfo', JSON.stringify(data))
         await this.loadMenus()
         this.resetTagsHome()
         return data
@@ -95,23 +111,26 @@ export const useUserStore = defineStore('user', {
       if (!this.token) {
         throw new Error('登录失败：未返回 token')
       }
-      localStorage.setItem('token', this.token)
-      localStorage.removeItem('menus')
+      authStorage.setItem('token', this.token)
+      authStorage.removeItem('menus')
       await this.refreshUserInfo()
       await this.loadMenus()
       this.resetTagsHome()
       if (MES_LIVE_MODE) {
-        useMesStore().hydrateFromApi().catch((e) => {
+        useMesStore().hydrateForPage().catch((e) => {
           console.warn('MES 数据加载失败，登录仍有效', e)
         })
       }
       return this.userInfo
     },
-    async loadMenus() {
+    async loadMenus(force = false) {
       const MENU_VERSION = _MENU_VERSION
-      if (localStorage.getItem('menuVersion') !== MENU_VERSION) {
-        localStorage.removeItem('menus')
-        localStorage.setItem('menuVersion', MENU_VERSION)
+      if (authStorage.getItem('menuVersion') !== MENU_VERSION) {
+        authStorage.removeItem('menus')
+        authStorage.setItem('menuVersion', MENU_VERSION)
+      }
+      if (!force && this.menus.length && authStorage.getItem('menus')) {
+        return this.menus
       }
       const fallback = getMenusByRoleKey(this.roleKey)
       try {
@@ -124,21 +143,19 @@ export const useUserStore = defineStore('user', {
         this.menus = normalizeMenus(fallback, this.roleKey, null)
       }
       this.menus = sanitizeMenus(stripManagerOnlyFromMenus(this.menus, this.roleKey))
-      localStorage.setItem('menus', JSON.stringify(this.menus))
+      authStorage.setItem('menus', JSON.stringify(this.menus))
       return this.menus
     },
     resetTagsHome() {
       const path = this.dashboardPath
-      let title = '首页'
-      if (path === BOARD_PATH) title = '生产调度大屏'
-      else if (path === '/dashboard/aftersale') title = '调查工作台'
+      const title = getHomeTitle(this.roleKey)
       useTagsViewStore().visitedViews = [{ path, title, affix: true }]
     },
     async refreshUserInfo() {
       if (USE_MOCK_AUTH) return this.userInfo
       const session = await getUserInfo()
       this.userInfo = buildUserInfo(session)
-      localStorage.setItem('userInfo', JSON.stringify(this.userInfo))
+      authStorage.setItem('userInfo', JSON.stringify(this.userInfo))
       return this.userInfo
     },
     logout() {
@@ -146,9 +163,9 @@ export const useUserStore = defineStore('user', {
       this.token = ''
       this.userInfo = null
       this.menus = []
-      localStorage.removeItem('token')
-      localStorage.removeItem('userInfo')
-      localStorage.removeItem('menus')
+      authStorage.removeItem('token')
+      authStorage.removeItem('userInfo')
+      authStorage.removeItem('menus')
       useTagsViewStore().visitedViews = []
 
       if (!USE_MOCK_AUTH && token) {

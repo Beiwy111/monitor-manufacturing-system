@@ -14,7 +14,9 @@
     <div class="hero-inner">
       <div class="hero-breadcrumb">首页 &gt; 产品 &gt; 制造执行系统</div>
       <div class="hero-kicker">MANUFACTURING EXECUTION SYSTEM</div>
-      <h1 class="hero-title">电脑显示器制造 MES 系统</h1>
+      <h1 class="hero-display-title">
+        <span class="hero-display-title__brand">{{ BRAND_NAME }}</span><span class="hero-display-title__mes">MES</span><span class="hero-display-title__suffix">—{{ APP_SUBTITLE }}</span>
+      </h1>
       <p class="hero-desc">
         覆盖客户订单、生产计划、工单派工、现场报工、质量检验、仓储出入库、
         设备维护与售后追溯的全流程制造执行平台。
@@ -26,6 +28,7 @@
 
 <script setup>
 import { homeImages } from '@/config/homeImages'
+import { APP_SUBTITLE, BRAND_NAME } from '@/constants/brand'
 
 defineEmits(['enter'])
 </script>
@@ -38,6 +41,7 @@ defineEmits(['enter'])
   display: flex;
   align-items: flex-end;
   overflow: hidden;
+  background: #001b3f;
 }
 .hero-bg {
   position: absolute;
@@ -45,8 +49,7 @@ defineEmits(['enter'])
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* 人物在视频右上方：靠右对齐，垂直略偏上才能露出头部 */
-  object-position: 84% 32%;
+  object-position: 82% 28%;
   pointer-events: none;
 }
 .hero-overlay {
@@ -54,10 +57,11 @@ defineEmits(['enter'])
   inset: 0;
   background: linear-gradient(
     90deg,
-    rgba(0, 27, 63, 0.88) 0%,
-    rgba(0, 27, 63, 0.62) 42%,
-    rgba(0, 27, 63, 0.28) 72%,
-    rgba(0, 27, 63, 0.12) 100%
+    rgba(0, 27, 63, 0.94) 0%,
+    rgba(0, 27, 63, 0.82) 38%,
+    rgba(0, 27, 63, 0.48) 58%,
+    rgba(0, 27, 63, 0.16) 78%,
+    transparent 100%
   );
 }
 .hero-inner {
@@ -71,25 +75,39 @@ defineEmits(['enter'])
 .hero-breadcrumb {
   font-size: var(--fs-hero-breadcrumb);
   font-weight: var(--body-weight);
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.72);
   margin-bottom: 20px;
 }
 .hero-kicker {
   font-size: var(--fs-hero-label);
   font-weight: var(--label-weight);
-  letter-spacing: var(--ls-hero-label);
-  color: var(--accent-bright);
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.78);
   margin-bottom: 14px;
   text-transform: uppercase;
 }
-.hero-title {
+.hero-display-title {
   margin: 0 0 18px;
-  font-size: var(--fs-hero-title);
-  font-weight: var(--heading-weight);
+  max-width: 820px;
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(32px, 4.8vw, 52px);
+  line-height: 1.28;
+  letter-spacing: 0.02em;
+}
+.hero-display-title__brand {
   color: #fff;
-  line-height: var(--lh-hero);
-  letter-spacing: var(--ls-hero-title);
-  max-width: 640px;
+  font-weight: 400;
+}
+.hero-display-title__mes {
+  font-style: italic;
+  font-weight: 500;
+  color: #7dd3fc;
+  letter-spacing: 0.04em;
+}
+.hero-display-title__suffix {
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 300;
 }
 .hero-desc {
   margin: 0 0 32px;
@@ -102,22 +120,27 @@ defineEmits(['enter'])
 .hero-cta {
   display: inline-block;
   padding: 13px 36px;
-  background: var(--accent-bright);
-  color: #001b3f;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.55);
   font-size: var(--fs-btn);
   font-weight: var(--btn-weight);
   font-family: var(--font-sans);
   cursor: pointer;
   border-radius: 0;
   text-decoration: none;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 .hero-cta:hover {
-  background: var(--accent-hover);
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.85);
 }
 @media (max-width: 768px) {
   .hero-section { min-height: 340px; }
-  .hero-bg { object-position: 72% 30%; }
+  .hero-bg { object-position: 78% 22%; }
   .hero-inner { padding: 36px 20px 44px; }
+  .hero-display-title {
+    line-height: 1.35;
+  }
 }
 </style>

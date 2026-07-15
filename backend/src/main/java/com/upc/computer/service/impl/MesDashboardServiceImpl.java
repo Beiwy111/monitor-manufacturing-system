@@ -19,6 +19,10 @@ import java.util.stream.Collectors;
 @Service
 public class MesDashboardServiceImpl implements MesDashboardService {
 
+    private volatile Map<String, Object> snapshotCache;
+    private volatile long snapshotCacheAt;
+    private static final long SNAPSHOT_CACHE_MS = 15_000;
+
     private static final Map<String, String> STATION_STATUS_LABEL = Map.of(
             "RUNNING", "运行中",
             "WAIT_MATERIAL", "待料",
@@ -71,6 +75,24 @@ public class MesDashboardServiceImpl implements MesDashboardService {
 
     @Override
     public Map<String, Object> getSnapshot() {
+        long now = System.currentTimeMillis();
+        Map<String, Object> hit = snapshotCache;
+        if (hit != null && now - snapshotCacheAt < SNAPSHOT_CACHE_MS) {
+            return hit;
+        }
+        synchronized (this) {
+            now = System.currentTimeMillis();
+            if (snapshotCache != null && now - snapshotCacheAt < SNAPSHOT_CACHE_MS) {
+                return snapshotCache;
+            }
+            Map<String, Object> built = buildSnapshot();
+            snapshotCache = built;
+            snapshotCacheAt = System.currentTimeMillis();
+            return built;
+        }
+    }
+
+    private Map<String, Object> buildSnapshot() {
         ensureInitialized();
         Map<String, Object> overview = plannerAgentService.buildProductionOverview();
         @SuppressWarnings("unchecked")
@@ -86,6 +108,11 @@ public class MesDashboardServiceImpl implements MesDashboardService {
         snapshot.put("systemStatus", buildSystemStatus());
         snapshot.put("dataSource", "planner-agent-live");
         return snapshot;
+    }
+
+    public void invalidateSnapshotCache() {
+        snapshotCache = null;
+        snapshotCacheAt = 0;
     }
 
     private List<Map<String, Object>> buildCompactKpi(Map<String, Object> overview) {
@@ -267,10 +294,7 @@ public class MesDashboardServiceImpl implements MesDashboardService {
     @Override
     public Map<String, Object> getAlarms() {
         ensureInitialized();
-        List<Map<String, Object>> items = alarmMapper.alarmList().stream()
-                .filter(a -> !"CLOSED".equals(a.getAlarmStatus()))
-                .sorted(Comparator.comparing(AndonAlarm::getReportedAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .limit(20)
+        List<Map<String, Object>> items = alarmMapper.listOpenAlarms(20).stream()
                 .map(a -> {
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("alarmNo", a.getAlarmNo());
@@ -428,7 +452,7 @@ public class MesDashboardServiceImpl implements MesDashboardService {
     }
 
     private int countOpenAlarms() {
-        return (int) alarmMapper.alarmList().stream().filter(a -> !"CLOSED".equals(a.getAlarmStatus())).count();
+        return alarmMapper.countOpenAlarms();
     }
 
     private int countDelayRisks() {

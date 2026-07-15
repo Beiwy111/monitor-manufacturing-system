@@ -96,12 +96,11 @@
 import { computed, reactive, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete } from '@element-plus/icons-vue'
-import { useMesStore } from '@/stores/mes'
 import { useRuoyiTable } from '@/composables/useRuoyiTable'
 import { fetchRoleList, fetchUserList, insertRole, updateRole, deleteRole } from '@/api/system'
 import { mapRoleFromApi } from '@/utils/systemMappers'
 
-const mes = useMesStore()
+
 const loading = ref(false)
 const dialogVisible = ref(false)
 const formRef = ref()
@@ -135,7 +134,6 @@ async function reload() {
   try {
     const [roleRows, userRows] = await Promise.all([fetchRoleList(), fetchUserList()])
     roles.value = (roleRows || []).map((r) => mapRoleFromApi(r, userRows || []))
-    await mes.hydrateFromApi()
   } catch (e) {
     ElMessage.error(e?.message || '加载角色数据失败')
   } finally {

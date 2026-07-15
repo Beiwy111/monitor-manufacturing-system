@@ -15,11 +15,13 @@
   );
   --layout-surface: #fffdf9;
   --layout-content-bg: #ffffff;
+  /* 主内容区与页面外框同款渐变（表格/卡片仍用 layout-content-bg 纯白） */
+  --layout-content-gradient: var(--layout-bg-gradient);
   --layout-card-radius: 10px;
   --layout-shadow: 0 1px 2px rgba(37, 39, 42, 0.04), 0 4px 12px rgba(37, 39, 42, 0.03);
   --layout-divider: #e8e8e3;
   --layout-border: #e8e8e3;
-  --sidebar-panel-bg: #f7f9f4;
+  --sidebar-panel-bg: transparent;
   --layout-panel-bg: transparent;
 
   /* 文字色 — 深灰黑 / 次要灰 */
@@ -33,15 +35,18 @@
   --layout-text: var(--layout-text-body);
   --layout-text-secondary: var(--layout-text-caption);
   --layout-text-muted: var(--layout-text-caption);
-  --layout-table-head: #fafaf8;
-  --layout-table-row-hover: #f3f5f0;
+  --layout-table-head: rgba(250, 250, 248, 0.42);
+  --layout-table-row-hover: rgba(243, 245, 240, 0.55);
+  --layout-panel-bg: transparent;
+  --layout-input-bg: rgba(255, 253, 249, 0.58);
 
   /* 侧栏 */
-  --sidebar-bg: #f7f9f4;
+  /* 侧栏与主内容区同款渐变（菜单项本身仍透明） */
+  --sidebar-bg: transparent;
   --sidebar-hover-bg: #eef1ea;
   --sidebar-active-bg: #e8efe4;
   --sidebar-active-text: #25272a;
-  --sidebar-text: #7e838b;
+  --sidebar-text: #4f5560;
   --sidebar-text-hover: #25272a;
   --sidebar-accent: #8fad94;
   --sidebar-avatar-bg: #eef1ea;
@@ -123,7 +128,7 @@ body,
 #app {
   font-family: var(--layout-font);
   font-size: var(--fs-body);
-  font-weight: 400;
+  font-weight: var(--body-weight, 500);
   line-height: var(--lh-base);
   background: var(--layout-bg-gradient);
   background-attachment: fixed;
@@ -141,8 +146,15 @@ body,
 }
 
 .layout-aside {
-  background: var(--sidebar-bg, #f7f9f4) !important;
+  background: var(--layout-content-gradient, var(--layout-bg-gradient)) !important;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   border-right-color: var(--layout-border, #e8e8e3) !important;
+}
+
+.layout-aside .logo {
+  background: transparent !important;
+  border-bottom-color: var(--layout-border, #e8e8e3) !important;
 }
 
 .layout-right {
@@ -156,7 +168,9 @@ body,
 
 .layout-main:not(.layout-main--screen),
 .layout-main.ruoyi-app-main:not(.layout-main--screen) {
-  background: transparent !important;
+  background: var(--layout-content-gradient) !important;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 /* ========== 管理后台内容区 ========== */
@@ -176,7 +190,7 @@ body,
 .ruoyi-page .el-button,
 .mes-page .el-button,
 .layout-main.ruoyi-app-main .el-button {
-  font-weight: 500 !important;
+  font-weight: var(--btn-weight, 600) !important;
   border-radius: 7px !important;
   box-shadow: none !important;
   font-size: var(--fs-body) !important;
@@ -283,7 +297,7 @@ body,
 .ruoyi-page .el-button.is-link,
 .mes-page .el-button.is-link,
 .layout-main.ruoyi-app-main .el-button.is-link {
-  font-weight: 500 !important;
+  font-weight: var(--btn-weight, 600) !important;
   border-radius: 4px !important;
 }
 
@@ -378,7 +392,7 @@ body,
 .ruoyi-page .el-table td.el-table__cell,
 .mes-table-wrap .el-table td.el-table__cell,
 .layout-main.ruoyi-app-main .el-table td.el-table__cell {
-  font-weight: 400 !important;
+  font-weight: var(--body-weight, 500) !important;
   font-size: var(--fs-table) !important;
   color: var(--layout-text-table) !important;
 }
@@ -427,13 +441,86 @@ body,
   background: var(--layout-table-row-hover) !important;
 }
 
-/* 表格主体保持纯白，确保可读性 */
+/* 表格主体透出渐变 */
+.layout-main.ruoyi-app-main .el-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: var(--layout-table-head);
+}
+
 .layout-main.ruoyi-app-main .el-table,
 .layout-main.ruoyi-app-main .el-table__inner-wrapper,
 .layout-main.ruoyi-app-main .el-table__body-wrapper,
 .layout-main.ruoyi-app-main .el-table tr,
 .layout-main.ruoyi-app-main .el-table td.el-table__cell {
-  background-color: #fff;
+  background-color: transparent !important;
+}
+
+.layout-main.ruoyi-app-main .el-table th.el-table__cell {
+  background-color: var(--layout-table-head) !important;
+}
+
+.layout-main.ruoyi-app-main .el-table__empty-block {
+  background: transparent !important;
+}
+
+/* 各业务页内常见白底容器 */
+.layout-main.ruoyi-app-main :is(
+  .panel,
+  .kpi,
+  .table-card,
+  .flow-table-wrap,
+  .po-table-wrap,
+  .alert-table-wrap,
+  .cp-form-panel,
+  .cp-detail
+) {
+  background: var(--layout-panel-bg) !important;
+  box-shadow: none !important;
+}
+
+/* 卡片/面板去白底，透出页面渐变 */
+.layout-main.ruoyi-app-main :is(
+  .ruoyi-stats,
+  .ruoyi-detail,
+  .ruoyi-log,
+  .ruoyi-split__tree,
+  .ruoyi-split__main,
+  .ruoyi-stat-card,
+  .ruoyi-home-panel,
+  .qc-split-layout__side,
+  .order-audit-layout__detail,
+  .page-card,
+  .mes-status-strip,
+  .mes-side,
+  .mes-log-panel,
+  .mes-operator-current,
+  .pdb,
+  .pdb-panel
+) {
+  background: var(--layout-panel-bg) !important;
+  box-shadow: none !important;
+}
+
+.layout-main.ruoyi-app-main .el-card {
+  background: var(--layout-panel-bg) !important;
+  box-shadow: none !important;
+}
+
+.layout-main.ruoyi-app-main .el-tree {
+  background: transparent !important;
+}
+
+.layout-main.ruoyi-app-main .el-input__wrapper,
+.layout-main.ruoyi-app-main .el-select__wrapper,
+.layout-main.ruoyi-app-main .el-textarea__inner {
+  background-color: var(--layout-input-bg) !important;
+}
+
+.layout-main.ruoyi-app-main .el-pagination .btn-prev,
+.layout-main.ruoyi-app-main .el-pagination .btn-next,
+.layout-main.ruoyi-app-main .el-pagination .el-pager li {
+  background: var(--layout-input-bg) !important;
 }
 
 /* 弹窗 */
@@ -453,7 +540,7 @@ body,
 /* 页签 */
 .ruoyi-app-main .el-tabs__item,
 .ruoyi-page .el-tabs__item {
-  font-weight: 500;
+  font-weight: 600;
   font-size: var(--fs-body);
   color: var(--layout-text-caption);
 }
@@ -461,7 +548,7 @@ body,
 .ruoyi-app-main .el-tabs__item.is-active,
 .ruoyi-page .el-tabs__item.is-active {
   color: var(--layout-text-title);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .ruoyi-app-main .el-tabs__active-bar,
@@ -510,7 +597,7 @@ body,
 .layout-main.ruoyi-app-main .el-form-item__label {
   font-size: var(--fs-body) !important;
   color: var(--layout-text-table) !important;
-  font-weight: 500 !important;
+  font-weight: var(--label-weight, 600) !important;
 }
 
 /* 标签语义色 */
@@ -519,7 +606,7 @@ body,
   --el-tag-bg-color: var(--el-color-success-light-9);
   --el-tag-border-color: #bbf7d0;
   --el-tag-text-color: #15803d;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .ruoyi-app-main .el-tag--warning,
@@ -527,7 +614,7 @@ body,
   --el-tag-bg-color: var(--el-color-warning-light-9);
   --el-tag-border-color: #fde68a;
   --el-tag-text-color: #a16207;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .ruoyi-app-main .el-tag--danger,
@@ -535,7 +622,7 @@ body,
   --el-tag-bg-color: var(--el-color-danger-light-9);
   --el-tag-border-color: #fecaca;
   --el-tag-text-color: #b91c1c;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .ruoyi-app-main .el-tag--info,
@@ -543,7 +630,7 @@ body,
   --el-tag-bg-color: var(--el-color-info-light-9);
   --el-tag-border-color: var(--el-color-info-light-8);
   --el-tag-text-color: #5f7084;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .ruoyi-app-main .el-tag--primary,
@@ -551,14 +638,14 @@ body,
   --el-tag-bg-color: #f4f4f5;
   --el-tag-border-color: #e4e4e7;
   --el-tag-text-color: var(--layout-text-table);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .page-card {
   border-radius: var(--layout-card-radius);
   border-color: var(--layout-border);
-  box-shadow: var(--layout-shadow);
-  background: var(--layout-content-bg);
+  box-shadow: none;
+  background: transparent;
 }
 
 .page-title {
@@ -571,7 +658,7 @@ body,
 /* 链接 */
 .layout-main.ruoyi-app-main a:not(.el-button):not(.ruoyi-tags__item) {
   color: var(--layout-text-title);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .layout-main.ruoyi-app-main a:not(.el-button):hover {
@@ -581,7 +668,7 @@ body,
 /* 描述列表 */
 .layout-main.ruoyi-app-main .el-descriptions__label {
   color: var(--layout-text-caption) !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
 }
 
 .layout-main.ruoyi-app-main .el-descriptions__content {
@@ -594,7 +681,7 @@ body,
 .el-message-box .el-button {
   border-radius: 7px !important;
   box-shadow: none !important;
-  font-weight: 500 !important;
+  font-weight: var(--btn-weight, 600) !important;
 }
 
 .el-dialog .el-button--primary,

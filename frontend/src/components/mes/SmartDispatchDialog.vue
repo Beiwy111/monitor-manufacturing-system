@@ -3,7 +3,7 @@
     v-model="visible"
     class="smart-dispatch-dialog"
     :title="dialogTitle"
-    width="1240px"
+    width="1580px"
     destroy-on-close
     :close-on-click-modal="!loading && phase !== 'analyzing'"
     @open="onOpen"
@@ -88,11 +88,11 @@
       <el-alert v-if="preview?.summary" :title="preview.summary" type="success" :closable="false" show-icon class="summary-bar" />
 
       <el-table :data="editableRows" border class="dispatch-table">
-        <el-table-column prop="processStep" label="工序" min-width="108" />
-        <el-table-column label="车间" min-width="168">
+        <el-table-column prop="processStep" label="工序" min-width="120" />
+        <el-table-column label="车间" min-width="200">
           <template #default="{ row }"><el-input v-model="row.workshopName" /></template>
         </el-table-column>
-        <el-table-column label="设备" min-width="220">
+        <el-table-column label="设备" min-width="260">
           <template #default="{ row }">
             <el-select
               v-model="row.equipmentCode"
@@ -110,7 +110,7 @@
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column label="操作员" min-width="220">
+        <el-table-column label="操作员" min-width="260">
           <template #default="{ row }">
             <el-select
               v-model="row.recommendedOperator"
@@ -127,7 +127,7 @@
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column label="数量" width="108" align="center">
+        <el-table-column label="数量" width="120" align="center">
           <template #default="{ row }">
             <el-input-number
               v-model="row.planQty"
@@ -137,7 +137,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="预计工时(h)" width="120" align="center">
+        <el-table-column label="预计工时(h)" width="140" align="center">
           <template #default="{ row }">
             <el-input-number
               :model-value="row.estimatedHours"
@@ -147,7 +147,6 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="recommendReason" label="推荐原因" min-width="220" class-name="dispatch-table__reason-col" />
       </el-table>
     </div>
 
@@ -541,6 +540,7 @@ async function confirm() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
 }
 
 .dispatch-phase--idle {
@@ -663,7 +663,7 @@ async function confirm() {
 
 .result-head {
   border: 1px solid #ebeef5;
-  border-radius: 4px;
+  border-radius: 0;
   background: #fafafa;
   overflow: hidden;
 }
@@ -697,20 +697,40 @@ async function confirm() {
 </style>
 
 <style>
+.smart-dispatch-dialog.el-dialog {
+  border-radius: 0 !important;
+  max-width: calc(100vw - 32px);
+}
+
+.smart-dispatch-dialog .el-dialog__header {
+  border-radius: 0 !important;
+}
+
+.smart-dispatch-dialog .el-dialog__body {
+  font-size: 14px;
+  color: #344054;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
 .smart-dispatch-dialog .el-dialog__title {
   font-size: 18px;
   font-weight: 600;
   color: #172033;
 }
 
-.smart-dispatch-dialog .el-dialog__body {
-  font-size: 14px;
-  color: #344054;
+.smart-dispatch-dialog .summary-bar {
+  border-radius: 0 !important;
 }
 
 .smart-dispatch-dialog .summary-bar .el-alert__title {
   font-size: 14px;
   line-height: 1.5;
+}
+
+.smart-dispatch-dialog .dispatch-table {
+  width: 100%;
+  border-radius: 0 !important;
 }
 
 .smart-dispatch-dialog .dispatch-table .el-table__cell {
@@ -738,10 +758,6 @@ async function confirm() {
   line-height: 1.45;
 }
 
-.smart-dispatch-dialog .dispatch-table__reason-col .cell {
-  color: #667085;
-}
-
 .smart-dispatch-dialog .dispatch-table__select {
   width: 100%;
 }
@@ -750,6 +766,16 @@ async function confirm() {
 .smart-dispatch-dialog .dispatch-table .el-select__wrapper {
   min-height: 34px;
   font-size: 14px;
+  border-radius: 0 !important;
+}
+
+.smart-dispatch-dialog .dispatch-table .el-input-number {
+  width: 100%;
+}
+
+.smart-dispatch-dialog .dispatch-table .el-input-number .el-input-number__decrease,
+.smart-dispatch-dialog .dispatch-table .el-input-number .el-input-number__increase {
+  border-radius: 0 !important;
 }
 
 .smart-dispatch-dialog .dispatch-table .el-select__wrapper .el-select__selected-item {

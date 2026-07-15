@@ -20,6 +20,10 @@ export function getCustomerProducts() {
   return request.get('/customer/portal/products')
 }
 
+export function getCustomerProduct(materialId) {
+  return request.get(`/customer/portal/products/${materialId}`)
+}
+
 export function getCustomerFeedbacks() {
   return request.get('/customer/portal/feedbacks')
 }

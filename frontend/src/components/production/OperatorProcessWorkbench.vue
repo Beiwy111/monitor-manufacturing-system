@@ -291,7 +291,8 @@ function rowClassName({ row }) {
 function canSubmitQc(row) {
   if (!(row.finalProductionStep || row.processStep === '返修')) return false
   if (Number(row.completedQty) < Number(row.planQty)) return false
-  return ['已接收', '生产中', '待质检'].includes(row.status)
+  // 仅「生产中」可提交；「待质检」表示已提交，后端会拒绝重复操作
+  return row.status === '生产中'
 }
 
 function progressText(row) {

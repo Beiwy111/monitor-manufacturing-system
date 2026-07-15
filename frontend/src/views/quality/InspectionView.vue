@@ -156,6 +156,7 @@
         :items="reportItemsForPanel"
         :unit-matrix="unitMatrixExport"
         optional-ai
+        :before-generate-ai="syncBeforeAiReport"
       />
 
       <p v-if="canOperate" class="qc-flow-page__pass-hint">无需生成 AI 报告，确认检测结果后可直接点击「质检通过」。</p>
@@ -398,8 +399,18 @@ const unitMatrixExport = computed(() => {
   }
 })
 
+/** 成品质检矩阵是否已全部判定（每台 PASS/FAIL，无 PENDING） */
+function isFpMatrixComplete(matrix) {
+  if (!matrix?.length) return false
+  return matrix.every((r) => r.overall === 'PASS' || r.overall === 'FAIL')
+}
+
 const canGoReport = computed(() => {
-  if (isFinished.value) return fiveStepRef.value?.allDone
+  if (isFinished.value) {
+    if (fiveStepRef.value?.allDone) return true
+    // 报告页已卸载五步工作台，用快照判断是否完成
+    return isFpMatrixComplete(fpReportSnapshot.value?.matrix)
+  }
   const sum = materialRef.value?.getInspectionSummary?.()
   return sum && sum.items?.length > 0 && sum.items.every((i) => i.result === 'PASSED' || i.result === 'FAILED')
 })
@@ -851,6 +862,11 @@ async function doFail() {
   } finally {
     acting.value = false
   }
+}
+
+async function syncBeforeAiReport() {
+  if (!isFinished.value || !fpReportSnapshot.value) return true
+  return syncFinishedToBackend(fpReportSnapshot.value)
 }
 
 onMounted(async () => {

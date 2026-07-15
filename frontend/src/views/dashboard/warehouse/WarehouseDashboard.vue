@@ -14,9 +14,9 @@ const statusItems = computed(() => [
   { label: '库存品种', value: mes.inventory.length }
 ])
 const shortcuts = [
-  { label: '成品入库', path: '/warehouse/inbound' },
-  { label: '生产领料', path: '/warehouse/issue' },
-  { label: '发货出库', path: '/delivery/list' },
-  { label: '库存查询', path: '/warehouse/inventory' }
+  { label: '入库', path: '/warehouse/inbound-hub' },
+  { label: '出库', path: '/warehouse/outbound-hub' },
+  { label: '库存容量查询', path: '/warehouse/capacity' },
+  { label: '库位图', path: '/warehouse/location-map' }
 ]
 </script>

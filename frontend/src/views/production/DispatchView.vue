@@ -94,7 +94,7 @@ onMounted(async () => {
 watch(() => route.query.workOrderId, (id) => { if (id) openManualDispatch(String(id)) })
 
 async function refresh() {
-  try { await mes.hydrateFromApi() } catch { /* ignore */ }
+  try { await mes.hydrateForPage() } catch { /* ignore */ }
 }
 
 function openAutoDispatch() {

@@ -24,7 +24,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useTagsViewStore } from '@/stores/tagsView'
 
 import { useUserStore } from '@/stores/user'
-import { BOARD_PATH } from '@/utils/menuRoutes'
+import { getHomeTitle } from '@/utils/menuRoutes'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,7 +34,7 @@ const userStore = useUserStore()
 // 首页标签始终指向当前角色首页（修正历史缓存 / 刷新后写死的默认值）
 watch(
   () => userStore.dashboardPath,
-  (p) => tagsView.syncHome(p, p === BOARD_PATH ? '生产调度大屏' : '首页'),
+  (p) => tagsView.syncHome(p, getHomeTitle(userStore.roleKey)),
   { immediate: true }
 )
 

@@ -243,9 +243,10 @@ async function loadAll() {
     alarms.value = pick(alRes, [])
     records.value = pick(mrRes, [])
     workshops.value = mergeWorkshopData(pick(ovRes, {})?.workshops || [])
-    const failed = [kRes, eqRes, alRes, mrRes, ovRes].filter((r) => r.status === 'rejected')
-    if (failed.length === failed.length) {
-      ElMessage.error(failed[0].reason?.message || '加载设备数据失败')
+    const results = [kRes, eqRes, alRes, mrRes, ovRes]
+    const failed = results.filter((r) => r.status === 'rejected')
+    if (failed.length === results.length) {
+      ElMessage.error(failed[0]?.reason?.message || '加载设备数据失败')
     }
   } catch (e) {
     ElMessage.error(e?.message || '加载设备数据失败')

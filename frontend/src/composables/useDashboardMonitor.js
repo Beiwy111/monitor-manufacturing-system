@@ -396,7 +396,7 @@ export function useDashboardMonitor() {
   async function refreshDashboardData() {
     loading.value = true
     try {
-      await mes.hydrateFromApi?.()
+      await mes.hydrateForPage?.()
       if (PREFER_API) {
         await tryFetchApi().catch(() => {})
       }

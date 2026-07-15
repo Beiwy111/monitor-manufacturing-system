@@ -50,9 +50,9 @@ export function fetchManagerPlanContext(planNo) {
   return request.get(`/mes/manager/plan/${planNo}/context`)
 }
 
-/** 生产主管大屏完整快照 */
+/** 生产主管大屏完整快照（数据量大，单独延长超时） */
 export function fetchDashboardSnapshot() {
-  return request.get('/mes/dashboard/snapshot')
+  return request.get('/mes/dashboard/snapshot', { timeout: 60000 })
 }
 
 export function fetchDashboardKpi() {

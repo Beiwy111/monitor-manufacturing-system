@@ -1,89 +1,58 @@
 <template>
-  <div class="factory-wrap">
-    <canvas ref="canvasRef" class="factory-canvas" />
+  <div class="isc-scene">
+    <canvas ref="canvasRef" class="isc-scene__canvas" />
 
-    <div class="factory-labels">
+    <!-- 悬浮设备标签 -->
+    <div class="isc-scene__labels">
       <div
-        v-for="item in labelItems" :key="item.id"
-        class="eq-label" :class="`lv-${item.level}`"
-        :style="{ left: item.x+'px', top: item.y+'px', opacity: item.visible ? 1 : 0 }"
+        v-for="item in labelItems"
+        :key="item.id"
+        class="isc-eq-tag"
+        :class="[
+          `isc-eq-tag--${item.level}`,
+          { 'isc-eq-tag--active': selectedId === item.id, 'isc-eq-tag--expanded': item.expanded }
+        ]"
+        :style="{ left: item.x + 'px', top: item.y + 'px', opacity: item.visible ? 1 : 0 }"
         @click.stop="selectEq(item.id)"
       >
-        <span class="eq-label__score" :style="{ color: item.levelColor }">{{ item.score }}</span>
-        <span class="eq-label__name">{{ item.name }}</span>
-        <span class="eq-label__dot" :style="{ background: item.statusColor }"></span>
+        <template v-if="item.expanded">
+          <div class="isc-eq-card__head">
+            <span class="isc-eq-card__code">{{ item.code }}</span>
+            <button class="isc-eq-card__close" @click.stop="closeDetail">×</button>
+          </div>
+          <div class="isc-eq-card__name">{{ item.name }}</div>
+          <div class="isc-eq-card__meta">{{ item.stageName || '—' }} · {{ item.workshopName || '—' }}</div>
+          <div class="isc-eq-card__status">
+            <span class="isc-eq-card__pill" :style="{ borderColor: item.statusColor, color: item.statusColor }">
+              {{ item.statusCn }}
+            </span>
+            <span class="isc-eq-card__score" :style="{ color: item.levelColor }">健康 {{ item.score }}</span>
+          </div>
+          <div class="isc-eq-card__grid">
+            <span>运行 <em>{{ item.runHours ?? '—' }}h</em></span>
+            <span>报警7d <em :class="{ 'isc-eq-card__warn': item.alarm7d > 0 }">{{ item.alarm7d ?? 0 }}</em></span>
+            <span>保养 <em>{{ item.daysSinceMaint ?? '—' }}天前</em></span>
+            <span>缺陷30d <em>{{ item.faultCount30d ?? 0 }}</em></span>
+          </div>
+          <div v-if="item.advice" class="isc-eq-card__advice">{{ item.advice }}</div>
+        </template>
+        <template v-else>
+          <span class="isc-eq-tag__dot" :style="{ background: item.statusColor }" />
+          <span class="isc-eq-tag__code">{{ item.code }}</span>
+          <span class="isc-eq-tag__status">{{ item.statusCn }}</span>
+          <span class="isc-eq-tag__score" :style="{ color: item.levelColor }">{{ item.score }}</span>
+        </template>
       </div>
     </div>
 
-    <div class="factory-toolbar">
-      <button class="ft-btn" @click="resetCamera">⊙ 复位</button>
-      <button class="ft-btn" :class="{ active: autoRotate }" @click="autoRotate = !autoRotate">
-        {{ autoRotate ? '⏸ 停止' : '▶ 旋转' }}
+    <!-- 场景内工具条 -->
+    <div class="isc-scene__toolbar">
+      <button class="isc-tbtn" @click="resetCamera">复位</button>
+      <button class="isc-tbtn" :class="{ 'isc-tbtn--on': autoRotate }" @click="autoRotate = !autoRotate">
+        {{ autoRotate ? '停止旋转' : '自动旋转' }}
       </button>
-      <div class="ft-sep"/>
-      <span v-for="s in STATUS_LEGEND" :key="s.label" class="ft-legend">
-        <span class="ft-dot" :style="{ background: s.color }"/>{{ s.label }}
-      </span>
-      <div class="ft-sep"/>
-      <span class="ft-tip">🖱 拖转 · 滚缩 · 右键平移 · 点设备查详情</span>
+      <span class="isc-tbtn isc-tbtn--hint">拖转 · 滚轮缩放 · 右键平移 · 点击设备查看信息</span>
     </div>
-
-    <transition name="slide-panel">
-      <div v-if="selectedEq" class="eq-panel">
-        <div class="ep-head">
-          <div>
-            <div class="ep-code">{{ selectedEq.equipmentCode }}</div>
-            <div class="ep-name">{{ selectedEq.equipmentName }}</div>
-          </div>
-          <button class="ep-close" @click="selectedEq = null">✕</button>
-        </div>
-        <div class="ep-tags">
-          <el-tag :type="statusTag(selectedEq.status)" size="small">{{ selectedEq.statusCn }}</el-tag>
-          <el-tag :type="levelTag(selectedEq.healthLevel)" size="small" style="margin-left:6px">
-            健康度 {{ selectedEq.healthScore }}
-          </el-tag>
-        </div>
-        <div class="ep-score-row">
-          <svg viewBox="0 0 80 80" width="80" height="80">
-            <circle cx="40" cy="40" r="32" fill="none" stroke="#eef1f5" stroke-width="7"/>
-            <circle cx="40" cy="40" r="32" fill="none"
-              :stroke="hlColor(selectedEq.healthLevel)" stroke-width="7" stroke-linecap="round"
-              :stroke-dasharray="`${(201.1*selectedEq.healthScore/100).toFixed(1)} 201.1`"
-              stroke-dashoffset="50.3" style="transition:stroke-dasharray .8s ease"/>
-            <text x="40" y="45" text-anchor="middle" font-size="18" font-weight="800"
-              :fill="hlColor(selectedEq.healthLevel)">{{ selectedEq.healthScore }}</text>
-          </svg>
-          <div class="ep-advice">{{ selectedEq.advice }}</div>
-        </div>
-        <div class="ep-deducts">
-          <div v-for="d in deductRows(selectedEq)" :key="d.label"
-            class="ep-dd" :class="d.val>0?'bad':'ok'">
-            <span class="ep-dd__label">{{ d.label }}</span>
-            <span class="ep-dd__note">{{ d.note }}</span>
-            <span class="ep-dd__val">{{ d.val>0?'-'+d.val:'✓' }}</span>
-          </div>
-        </div>
-        <div class="ep-sub-title">
-          近7天报警
-          <em :style="{ color: selectedEq.alarm7d>0?'#ef4444':'#52b788' }">{{ selectedEq.alarm7d }} 次</em>
-        </div>
-        <el-table v-if="selectedEq.alarmList7d?.length"
-          :data="selectedEq.alarmList7d.slice(0,4)" size="small" max-height="120">
-          <el-table-column prop="alarmNo" label="单号" width="104"/>
-          <el-table-column prop="alarmLevelCn" label="级别" width="48" align="center"/>
-          <el-table-column prop="alarmStatusCn" label="状态" width="60" align="center"/>
-        </el-table>
-        <div v-else class="ep-empty">近7天无报警 ✓</div>
-        <div class="ep-sub-title" style="margin-top:10px">最近维保记录</div>
-        <el-table v-if="selectedEq.maintList?.length"
-          :data="selectedEq.maintList.slice(0,3)" size="small" max-height="100">
-          <el-table-column prop="maintenanceNo" label="单号" width="104"/>
-          <el-table-column prop="maintenanceTypeCn" label="类型" width="48" align="center"/>
-          <el-table-column prop="maintenanceResultCn" label="结果" width="60" align="center"/>
-        </el-table>
-        <div v-else class="ep-empty">暂无维保记录</div>
-      </div>
-    </transition>
   </div>
 </template>
 
@@ -91,128 +60,296 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { createEquipmentMesh, STATUS_COLOR, HEALTH_COLOR } from './EquipmentMesh.js'
+import {
+  createEquipmentMesh,
+  createConveyorMesh,
+  createBufferRack,
+  createAgvMesh,
+  createWorkstationPad,
+  STATUS_COLOR,
+  HEALTH_COLOR
+} from './EquipmentMesh.js'
 import { fetchEquipmentHealth } from '@/api/business'
+import {
+  buildEquipmentPositions,
+  buildStageZones,
+  buildSceneInfrastructure,
+  isSceneEquipment
+} from '@/utils/factorySceneLayout'
 
-const LAYOUT = {
-  'EQ-001': { x:-5.5, z:-2.0 }, 'EQ-002': { x:-5.5, z: 2.0 }, 'EQ-010': { x:-5.5, z: 0.0 },
-  'EQ-003': { x:-2.4, z:-1.2 }, 'EQ-007': { x:-2.4, z: 2.0 },
-  'EQ-004': { x: 1.6, z:-2.4 }, 'EQ-009': { x: 1.6, z: 0.2 },
-  'EQ-005': { x: 4.6, z:-2.4 }, 'EQ-011': { x: 4.6, z: 0.2 },
-  'EQ-006': { x: 4.6, z: 2.6 }, 'EQ-008': { x: 1.6, z: 2.6 },
-}
-const STATUS_LEGEND = [
-  { label:'空闲/运行', color: STATUS_COLOR.IDLE },
-  { label:'故障',      color: STATUS_COLOR.FAULT },
-  { label:'维保中',    color: STATUS_COLOR.MAINTAINING },
-]
+const emit = defineEmits(['select', 'deselect'])
 
-const canvasRef  = ref(null)
-const autoRotate = ref(true)
+const canvasRef = ref(null)
+const autoRotate = ref(false)
 const labelItems = ref([])
 const selectedEq = ref(null)
-const equipList  = ref([])
+const selectedId = ref(null)
+const equipList = ref([])
 
 let renderer, scene, camera, controls, animId, timer = null
 const meshMap = new Map()
+let layoutMap = {}
 
-const hlColor   = (l) => HEALTH_COLOR[l] ?? '#52b788'
-const levelTag  = (l) => ({ GOOD:'success', WARN:'warning', ALERT:'danger', DANGER:'danger' })[l] ?? 'info'
-const statusTag = (s) => ({ RUNNING:'success', IDLE:'info', FAULT:'danger', MAINTAINING:'warning' })[s] ?? 'info'
-const deductRows = (d) => [
-  { label:'超时运行', val:d.deductRun??0,   note:`运行 ${d.runHours}h` },
-  { label:'高频报警', val:d.deductAlarm??0,  note:`近7天 ${d.alarm7d} 次` },
-  { label:'逾期保养', val:d.deductMaint??0,  note:`已 ${d.daysSinceMaint} 天` },
-  { label:'关联缺陷', val:d.deductNc??0,     note:`近30天 ${d.faultCount30d??0} 次` },
-]
-function selectEq(id) { selectedEq.value = equipList.value.find(e => e.equipmentId === id) ?? null }
+const STATUS_CN = { RUNNING: '运行', IDLE: '空闲', FAULT: '故障', MAINTAINING: '维保', SCRAPPED: '报废' }
+
+function getPos(code) { return layoutMap[code] || null }
+function rebuildLayout(list) { layoutMap = buildEquipmentPositions(list) }
+
+function enrichEq(eq) {
+  const pos = getPos(eq.equipmentCode)
+  return {
+    ...eq,
+    stageName: pos?.stageName || eq.parentStepName || '',
+    workshopName: pos?.workshopName || eq.workshop || ''
+  }
+}
+
+function selectEq(id) {
+  selectedId.value = id
+  const eq = equipList.value.find((e) => e.equipmentId === id)
+  selectedEq.value = eq ? enrichEq(eq) : null
+  if (selectedEq.value) emit('select', selectedEq.value)
+}
+
+function closeDetail() {
+  selectedId.value = null
+  selectedEq.value = null
+  emit('deselect')
+}
 
 function initScene() {
-  const canvas = canvasRef.value; if (!canvas) return
-  const W = canvas.clientWidth||900, H = canvas.clientHeight||520
-  renderer = new THREE.WebGLRenderer({ canvas, antialias:true })
-  renderer.setSize(W,H,false); renderer.setPixelRatio(Math.min(window.devicePixelRatio,2))
-  renderer.setClearColor(0xf0f4f8,1); renderer.shadowMap.enabled=true
-  renderer.shadowMap.type=THREE.PCFSoftShadowMap
-  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05
-  scene = new THREE.Scene(); scene.fog=new THREE.Fog(0xf0f4f8,20,40)
-  camera = new THREE.PerspectiveCamera(46,W/H,0.1,200)
-  camera.position.set(0,8.5,12); camera.lookAt(0,0,0)
-  scene.add(new THREE.AmbientLight(0xffffff,0.72))
-  const sun=new THREE.DirectionalLight(0xffffff,1.2); sun.position.set(8,14,10); sun.castShadow=true
-  sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.left=-14; sun.shadow.camera.right=14
-  sun.shadow.camera.top=14; sun.shadow.camera.bottom=-14; scene.add(sun)
-  const fill=new THREE.DirectionalLight(0xc8daff,0.3); fill.position.set(-6,4,-5); scene.add(fill)
-  const floor=new THREE.Mesh(new THREE.PlaneGeometry(32,26),new THREE.MeshStandardMaterial({color:0xe8eef5,roughness:0.9,metalness:0.05}))
-  floor.rotation.x=-Math.PI/2; floor.position.y=-0.52; floor.receiveShadow=true; scene.add(floor)
-  const grid=new THREE.GridHelper(32,32,0xc8d6e8,0xd8e4f0); grid.position.y=-0.51; scene.add(grid)
-  buildZone(-3.8,0,5.2,5.0,'生产一部',0x3b82f6)
-  buildZone(3.4,0,5.8,6.4,'生产二部',0x10b981)
-  controls=new OrbitControls(camera,canvas)
-  controls.enableDamping=true; controls.dampingFactor=0.06
-  controls.minDistance=4; controls.maxDistance=30; controls.maxPolarAngle=Math.PI/2.1
-  controls.autoRotate=true; controls.autoRotateSpeed=0.6
-  controls.target.set(0,0,0); controls.update()
-  canvas.addEventListener('click',onCanvasClick)
+  const canvas = canvasRef.value
+  if (!canvas) return
+  const W = canvas.clientWidth || 900
+  const H = canvas.clientHeight || 600
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
+  renderer.setSize(W, H, false)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  renderer.setClearColor(0xf5f7fa, 1)
+  renderer.shadowMap.enabled = true
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.toneMappingExposure = 1.05
+
+  scene = new THREE.Scene()
+  scene.fog = new THREE.Fog(0xf5f7fa, 50, 95)
+
+  camera = new THREE.PerspectiveCamera(44, W / H, 0.1, 200)
+  camera.position.set(2, 7.5, 12)
+  camera.lookAt(4, 0, 0)
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.75))
+  const key = new THREE.DirectionalLight(0xffffff, 1.15)
+  key.position.set(12, 22, 14)
+  key.castShadow = true
+  key.shadow.mapSize.set(2048, 2048)
+  key.shadow.camera.left = -30
+  key.shadow.camera.right = 30
+  key.shadow.camera.top = 20
+  key.shadow.camera.bottom = -20
+  scene.add(key)
+  const rim = new THREE.DirectionalLight(0xd0e4f7, 0.4)
+  rim.position.set(-10, 8, -8)
+  scene.add(rim)
+
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(62, 28),
+    new THREE.MeshStandardMaterial({ color: 0xe8ecf0, roughness: 0.88, metalness: 0.06 })
+  )
+  floor.rotation.x = -Math.PI / 2
+  floor.position.y = -0.52
+  floor.receiveShadow = true
+  scene.add(floor)
+
+  const grid = new THREE.GridHelper(62, 62, 0xc8d6e8, 0xdce4ef)
+  grid.position.y = -0.51
+  scene.add(grid)
+
+  buildIndustrialInfrastructure()
+  buildStageZones().forEach((z) => buildZone(z))
+
+  controls = new OrbitControls(camera, canvas)
+  controls.enableDamping = true
+  controls.dampingFactor = 0.06
+  controls.minDistance = 5
+  controls.maxDistance = 32
+  controls.maxPolarAngle = Math.PI / 2.15
+  controls.autoRotate = false
+  controls.target.set(4, 0, 0)
+  controls.update()
+
+  canvas.addEventListener('click', onCanvasClick)
   animate()
 }
 
-function buildZone(cx,cz,hw,hd,label,colorHex) {
-  const c=new THREE.Color(colorHex), hex=c.getHexString()
-  const pts=[[-hw,-hd],[hw,-hd],[hw,hd],[-hw,hd],[-hw,-hd]].map(([x,z])=>new THREE.Vector3(cx+x,0.04,cz+z))
-  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:c,transparent:true,opacity:0.55})))
-  const fm=new THREE.Mesh(new THREE.PlaneGeometry(hw*2,hd*2),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.05,side:THREE.DoubleSide}))
-  fm.rotation.x=-Math.PI/2; fm.position.set(cx,-0.50,cz); scene.add(fm)
-  const cv=document.createElement('canvas'); cv.width=256; cv.height=64
-  const ctx=cv.getContext('2d')
-  ctx.clearRect(0,0,256,64)
-  ctx.beginPath(); ctx.rect(3,3,250,58)
-  ctx.fillStyle='#'+hex+'20'; ctx.fill()
-  ctx.strokeStyle='#'+hex+'cc'; ctx.lineWidth=2.5; ctx.stroke()
-  ctx.fillStyle='#'+hex; ctx.font='bold 26px sans-serif'
-  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,128,32)
-  const board=new THREE.Mesh(new THREE.PlaneGeometry(2.5,0.68),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,side:THREE.DoubleSide}))
-  board.position.set(cx,1.0,cz-hd-0.2); board.rotation.x=-0.10; scene.add(board)
+function buildIndustrialInfrastructure() {
+  const infra = buildSceneInfrastructure()
+
+  infra.floorMarkings.forEach((m) => {
+    const pts = [
+      new THREE.Vector3(m.x1, 0.02, m.z1),
+      new THREE.Vector3(m.x2, 0.02, m.z2)
+    ]
+    scene.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: m.color, linewidth: 2 })
+    ))
+  })
+
+  infra.conveyors.forEach((c) => {
+    const seg = createConveyorMesh(c.length, c.axis)
+    seg.position.set(c.x, -0.46, c.z)
+    scene.add(seg)
+  })
+
+  infra.buffers.forEach((b) => {
+    const rack = createBufferRack()
+    rack.position.set(b.x, -0.46, b.z)
+    scene.add(rack)
+  })
+
+  infra.workstations.forEach((ws) => {
+    const pad = createWorkstationPad(ws.w, ws.d)
+    pad.position.set(ws.x, 0, ws.z)
+    scene.add(pad)
+  })
+
+  const agv = infra.agvZone
+  const agvPad = new THREE.Mesh(
+    new THREE.PlaneGeometry(agv.w, agv.d),
+    new THREE.MeshBasicMaterial({ color: 0xe8f5e9, transparent: true, opacity: 0.85 })
+  )
+  agvPad.rotation.x = -Math.PI / 2
+  agvPad.position.set(agv.x, -0.49, agv.z)
+  scene.add(agvPad)
+  for (let i = 0; i < 3; i++) {
+    const v = createAgvMesh(i === 1 ? '#ff6f00' : '#ff8f00')
+    v.position.set(agv.x - 1.2 + i * 1.2, 0, agv.z)
+    scene.add(v)
+  }
+  addZoneLabel(agv.x, agv.z - agv.d / 2 - 0.5, agv.label, 0xff8f00)
+}
+
+function buildZone(zone) {
+  const c = new THREE.Color(zone.color)
+  const hw = zone.halfW
+  const hd = zone.halfD
+  const pts = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd], [-hw, -hd]]
+    .map(([x, z]) => new THREE.Vector3(zone.x + x, 0.03, zone.z + z))
+  scene.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.65 })
+  ))
+  const fill = new THREE.Mesh(
+    new THREE.PlaneGeometry(hw * 2, hd * 2),
+    new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.07, side: THREE.DoubleSide })
+  )
+  fill.rotation.x = -Math.PI / 2
+  fill.position.set(zone.x, -0.495, zone.z)
+  scene.add(fill)
+  addZoneLabel(zone.x, zone.z - hd - 0.45, `${zone.order}. ${zone.name}`, zone.color)
+}
+
+function addZoneLabel(x, z, text, colorHex) {
+  const cv = document.createElement('canvas')
+  cv.width = 512
+  cv.height = 64
+  const ctx = cv.getContext('2d')
+  const hex = new THREE.Color(colorHex).getHexString()
+  ctx.fillStyle = `#${hex}33`
+  ctx.fillRect(0, 0, 512, 64)
+  ctx.strokeStyle = `#${hex}`
+  ctx.lineWidth = 2
+  ctx.strokeRect(1, 1, 510, 62)
+  ctx.fillStyle = `#${hex}`
+  ctx.font = 'bold 26px "Microsoft YaHei", sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, 256, 32)
+  const board = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.6, 0.45),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, side: THREE.DoubleSide })
+  )
+  board.position.set(x, 0.55, z)
+  board.rotation.x = -0.15
+  scene.add(board)
 }
 
 function placeEquipments(list) {
-  list.forEach(eq=>{
-    const pos=LAYOUT[eq.equipmentCode]; if(!pos) return
-    if(meshMap.has(eq.equipmentCode)){ meshMap.get(eq.equipmentCode).updateStatus(eq.status); return }
-    const {group,updateStatus}=createEquipmentMesh(eq)
-    group.position.set(pos.x,0,pos.z)
-    group.userData={equipmentId:eq.equipmentId,equipmentCode:eq.equipmentCode}
-    group.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})
-    scene.add(group); meshMap.set(eq.equipmentCode,{group,updateStatus})
+  const sceneEqs = (list || []).filter(isSceneEquipment)
+  rebuildLayout(sceneEqs)
+  const codes = new Set(sceneEqs.map((e) => e.equipmentCode))
+
+  meshMap.forEach((entry, code) => {
+    if (!codes.has(code)) {
+      scene.remove(entry.group)
+      meshMap.delete(code)
+    }
   })
+
+  sceneEqs.forEach((eq) => {
+    const pos = getPos(eq.equipmentCode)
+    if (!pos) return
+    if (meshMap.has(eq.equipmentCode)) {
+      meshMap.get(eq.equipmentCode).updateStatus(eq.status)
+      return
+    }
+    const pad = createWorkstationPad(2.1, 1.7)
+    pad.position.set(pos.x, 0, pos.z)
+    scene.add(pad)
+
+    const { group, updateStatus } = createEquipmentMesh(eq)
+    group.position.set(pos.x, 0, pos.z)
+    group.rotation.y = pos.rotY ?? 0
+    group.scale.setScalar(1.75)
+    group.userData = { equipmentId: eq.equipmentId, equipmentCode: eq.equipmentCode }
+    group.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true } })
+    scene.add(group)
+    meshMap.set(eq.equipmentCode, { group, updateStatus })
+  })
+
+  if (selectedId.value) {
+    const hit = sceneEqs.find((e) => e.equipmentId === selectedId.value)
+    if (hit) selectedEq.value = enrichEq(hit)
+  }
 }
 
-const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2()
+const raycaster = new THREE.Raycaster()
+const mouse = new THREE.Vector2()
+
 function onCanvasClick(e) {
-  const canvas=canvasRef.value; if(!canvas) return
-  const r=canvas.getBoundingClientRect()
-  mouse.x=((e.clientX-r.left)/r.width)*2-1; mouse.y=-((e.clientY-r.top)/r.height)*2+1
-  raycaster.setFromCamera(mouse,camera)
-  const targets=[]; meshMap.forEach(({group})=>group.traverse(o=>{if(o.isMesh)targets.push(o)}))
-  const hits=raycaster.intersectObjects(targets,false); if(!hits.length) return
-  let obj=hits[0].object
-  while(obj&&!obj.userData?.equipmentCode) obj=obj.parent
-  if(!obj?.userData?.equipmentId) return
+  const canvas = canvasRef.value
+  if (!canvas) return
+  const r = canvas.getBoundingClientRect()
+  mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1
+  mouse.y = -((e.clientY - r.top) / r.height) * 2 + 1
+  raycaster.setFromCamera(mouse, camera)
+  const targets = []
+  meshMap.forEach(({ group }) => group.traverse((o) => { if (o.isMesh) targets.push(o) }))
+  const hits = raycaster.intersectObjects(targets, false)
+  if (!hits.length) {
+    closeDetail()
+    return
+  }
+  let obj = hits[0].object
+  while (obj && !obj.userData?.equipmentCode) obj = obj.parent
+  if (!obj?.userData?.equipmentId) return
   selectEq(obj.userData.equipmentId)
-  const pos=LAYOUT[obj.userData.equipmentCode]
-  if(pos) flyTo(
-    new THREE.Vector3(pos.x, 3.5, pos.z + 5),  // 相机目标位置
-    new THREE.Vector3(pos.x, 0,   pos.z)         // 环绕中心 = 设备位置
-  )
+  const pos = getPos(obj.userData.equipmentCode)
+  if (pos) {
+    flyTo(new THREE.Vector3(pos.x, 7, pos.z + 9), new THREE.Vector3(pos.x, 0, pos.z))
+  }
 }
 
 function flyTo(camTarget, lookTarget) {
-  const camStart  = camera.position.clone()
+  const camStart = camera.position.clone()
   const lookStart = controls.target.clone()
-  const t0 = performance.now(), dur = 700
+  const t0 = performance.now()
+  const dur = 650
   const tick = () => {
     const p = Math.min((performance.now() - t0) / dur, 1)
-    const e = p < 0.5 ? 2*p*p : -1 + (4 - 2*p)*p   // ease-in-out
+    const e = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p
     camera.position.lerpVectors(camStart, camTarget, e)
     controls.target.lerpVectors(lookStart, lookTarget, e)
     controls.update()
@@ -222,29 +359,107 @@ function flyTo(camTarget, lookTarget) {
 }
 
 function updateLabels() {
-  const canvas=canvasRef.value; if(!canvas||!camera) return
-  const W=canvas.clientWidth,H=canvas.clientHeight
-  labelItems.value=equipList.value.map(eq=>{
-    const pos=LAYOUT[eq.equipmentCode]; if(!pos) return null
-    const v=new THREE.Vector3(pos.x,1.9,pos.z).project(camera)
-    const x=(v.x*.5+.5)*W,y=(-v.y*.5+.5)*H
-    return{id:eq.equipmentId,name:eq.equipmentCode,score:eq.healthScore??'-',level:(eq.healthLevel??'GOOD').toLowerCase(),levelColor:HEALTH_COLOR[eq.healthLevel]??'#52b788',statusColor:STATUS_COLOR[eq.status]??'#52c1a2',x:x-32,y:y-16,visible:v.z<1&&x>0&&x<W&&y>0&&y<H}
+  const canvas = canvasRef.value
+  if (!canvas || !camera) return
+  const W = canvas.clientWidth
+  const H = canvas.clientHeight
+  labelItems.value = equipList.value.filter(isSceneEquipment).map((eq, idx) => {
+    const pos = getPos(eq.equipmentCode)
+    if (!pos) return null
+    const enriched = enrichEq(eq)
+    const expanded = selectedId.value === eq.equipmentId
+    const anchorY = expanded ? 4.8 : 3.2 + (idx % 2) * 0.7
+    const v = new THREE.Vector3(pos.x, anchorY, pos.z).project(camera)
+    const x = (v.x * 0.5 + 0.5) * W
+    const y = (-v.y * 0.5 + 0.5) * H
+    const cardW = expanded ? 108 : 48
+    const cardH = expanded ? 72 : 28
+    return {
+      id: eq.equipmentId,
+      code: eq.equipmentCode,
+      name: eq.equipmentName,
+      stageName: enriched.stageName,
+      workshopName: enriched.workshopName,
+      statusCn: eq.statusCn || STATUS_CN[eq.status] || eq.status,
+      score: eq.healthScore ?? '—',
+      runHours: eq.runHours,
+      alarm7d: eq.alarm7d,
+      daysSinceMaint: eq.daysSinceMaint,
+      faultCount30d: eq.faultCount30d,
+      advice: eq.advice,
+      level: (eq.healthLevel ?? 'GOOD').toLowerCase(),
+      levelColor: HEALTH_COLOR[eq.healthLevel] ?? '#3dd68c',
+      statusColor: STATUS_COLOR[eq.status] ?? '#52c1a2',
+      expanded,
+      x: x - cardW,
+      y: y - cardH,
+      visible: v.z < 1 && x > 60 && x < W - 60 && y > 30 && y < H - 30
+    }
   }).filter(Boolean)
 }
 
-function animate(){animId=requestAnimationFrame(animate);controls.autoRotate=autoRotate.value;controls.update();renderer.render(scene,camera);updateLabels()}
-function resetCamera(){camera.position.set(0,8.5,12);controls.target.set(0,0,0);controls.update()}
-
-async function loadData(){
-  try{const res=await fetchEquipmentHealth();const list=Array.isArray(res)?res:(res.data??[]);equipList.value=list;if(scene)placeEquipments(list)}catch{/**/ }
+function animate() {
+  animId = requestAnimationFrame(animate)
+  controls.autoRotate = autoRotate.value
+  controls.autoRotateSpeed = 0.35
+  controls.update()
+  renderer.render(scene, camera)
+  updateLabels()
 }
-function onResize(){const c=canvasRef.value;if(!c||!renderer||!camera)return;const W=c.clientWidth,H=c.clientHeight;renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix()}
 
-onMounted(async()=>{await new Promise(r=>setTimeout(r,30));initScene();await loadData();timer=setInterval(loadData,30000);window.addEventListener('resize',onResize)})
-onUnmounted(()=>{cancelAnimationFrame(animId);canvasRef.value?.removeEventListener('click',onCanvasClick);controls?.dispose();renderer?.dispose();scene?.clear();meshMap.clear();clearInterval(timer);window.removeEventListener('resize',onResize)})
-watch(autoRotate,v=>{if(controls)controls.autoRotate=v})
+function resetCamera() {
+  camera.position.set(2, 7.5, 12)
+  controls.target.set(4, 0, 0)
+  controls.update()
+}
 
-// 供父组件调用：把最新设备列表同步到 3D 场景
+let resizeObserver = null
+
+async function loadData() {
+  try {
+    const res = await fetchEquipmentHealth()
+    const list = Array.isArray(res) ? res : (res.data ?? [])
+    equipList.value = list
+    if (scene) placeEquipments(list)
+  } catch { /* ignore */ }
+}
+
+function onResize() {
+  const c = canvasRef.value
+  if (!c || !renderer || !camera) return
+  const W = c.clientWidth
+  const H = c.clientHeight
+  renderer.setSize(W, H, false)
+  camera.aspect = W / H
+  camera.updateProjectionMatrix()
+}
+
+onMounted(async () => {
+  await new Promise((r) => setTimeout(r, 30))
+  initScene()
+  await loadData()
+  timer = setInterval(loadData, 30000)
+  window.addEventListener('resize', onResize)
+  if (canvasRef.value?.parentElement) {
+    resizeObserver = new ResizeObserver(onResize)
+    resizeObserver.observe(canvasRef.value.parentElement)
+  }
+})
+
+onUnmounted(() => {
+  cancelAnimationFrame(animId)
+  canvasRef.value?.removeEventListener('click', onCanvasClick)
+  controls?.dispose()
+  renderer?.dispose()
+  scene?.clear()
+  meshMap.clear()
+  clearInterval(timer)
+  window.removeEventListener('resize', onResize)
+  resizeObserver?.disconnect()
+})
+
+watch(autoRotate, (v) => { if (controls) controls.autoRotate = v })
+
 function syncEquipments(list) {
   if (!Array.isArray(list) || !list.length) return
   equipList.value = list
@@ -255,42 +470,192 @@ defineExpose({ syncEquipments })
 </script>
 
 <style scoped>
-.factory-wrap{position:relative;width:100%;height:580px;background:#f0f4f8;border-radius:12px;overflow:hidden;border:1px solid #dce8f8;box-shadow:0 2px 12px rgba(0,27,63,.08)}
-.factory-canvas{width:100%;height:100%;display:block}
-.factory-labels{position:absolute;inset:0;pointer-events:none}
-.eq-label{position:absolute;display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.90);border:1px solid #dde8f5;border-radius:8px;padding:2px 7px;font-size:11px;cursor:pointer;pointer-events:all;transition:opacity .15s,transform .15s;box-shadow:0 2px 6px rgba(0,27,63,.10);white-space:nowrap}
-.eq-label:hover{transform:scale(1.08);box-shadow:0 4px 12px rgba(0,27,63,.16)}
-.eq-label.lv-alert,.eq-label.lv-danger{border-color:#fca5a5;background:rgba(255,245,245,.93)}
-.eq-label.lv-warn{border-color:#fcd34d;background:rgba(255,251,235,.93)}
-.eq-label__score{font-size:13px;font-weight:800;line-height:1}
-.eq-label__name{font-size:10px;color:#6b7a90}
-.eq-label__dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.factory-toolbar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.93);border:1px solid #dce8f8;border-radius:24px;padding:6px 18px;backdrop-filter:blur(6px);box-shadow:0 2px 12px rgba(0,27,63,.10);font-size:12px;flex-wrap:wrap}
-.ft-btn{padding:3px 12px;border-radius:12px;background:#f0f4f8;border:1px solid #dce8f8;color:#3b5a80;font-size:11px;cursor:pointer;transition:background .15s}
-.ft-btn:hover,.ft-btn.active{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8}
-.ft-sep{width:1px;height:16px;background:#dce8f8}
-.ft-legend{display:flex;align-items:center;gap:4px;color:#6b7a90;font-size:11px}
-.ft-dot{width:8px;height:8px;border-radius:50%}
-.ft-tip{font-size:10px;color:#9aa5b4}
-.eq-panel{position:absolute;top:0;right:0;bottom:0;width:300px;background:rgba(255,255,255,.97);border-left:1px solid #dce8f8;padding:16px 14px;overflow-y:auto;backdrop-filter:blur(8px);box-shadow:-4px 0 20px rgba(0,27,63,.10);display:flex;flex-direction:column;gap:10px}
-.ep-head{display:flex;align-items:flex-start;justify-content:space-between}
-.ep-code{font-size:12px;color:#8090a8;font-family:monospace}
-.ep-name{font-size:15px;font-weight:700;color:#001b3f;margin-top:2px}
-.ep-close{width:28px;height:28px;border-radius:7px;background:#f0f4f8;border:1px solid #dce8f8;color:#8090a8;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:background .15s;flex-shrink:0}
-.ep-close:hover{background:#fde8e8;color:#e05050}
-.ep-tags{display:flex;flex-wrap:wrap;gap:4px}
-.ep-score-row{display:flex;align-items:center;gap:12px}
-.ep-advice{font-size:12px;color:#5a6a80;line-height:1.55;flex:1}
-.ep-deducts{display:flex;flex-direction:column;gap:4px;background:#f7faff;border-radius:8px;padding:8px 10px}
-.ep-dd{display:flex;align-items:center;font-size:11px;gap:4px}
-.ep-dd.bad{color:#c0392b}
-.ep-dd.ok{color:#52b788}
-.ep-dd__label{flex:0 0 62px;font-weight:500}
-.ep-dd__note{flex:1;color:#8090a8;font-size:10px}
-.ep-dd__val{flex:0 0 30px;text-align:right;font-weight:700}
-.ep-sub-title{font-size:12px;font-weight:600;color:#3b5a80;border-left:3px solid #3b82f6;padding-left:7px}
-.ep-sub-title em{font-style:normal;margin-left:6px;font-size:13px}
-.ep-empty{font-size:11px;color:#52b788;text-align:center;padding:8px 0}
-.slide-panel-enter-active,.slide-panel-leave-active{transition:transform .28s ease,opacity .28s ease}
-.slide-panel-enter-from,.slide-panel-leave-to{transform:translateX(100%);opacity:0}
+.isc-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: #f5f7fa;
+  overflow: hidden;
+}
+
+.isc-scene__canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.isc-scene__labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.isc-eq-tag {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  background: #fff;
+  border: 1px solid #d8dee8;
+  font-size: 10px;
+  font-family: Consolas, 'Courier New', monospace;
+  color: #4a5568;
+  pointer-events: all;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-shadow: 0 1px 4px rgba(0, 27, 63, 0.08);
+}
+
+.isc-eq-tag--expanded {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 216px;
+  padding: 8px 10px;
+  white-space: normal;
+  border-color: #3b82f6;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.18);
+  z-index: 6;
+  cursor: default;
+}
+
+.isc-eq-tag:hover,
+.isc-eq-tag--active:not(.isc-eq-tag--expanded) {
+  border-color: #3b82f6;
+  background: #f0f7ff;
+}
+
+.isc-eq-tag--danger,
+.isc-eq-tag--alert { border-color: #f56c6c; background: #fff5f5; }
+.isc-eq-tag--warn { border-color: #e6a23c; background: #fffbf0; }
+
+.isc-eq-tag__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.isc-eq-tag__code { font-weight: 700; color: #001b3f; }
+.isc-eq-tag__status { color: #909399; font-size: 9px; }
+.isc-eq-tag__score { font-weight: 700; margin-left: 2px; }
+
+.isc-eq-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.isc-eq-card__code {
+  font-size: 10px;
+  color: #909399;
+}
+
+.isc-eq-card__close {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #e4e7ed;
+  background: #f5f7fa;
+  color: #909399;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+
+.isc-eq-card__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #001b3f;
+  font-family: 'Microsoft YaHei', sans-serif;
+}
+
+.isc-eq-card__meta {
+  font-size: 10px;
+  color: #909399;
+  font-family: 'Microsoft YaHei', sans-serif;
+}
+
+.isc-eq-card__status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.isc-eq-card__pill {
+  padding: 1px 6px;
+  border: 1px solid;
+  font-size: 10px;
+  background: #fafbfc;
+  font-family: 'Microsoft YaHei', sans-serif;
+}
+
+.isc-eq-card__score {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.isc-eq-card__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 8px;
+  font-size: 10px;
+  color: #909399;
+  font-family: 'Microsoft YaHei', sans-serif;
+}
+
+.isc-eq-card__grid em {
+  font-style: normal;
+  color: #001b3f;
+  font-weight: 600;
+}
+
+.isc-eq-card__warn { color: #f56c6c !important; }
+
+.isc-eq-card__advice {
+  font-size: 10px;
+  color: #606266;
+  line-height: 1.4;
+  border-top: 1px dashed #eef1f5;
+  padding-top: 4px;
+  font-family: 'Microsoft YaHei', sans-serif;
+}
+
+.isc-scene__toolbar {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+}
+
+.isc-tbtn {
+  padding: 4px 12px;
+  background: #fff;
+  border: 1px solid #d8dee8;
+  color: #4a5568;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.isc-tbtn:hover,
+.isc-tbtn--on {
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  background: #f0f7ff;
+}
+
+.isc-tbtn--hint {
+  border: none;
+  background: transparent;
+  color: #909399;
+  cursor: default;
+  padding-left: 4px;
+}
 </style>

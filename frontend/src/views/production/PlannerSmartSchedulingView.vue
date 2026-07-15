@@ -48,7 +48,7 @@ function onSuccessDone() {
 onMounted(async () => {
   if (!mes.hydrated) {
     try {
-      await mes.hydrateFromApi()
+      await mes.hydrateForPage()
     } catch {
       /* ignore */
     }
@@ -60,8 +60,8 @@ onMounted(async () => {
 
 <style scoped>
 .smart-scheduling-page {
-  height: calc(100vh - 98px);
-  max-height: calc(100vh - 98px);
+  height: var(--layout-viewport-h, calc(100vh - 52px));
+  max-height: var(--layout-viewport-h, calc(100vh - 52px));
   overflow: hidden;
 }
 </style>

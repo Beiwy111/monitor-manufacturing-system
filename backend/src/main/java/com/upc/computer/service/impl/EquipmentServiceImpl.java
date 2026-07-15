@@ -74,10 +74,10 @@ public class EquipmentServiceImpl implements EquipmentService {
     // ===== 视图 & KPI =====
     @Override
     public List<Map<String, Object>> equipmentViews() {
-        List<AndonAlarm> alarms = andonAlarmMapper.alarmList();
+        List<AndonAlarm> openAlarms = andonAlarmMapper.listOpenAlarms(200);
         List<EquipmentMaintenanceRecord> records = equipmentMaintenanceRecordMapper.maintenanceList();
         // 每台设备的未闭环报警数
-        Map<Long, Long> openAlarmCount = alarms.stream()
+        Map<Long, Long> openAlarmCount = openAlarms.stream()
                 .filter(a -> a.getEquipmentId() != null && isAlarmOpen(a.getAlarmStatus()))
                 .collect(Collectors.groupingBy(AndonAlarm::getEquipmentId, Collectors.counting()));
         // 每台设备进行中的维保记录
@@ -109,7 +109,6 @@ public class EquipmentServiceImpl implements EquipmentService {
     public Map<String, Object> equipmentKpi() {
         List<Equipment> all = equipmentMapper.equipmentList();
         List<Equipment> production = all.stream().filter(this::isProductionEquipment).toList();
-        List<AndonAlarm> alarms = andonAlarmMapper.alarmList();
         Map<String, Object> kpi = new LinkedHashMap<>();
         kpi.put("total", production.size());
         kpi.put("workshopCount", ProductionWorkshopCatalog.allWorkshops().size());
@@ -118,7 +117,7 @@ public class EquipmentServiceImpl implements EquipmentService {
         kpi.put("fault", production.stream().filter(e -> EQ_FAULT.equals(safe(e.getStatus()))).count());
         kpi.put("maintaining", production.stream().filter(e -> EQ_MAINTAINING.equals(safe(e.getStatus()))).count());
         kpi.put("scrapped", production.stream().filter(e -> EQ_SCRAPPED.equals(safe(e.getStatus()))).count());
-        kpi.put("openAlarms", alarms.stream().filter(a -> isAlarmOpen(a.getAlarmStatus())).count());
+        kpi.put("openAlarms", andonAlarmMapper.countOpenAlarms());
         kpi.put("allEquipmentTotal", all.size());
         kpi.put("postProductionTotal", all.size() - production.size());
         return kpi;
@@ -133,7 +132,7 @@ public class EquipmentServiceImpl implements EquipmentService {
     public List<Map<String, Object>> alarmViews() {
         Map<Long, Equipment> eqMap = equipmentMap();
         Map<Long, User> userMap = userMap();
-        return andonAlarmMapper.alarmList().stream()
+        return andonAlarmMapper.listRecentAlarms(100).stream()
                 .map(a -> alarmView(a, eqMap, userMap))
                 .sorted((x, y) -> String.valueOf(y.get("reportedAt")).compareTo(String.valueOf(x.get("reportedAt"))))
                 .collect(Collectors.toList());
@@ -314,7 +313,7 @@ public class EquipmentServiceImpl implements EquipmentService {
     @Override
     public List<Map<String, Object>> calcHealthList() {
         List<Equipment> equipments = equipmentMapper.equipmentList();
-        List<AndonAlarm> alarms = andonAlarmMapper.alarmList();
+        List<AndonAlarm> alarms = andonAlarmMapper.listRecentAlarms(200);
         List<EquipmentMaintenanceRecord> records = equipmentMaintenanceRecordMapper.maintenanceList();
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime since7d = now.minusDays(7);
@@ -431,7 +430,7 @@ public class EquipmentServiceImpl implements EquipmentService {
         if (equipmentId == null) return;
         Equipment eq = equipmentMapper.getEquipmentById(equipmentId);
         if (eq == null || !EQ_FAULT.equals(safe(eq.getStatus()))) return;
-        boolean hasOpenAlarm = andonAlarmMapper.alarmList().stream()
+        boolean hasOpenAlarm = andonAlarmMapper.listOpenAlarms(20).stream()
                 .anyMatch(a -> equipmentId.equals(a.getEquipmentId()) && isAlarmOpen(a.getAlarmStatus()));
         boolean hasActiveMaintenance = equipmentMaintenanceRecordMapper.maintenanceList().stream()
                 .anyMatch(r -> equipmentId.equals(r.getEquipmentId()) && r.getEndTime() == null);

@@ -8,8 +8,21 @@ import java.time.LocalDateTime;
 @Mapper
 public interface AndonAlarmMapper {
 
-    // 查询所有安灯报警
-    @Select("SELECT alarm_id, alarm_no, work_order_id, dispatch_id, equipment_id, alarm_type, alarm_level, alarm_description, alarm_status, reported_by, reported_at, received_by, received_at, closed_by, closed_at, close_result, created_at, updated_at FROM andon_alarm")
+    // 查询所有安灯报警（仅管理/快照兜底；优先用 listRecentAlarms / listOpenAlarms）
+    @Select("SELECT alarm_id, alarm_no, work_order_id, dispatch_id, equipment_id, alarm_type, alarm_level, alarm_description, alarm_status, reported_by, reported_at, received_by, received_at, closed_by, closed_at, close_result, created_at, updated_at FROM andon_alarm ORDER BY reported_at DESC LIMIT #{limit}")
+    public ArrayList<AndonAlarm> listRecentAlarms(@Param("limit") int limit);
+
+    @Select("SELECT alarm_id, alarm_no, work_order_id, dispatch_id, equipment_id, alarm_type, alarm_level, alarm_description, alarm_status, reported_by, reported_at, received_by, received_at, closed_by, closed_at, close_result, created_at, updated_at FROM andon_alarm WHERE alarm_status <> 'CLOSED' ORDER BY reported_at DESC LIMIT #{limit}")
+    public ArrayList<AndonAlarm> listOpenAlarms(@Param("limit") int limit);
+
+    @Select("SELECT COUNT(1) FROM andon_alarm WHERE alarm_status <> 'CLOSED'")
+    public int countOpenAlarms();
+
+    @Delete("DELETE FROM andon_alarm WHERE alarm_status = 'CLOSED' AND closed_at IS NOT NULL AND closed_at < #{before}")
+    public int deleteClosedBefore(@Param("before") LocalDateTime before);
+
+    /** @deprecated 全表扫描，请改用 listRecentAlarms */
+    @Select("SELECT alarm_id, alarm_no, work_order_id, dispatch_id, equipment_id, alarm_type, alarm_level, alarm_description, alarm_status, reported_by, reported_at, received_by, received_at, closed_by, closed_at, close_result, created_at, updated_at FROM andon_alarm ORDER BY reported_at DESC LIMIT 500")
     public ArrayList<AndonAlarm> alarmList();
 
     // 根据主键查询安灯报警

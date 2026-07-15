@@ -35,3 +35,5 @@ build/
 # 手机屏幕缺陷检测项目
 Mobile-Phone-Defect/
 Mobile-Phone-Defect-Segmentation-YOLOv8-main/
+
+/miniprogram/

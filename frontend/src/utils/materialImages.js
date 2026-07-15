@@ -76,6 +76,7 @@ function isFinished(row) {
 
 /** 按行数据取图（仓库模块） */
 export function materialImageUrl(row = {}) {
+  if (row.imageUrl) return row.imageUrl
   const code = row.materialCode || ''
   if (isFinished(row)) {
     if (FINISHED_IMAGES[code]) return FINISHED_IMAGES[code]

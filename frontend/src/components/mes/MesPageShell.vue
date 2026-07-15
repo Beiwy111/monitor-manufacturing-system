@@ -32,7 +32,7 @@
       <slot name="table" />
     </div>
 
-    <DetailPanel :title="detailTitle" :rows="detailRows" always-show>
+    <DetailPanel v-if="showDetailPanel" :title="detailTitle" :rows="detailRows" always-show>
       <slot name="detail-extra" />
       <template v-if="hasDetailActions" #actions>
         <slot name="detail-actions" />
@@ -55,6 +55,7 @@ const props = defineProps({
   toolbarActions: { type: Array, default: () => [] },
   detailTitle: { type: String, default: '详情' },
   detailRows: { type: Array, default: () => [] },
+  showDetailPanel: { type: Boolean, default: true },
   modelKeyword: { type: String, default: '' },
   modelStatus: { type: String, default: '' }
 })

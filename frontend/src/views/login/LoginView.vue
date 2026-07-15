@@ -14,12 +14,16 @@
 
     <div class="auth-shell">
       <aside class="auth-brand">
-        <div class="auth-brand__kicker">DISPLAY MES PLATFORM</div>
-        <h1 class="auth-brand__title">
-          <span class="auth-brand__title-cn">电脑显示器</span>
-          <span class="auth-brand__title-en">MES</span>
-        </h1>
-        <p class="auth-brand__slogan">智造每一块屏幕 · 连接订单到交付的全流程</p>
+        <div class="auth-brand__head">
+          <BrandLogo :size="76" :show-text="false" variant="default" class="auth-brand__logo" />
+          <div class="auth-brand__titles">
+            <h1 class="auth-display-title">
+              <span class="auth-display-title__brand">{{ BRAND_NAME }}</span><span class="auth-display-title__mes">MES</span>
+            </h1>
+            <p class="auth-brand__slogan">智造每一行屏幕</p>
+          </div>
+        </div>
+        <div class="auth-brand__kicker">JINGCHENG MES PLATFORM</div>
         <div class="auth-brand__tags">
           <span v-for="tag in tags" :key="tag">{{ tag }}</span>
         </div>
@@ -55,7 +59,7 @@
           </button>
         </form>
 
-        <p class="auth-panel__welcome">欢迎使用电脑显示器制造 MES 平台</p>
+        <p class="auth-panel__welcome">欢迎使用 {{ APP_TITLE }}</p>
         <div class="auth-panel__links">
           <a @click.prevent="$router.push('/')">返回首页</a>
           <span class="auth-panel__sep">|</span>
@@ -70,17 +74,21 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { getHomePath } from '@/utils/menuRoutes'
 import { homeImages } from '@/config/homeImages'
+import BrandLogo from '@/components/brand/BrandLogo.vue'
+import { APP_TITLE, BRAND_NAME } from '@/constants/brand'
 
-const heroVideo = homeImages.heroVideo
+const heroVideo = homeImages.loginVideo
 const heroBg = homeImages.heroBg
 const tags = ['生产管理', '质量追溯', '设备监控', '库存仓储']
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const loading = ref(false)
 const form = reactive({
@@ -103,7 +111,8 @@ async function handleLogin() {
   try {
     await userStore.login(form)
     ElMessage.success('登录成功')
-    router.push(userStore.dashboardPath || '/system/board')
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+    router.push(redirect || userStore.dashboardPath || getHomePath(userStore.roleKey))
   } catch (e) {
     const msg = e.response?.data?.message || e.message || '登录失败'
     if (msg.includes('Network Error') || msg.includes('ECONNREFUSED')) {
@@ -165,42 +174,61 @@ async function handleLogin() {
   padding-right: 24px;
 }
 
+.auth-brand__head {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.auth-brand__logo :deep(.brand-logo__img) {
+  background: transparent;
+  width: 76px;
+  max-height: 76px;
+}
+
+.auth-brand__titles {
+  min-width: 0;
+}
+
+.auth-display-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(36px, 4.5vw, 52px);
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.auth-display-title__brand {
+  color: #172033;
+  font-weight: 400;
+}
+
+.auth-display-title__mes {
+  font-style: italic;
+  font-weight: 500;
+  color: #0284c7;
+  letter-spacing: 0.05em;
+}
+
 .auth-brand__kicker {
   font-size: 12px;
   letter-spacing: 0.08em;
   color: #64748b;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   font-weight: 400;
-}
-
-.auth-brand__title {
-  margin: 0;
-  line-height: 1.2;
-  font-weight: 600;
-}
-
-.auth-brand__title-cn {
-  display: block;
-  font-size: clamp(36px, 5vw, 56px);
-  color: #172033;
-  font-weight: 600;
-  letter-spacing: 0;
-}
-
-.auth-brand__title-en {
-  display: block;
-  font-size: clamp(42px, 6vw, 64px);
-  color: #3b5b92;
-  letter-spacing: 0.02em;
-  font-weight: 600;
 }
 
 .auth-brand__slogan {
-  margin: 20px 0 28px;
-  font-size: 16px;
-  font-weight: 400;
+  margin: 10px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(17px, 2vw, 20px);
+  font-weight: 300;
   color: #475569;
-  line-height: 1.6;
+  line-height: 1.35;
+  letter-spacing: 0.08em;
 }
 
 .auth-brand__tags {
@@ -356,6 +384,16 @@ async function handleLogin() {
   .auth-brand {
     text-align: center;
     padding-right: 0;
+  }
+
+  .auth-brand__head {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .auth-brand__titles {
+    text-align: center;
   }
 
   .auth-brand__tags {

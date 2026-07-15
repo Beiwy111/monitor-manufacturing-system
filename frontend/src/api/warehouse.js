@@ -41,3 +41,7 @@ export function fetchBarcodeTrace(barcodeNo) {
 export function fetchScanLogs() {
   return request.get('/warehouse/scan/logs')
 }
+
+export function fetchWarehouseLocationMap() {
+  return request.get('/warehouse/location-map')
+}

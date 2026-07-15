@@ -120,6 +120,12 @@ public class AssistantService {
         // 设备健康诊断：接健康分引擎（读）
         if ("device.diagnose".equals(action)) return answerDiagnose(r);
 
+        // 库存明细查询：读数据库快照中的 inventory 列表
+        if ("warehouse.query_inventory".equals(action)) return answerInventoryQuery(r);
+
+        // 对话下单：槽位齐全 → 提议卡；缺槽位 → 追问
+        if ("order.create".equals(action)) return startOrderCreate(sessionId, r, text);
+
         // 其余模块：注册表驱动的通用流程
         ActionSpec spec = catalog.get(action);
         if (spec == null) return ask(capabilityLine());
@@ -128,7 +134,7 @@ public class AssistantService {
     }
 
     private String capabilityLine() {
-        return "我能处理：售后受理/解决/关闭与追溯、处理研判（\"你觉得怎么处理\"）、启动根因协查派单，接收/解除安灯报警，设备健康诊断，接收派工/开始生产，采购确认到货，成品确认入库，各模块概况查询，跨模块协办通知（\"通知生产…\"），还支持一句话串多步（\"受理星辰这单并启动根因协查\"）。注意：写操作只能在所属模块页面执行。";
+        return "我能处理：售后受理/解决/关闭与追溯、处理研判（\"你觉得怎么处理\"）、启动根因协查派单，接收/解除安灯报警，设备健康诊断，查库存/物料库存明细（\"查库存\"\"MAT-001有多少\"），接收派工/开始生产，采购确认到货，成品确认入库，各模块概况查询，跨模块协办通知（\"通知生产…\"），还支持一句话串多步（\"受理星辰这单并启动根因协查\"）。注意：写操作只能在所属模块页面执行。";
     }
 
     // ════════════════════════ 模块治理边界 ════════════════════════
@@ -157,6 +163,7 @@ public class AssistantService {
     /** 写动作的归属模块码；读/研判/通知动作返回 null（全局可用）。 */
     private String ownerModule(String action) {
         if ("notify.send".equals(action)) return null;
+        if ("order.create".equals(action)) return "order";
         if (action.startsWith("aftersale.")) {
             String sub = action.substring("aftersale.".length());
             return ("accept".equals(sub) || "resolve".equals(sub) || "close".equals(sub)
@@ -170,6 +177,8 @@ public class AssistantService {
     private String actionDisplayName(String action) {
         if ("notify.send".equals(action)) return "发协办通知";
         if ("device.diagnose".equals(action)) return "设备诊断";
+        if ("warehouse.query_inventory".equals(action)) return "查库存";
+        if ("order.create".equals(action)) return "对话下单";
         if (action.startsWith("aftersale.")) return actionCn(action.substring("aftersale.".length()));
         ActionSpec spec = catalog.get(action);
         return spec != null ? spec.nameCn : action;
@@ -179,6 +188,8 @@ public class AssistantService {
     private String boundaryGuard(String action, String module) {
         String owner = ownerModule(action);
         if (owner == null || owner.equals(module)) return null;
+        if ("system".equals(module)) return null;   // 系统管理员全模块放行
+        if ("order.create".equals(action) && "customer".equals(module)) return null;   // 客户可对话下单
         String ownerCn = MODULE_CN.getOrDefault(owner, owner);
         String hereCn = blank(module) ? "当前" : MODULE_CN.getOrDefault(module, module);
         return "「" + actionDisplayName(action) + "」是" + ownerCn + "模块的操作，我在" + hereCn
@@ -510,6 +521,162 @@ public class AssistantService {
         if (!blank(r.remark())) p.put("remark", r.remark());
         if (r.qty() > 0) p.put("qty", r.qty());
         return p;
+    }
+
+    // ════════════════════════ 库存明细查询（读库） ════════════════════════
+    /** 从 MesSnapshotService 快照（inventory 表）查物料现存、库位与预警。 */
+    private Map<String, Object> answerInventoryQuery(NluResult r) {
+        Map<String, Object> snapshot = mesSnapshot.buildSnapshot();
+        List<Map<String, Object>> all = rows(snapshot, "inventory");
+        if (all.isEmpty()) {
+            return ask("数据库里没有库存记录。请确认 inventory 表是否已初始化（可执行 sql/init/seed_data.sql）。");
+        }
+        String clue = resolveInventoryClue(r);
+        if (!weakClue(clue)) {
+            String c = clue.trim().toLowerCase();
+            List<Map<String, Object>> hits = new ArrayList<>();
+            for (Map<String, Object> row : all) {
+                String code = str(row, "materialCode").toLowerCase();
+                String name = str(row, "materialName").toLowerCase();
+                String loc = str(row, "location").toLowerCase();
+                if (!code.isBlank() && code.equals(c)) {
+                    hits = List.of(row);
+                    break;
+                }
+                if ((!code.isBlank() && (code.contains(c) || c.contains(code)))
+                        || (!name.isBlank() && (name.contains(c) || c.contains(name)))
+                        || (!loc.isBlank() && loc.contains(c))) {
+                    hits.add(row);
+                }
+            }
+            if (hits.size() == 1) return inventoryDetailReply(hits.get(0));
+            if (hits.size() > 1) {
+                return inventoryListReply(hits, "匹配到 " + hits.size() + " 条库存，请说更具体的物料编码或名称：");
+            }
+            return ask("没找到「" + clue + "」的库存记录。可以说「查库存」看全部，或换物料编码/名称再试。");
+        }
+        return inventoryListReply(all, "当前库存一览（数据库共 " + all.size() + " 条）：");
+    }
+
+    private String resolveInventoryClue(NluResult r) {
+        String caseNo = r.caseNo();
+        if (!blank(caseNo) && caseNo.toUpperCase().startsWith("MAT")) return caseNo;
+        if (!blank(r.keyword())) return r.keyword().trim();
+        return "";
+    }
+
+    private Map<String, Object> inventoryDetailReply(Map<String, Object> row) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(str(row, "materialName")).append("（").append(str(row, "materialCode")).append("）库存：");
+        sb.append("\n现存 ").append(str(row, "quantity")).append(' ').append(blankOr(str(row, "unit"), "件"));
+        sb.append("，安全库存 ").append(str(row, "safeQty"));
+        sb.append("，状态 ").append(str(row, "status"));
+        if (!str(row, "location").isBlank()) sb.append("\n库位 ").append(str(row, "location"));
+        if (!str(row, "assemblyGroup").isBlank()) sb.append(" · ").append(str(row, "assemblyGroup"));
+        return answer(sb.toString(), row);
+    }
+
+    private Map<String, Object> inventoryListReply(List<Map<String, Object>> hits, String header) {
+        StringBuilder sb = new StringBuilder(header);
+        int limit = Math.min(hits.size(), 12);
+        for (int i = 0; i < limit; i++) {
+            Map<String, Object> row = hits.get(i);
+            sb.append('\n').append(i + 1).append(". ")
+                    .append(str(row, "materialName")).append(' ').append(str(row, "materialCode"))
+                    .append(" · ").append(str(row, "quantity")).append(blankOr(str(row, "unit"), "件"))
+                    .append(" · ").append(str(row, "status"));
+            if (!str(row, "location").isBlank()) sb.append(" · ").append(str(row, "location"));
+        }
+        if (hits.size() > limit) sb.append("\n…还有 ").append(hits.size() - limit).append(" 条未列出");
+        return answer(sb.toString(), Map.of("inventory", hits.subList(0, limit)));
+    }
+
+    // ════════════════════════ 对话下单（写） ════════════════════════
+    private Map<String, Object> startOrderCreate(String sessionId, NluResult r, String userText) {
+        Map<String, Object> snapshot = mesSnapshot.buildSnapshot();
+        List<Map<String, Object>> models = rows(snapshot, "productModels");
+        if (models.isEmpty()) return ask("系统里还没有成品物料，无法下单。请先在物料主数据中维护成品。");
+
+        String customerName = blankOr(r.customerName(), r.caseNo());
+        String productClue = blankOr(r.keyword(), "");
+        int qty = r.qty();
+
+        // 产品型号解析：按编码/名称/规格双向 contains 匹配
+        Map<String, Object> model = null;
+        if (!blank(productClue)) {
+            String c = productClue.trim().toLowerCase();
+            List<Map<String, Object>> hits = new ArrayList<>();
+            for (Map<String, Object> m : models) {
+                String code = str(m, "code").toLowerCase();
+                String name = str(m, "name").toLowerCase();
+                String spec = str(m, "specification").toLowerCase();
+                if (code.equals(c)) { hits = List.of(m); break; }
+                if ((name.length() >= 2 && (name.contains(c) || c.contains(name)))
+                        || (spec.length() >= 2 && (spec.contains(c) || c.contains(spec)))
+                        || (code.length() >= 3 && code.contains(c))) {
+                    hits.add(m);
+                }
+            }
+            if (hits.size() == 1) model = hits.get(0);
+            else if (hits.size() > 1) {
+                StringBuilder sb = new StringBuilder("「" + productClue + "」匹配到多个产品，请说全称再下一次：");
+                for (int i = 0; i < hits.size() && i < 5; i++) {
+                    sb.append('\n').append(i + 1).append(". ").append(str(hits.get(i), "name"))
+                            .append("（").append(str(hits.get(i), "code")).append("）");
+                }
+                return ask(sb.toString());
+            }
+        }
+
+        // 槽位不全 → 一次性列出还缺什么，并给可选产品清单
+        List<String> missing = new ArrayList<>();
+        if (blank(customerName)) missing.add("客户名");
+        if (model == null) missing.add("产品型号");
+        if (qty <= 0) missing.add("数量");
+        if (!missing.isEmpty()) {
+            StringBuilder sb = new StringBuilder("好的，下单还差：").append(String.join("、", missing))
+                    .append("。请一句话说全，例如「给深圳华创下 200 台 ")
+                    .append(str(models.get(0), "name")).append("」。");
+            if (model == null) {
+                sb.append("\n可选产品：");
+                for (int i = 0; i < models.size() && i < 6; i++) {
+                    sb.append('\n').append(i + 1).append(". ").append(str(models.get(i), "name"))
+                            .append("（").append(str(models.get(i), "code")).append("）");
+                }
+            }
+            return ask(sb.toString());
+        }
+
+        clearPending(sessionId);
+        Proposal p = new Proposal();
+        p.id = String.valueOf(proposalSeq.incrementAndGet());
+        p.action = "order.create";
+        p.entityNo = "新客户订单";
+        p.params = new LinkedHashMap<>();
+        p.params.put("customerName", customerName);
+        p.params.put("productModel", str(model, "name"));
+        p.params.put("panelType", str(model, "specification"));
+        p.params.put("quantity", qty);
+        if (!blank(r.remark())) p.params.put("deliveryDate", r.remark().trim());
+        p.userText = userText;
+        p.humanReadable = "我将创建一张客户订单：\n客户：" + customerName
+                + "\n产品：" + str(model, "name") + "（" + str(model, "code") + "）"
+                + "\n数量：" + qty + " 台"
+                + (blank(r.remark()) ? "" : "\n交期：" + r.remark().trim())
+                + "\n提交后进入订单审核流程。确认下单？";
+        bindFlow(sessionId, p);
+        proposals.put(p.id, p);
+        auditPropose(p, userText, null);
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("type", "confirm");
+        resp.put("proposalId", p.id);
+        resp.put("action", p.action);
+        resp.put("entityNo", p.entityNo);
+        resp.put("humanReadable", p.humanReadable);
+        resp.put("editable", Map.of("key", "remark", "placeholder", "可补充备注（如交期要求），不填直接确认"));
+        resp.put("reply", "订单信息齐了：" + customerName + " · " + str(model, "name") + " · " + qty + " 台。确认下单吗？");
+        return resp;
     }
 
     // ════════════════════════ 概况应答（读） ════════════════════════
@@ -960,6 +1127,24 @@ public class AssistantService {
                 reply = "已把协办通知发给" + MODULE_CN.getOrDefault(target, target) + "模块：「" + content
                         + "」。对方将在通知中心收到（仅通知，不改动对方业务数据）。";
                 result = Map.of("noticeId", str(notice, "id"), "targetModule", target);
+            } else if ("order.create".equals(p.action)) {
+                MesActionRequest req = new MesActionRequest();
+                req.setAction("createOrder");
+                Map<String, Object> payload = new LinkedHashMap<>(p.params);
+                if (payload.containsKey("remark") && !payload.containsKey("deliveryDate")) {
+                    // 确认卡上补充的备注若像日期就当交期用
+                    String rmk = str(payload, "remark");
+                    if (rmk.matches("\\d{4}-\\d{2}-\\d{2}")) payload.put("deliveryDate", rmk);
+                }
+                req.setPayload(payload);
+                req.setOperator(operator);
+                req.setRoleKey(blank(roleKey) ? "system" : roleKey);
+                Object created = mesWorkflow.execute(req);
+                String orderNo = created instanceof Map<?, ?> cm && cm.get("id") != null ? String.valueOf(cm.get("id")) : "";
+                reply = "已创建客户订单" + (blank(orderNo) || "null".equals(orderNo) ? "" : " " + orderNo)
+                        + "：" + str(p.params, "customerName") + " · " + str(p.params, "productModel")
+                        + " · " + p.params.get("quantity") + " 台，已进入订单审核流程。";
+                result = Map.of("orderNo", blankOr(orderNo, ""), "module", "order");
             } else if ("rca_dispatch".equals(p.action)) {
                 // 派单前确保内存里有分析快照，任务文案才带得上引擎建议；分析失败不阻断派单
                 try { afterSales.buildRcaAnalysis(p.entityNo, false); } catch (Exception ignore) { }

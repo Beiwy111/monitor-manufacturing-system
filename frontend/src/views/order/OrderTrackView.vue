@@ -3,19 +3,19 @@
     <div class="order-track-panel">
       <div class="order-track-header">
         <h2 class="order-track-header__title">订单跟踪</h2>
-        <div class="order-track-header__actions">
-          <span v-if="selectedRows.length > 1" class="order-track-header__hint">
-            已选 {{ selectedRows.length }} 个同型号订单 · {{ lockedModel }}
-          </span>
-          <el-button
-            type="primary"
-            size="small"
-            :disabled="!scheduleTargets.length"
-            @click="handleSmartSchedule"
-          >
-            智能排产{{ selectedRows.length > 1 ? `（${selectedRows.length}单）` : '' }}
-          </el-button>
-          <el-button size="small" :disabled="!sel" @click="goGantt">查看甘特图</el-button>
+        <div v-if="showPlannerActions" class="order-track-header__actions">
+            <span v-if="selectedRows.length > 1" class="order-track-header__hint">
+              已选 {{ selectedRows.length }} 个同型号订单 · {{ lockedModel }}
+            </span>
+            <el-button
+              type="primary"
+              size="small"
+              :disabled="!scheduleTargets.length"
+              @click="handleSmartSchedule"
+            >
+              智能排产{{ selectedRows.length > 1 ? `（${selectedRows.length}单）` : '' }}
+            </el-button>
+            <el-button size="small" :disabled="!sel" @click="goGantt">查看甘特图</el-button>
         </div>
       </div>
 
@@ -57,6 +57,7 @@
             @selection-change="onSelectionChange"
           >
             <el-table-column
+              v-if="showPlannerActions"
               type="selection"
               width="42"
               fixed="left"
@@ -219,12 +220,16 @@ import { ref, computed, reactive, watch, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
+import { useUserStore } from '@/stores/user'
 import { ORDER_STATUS } from '@/mock/constants'
 import { fetchOrderPlanningContext } from '@/api/planner'
 import { navigateToSmartScheduling } from '@/composables/usePlannerAgent'
 
 const router = useRouter()
 const mes = useMesStore()
+const userStore = useUserStore()
+
+const showPlannerActions = computed(() => ['planner', 'admin'].includes(userStore.roleKey))
 
 const keyword = ref('')
 const statusFilter = ref('')
@@ -706,7 +711,7 @@ onMounted(async () => {
   tableLoading.value = true
   try {
     if (!mes.orders.length) {
-      await mes.hydrateFromApi()
+      await mes.hydrateForPage()
     }
     await prefetchMetrics()
   } finally {
@@ -718,7 +723,7 @@ onMounted(async () => {
 <style scoped>
 .order-track-page {
   margin: -12px;
-  min-height: calc(100vh - 98px);
+  min-height: var(--layout-viewport-h, calc(100vh - 52px));
   background: #f0f2f5;
   padding: 12px;
   font-size: 14px;
@@ -727,7 +732,7 @@ onMounted(async () => {
 }
 
 .order-track-panel {
-  height: calc(100vh - 122px);
+  height: var(--layout-content-min-h, calc(100vh - 92px));
   display: flex;
   flex-direction: column;
   background: #fff;

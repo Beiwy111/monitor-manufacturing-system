@@ -67,10 +67,11 @@ INSERT INTO sys_menu (menu_code, menu_name, parent_id, menu_level, api_path, bus
 ('production:report',    '报工管理', 4, 2, '/production/report/list',    'work_report', 7, 1),
 ('production:progress',  '生产进度', 4, 2, '/production/progress/list',  'work_progress', 8, 1);
 
--- 二级菜单：采购管理（2张表）
-INSERT INTO sys_menu (menu_code, menu_name, parent_id, menu_level, api_path, business_table, sort_no, status) VALUES
-('purchase:purchaseOrder',     '采购订单', 5, 2, '/purchase/purchaseOrder/list',     'purchase_order', 1, 1),
-('purchase:purchaseOrderItem', '采购明细', 5, 2, '/purchase/purchaseOrderItem/list', 'purchase_order_item', 2, 1);
+-- 二级菜单：采购管理
+INSERT INTO sys_menu (menu_code, menu_name, parent_id, menu_level, api_path, route_path, business_table, sort_no, status) VALUES
+('purchase:workbench',         '采购工作台', 5, 2, NULL, '/purchase/workbench', NULL, 0, 1),
+('purchase:purchaseOrder',     '采购订单', 5, 2, '/purchase/purchaseOrder/list', NULL, 'purchase_order', 1, 1),
+('purchase:purchaseOrderItem', '采购明细', 5, 2, '/purchase/purchaseOrderItem/list', NULL, 'purchase_order_item', 2, 1);
 
 -- 二级菜单：质量管理（2张表）
 INSERT INTO sys_menu (menu_code, menu_name, parent_id, menu_level, api_path, business_table, sort_no, status) VALUES

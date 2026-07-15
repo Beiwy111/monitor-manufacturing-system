@@ -119,8 +119,8 @@ export const dashboardConfigs = {
       { id: 3, title: 'FG202607001 成品入库', module: '成品入库', priority: '中', status: '待处理' }
     ],
     quickLinks: [
-      { title: '库存查询', path: '/warehouse/inventory' },
-      { title: '成品入库', path: '/warehouse/inbound' },
+      { title: '库存容量查询', path: '/warehouse/capacity' },
+      { title: '入库', path: '/warehouse/inbound-hub' },
       { title: '发货出库', path: '/delivery/list' }
     ]
   },

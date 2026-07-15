@@ -11,7 +11,7 @@
       <el-table-column prop="specification" label="规格参数" min-width="200" show-overflow-tooltip />
       <el-table-column prop="unit" label="单位" width="60" align="center" />
       <el-table-column prop="standardCost" label="参考单价(元)" width="110" align="right" />
-      <el-table-column label="操作" width="90" align="center" fixed="right">
+      <el-table-column label="操作" width="80" align="center" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="orderProduct(row)">订购</el-button>
         </template>

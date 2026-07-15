@@ -107,14 +107,15 @@ const props = defineProps({
   detail: { type: Object, default: null },
   items: { type: Array, default: () => [] },
   unitMatrix: { type: Object, default: null },
-  optionalAi: { type: Boolean, default: false }
+  optionalAi: { type: Boolean, default: false },
+  beforeGenerateAi: { type: Function, default: null }
 })
 
 const userStore = useUserStore()
 const aiReport = ref(null)
 const aiLoading = ref(false)
 
-const canGenerateAi = computed(() => !!props.detail?.inspectionNo)
+const canGenerateAi = computed(() => !!(props.detail?.inspectionNo || props.detail?.inspectionId))
 
 const yieldPct = computed(() => {
   const s = Number(props.detail?.sampleQuantity)
@@ -188,11 +189,15 @@ function doExportExcel() {
 }
 
 async function doGenerateAi() {
-  if (!props.detail?.inspectionNo) return
+  const qcId = props.detail?.inspectionNo || props.detail?.inspectionId
+  if (!qcId) return
   aiLoading.value = true
   try {
+    if (props.beforeGenerateAi) {
+      await props.beforeGenerateAi()
+    }
     const res = await postRefreshQualityReport({
-      qcId: props.detail.inspectionNo,
+      qcId: String(qcId),
       operator: userStore.userInfo?.username,
       roleKey: 'quality'
     })

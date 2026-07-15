@@ -6,7 +6,8 @@
  *   import imgPlan from '/images/capability-1.jpg'  // 需放到 public/images/
  */
 import heroBg from '@picture/1.jpg'
-import heroVideo from '@picture/dynamic.mp4'
+import heroVideo from '@picture/systemboard.mp4'
+import loginVideo from '@picture/dynamic.mp4'
 import imgWarehouse from '@picture/1.jpg'
 import imgProduction from '@picture/2.jpg'
 import imgQuality from '@picture/3.jpg'
@@ -18,6 +19,7 @@ import imgAftersale from '@picture/7.jpg'
 export const homeImages = {
   heroBg,
   heroVideo,
+  loginVideo,
   capabilities: {
     planning: imgPlanning,    // 能力1：订单与计划 → picture/5.jpg
     production: imgProduction, // 能力2：派工报工 → picture/2.jpg

@@ -154,12 +154,166 @@ function buildPacking(sc) {
   return g
 }
 
+/** PCB 装配线（主板 / 电源板 / 接口板 — 设备维护大屏用不同配色） */
+function buildBoardLine(sc, accent = '#2e7d32') {
+  const g = new THREE.Group()
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.55, 0.95), stdMat('#eceff1'))
+  frame.position.y = -0.15; g.add(frame)
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.04, 0.72), stdMat('#455a64'))
+  belt.position.y = 0.12; g.add(belt)
+  for (let i = 0; i < 5; i++) {
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.02, 0.2), stdMat(accent))
+    pcb.position.set(-0.72 + i * 0.36, 0.16, 0); g.add(pcb)
+    const led = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.01, 0.08), glowMat(sc))
+    led.position.set(-0.72 + i * 0.36, 0.18, 0.06); g.add(led)
+  }
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.38, 0.02), glowMat(sc))
+  panel.position.set(1.05, 0.22, 0.35); g.add(panel)
+  const tower = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.65, 0.18), stdMat('#b0bec5'))
+  tower.position.set(1.05, 0.18, -0.28); g.add(tower)
+  return g
+}
+
+/** 显示屏加工线 */
+function buildDisplayLine(sc) {
+  const g = new THREE.Group()
+  const base = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.14, 1.0), stdMat('#b0bec5'))
+  base.position.y = -0.42; g.add(base)
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 0.9), stdMat('#78909c'))
+  rail.position.y = -0.32; g.add(rail)
+  for (let i = 0; i < 3; i++) {
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.42, 0.03), stdMat('#263238'))
+    panel.position.set(-0.7 + i * 0.7, 0.05, 0); g.add(panel)
+    const glow = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.35, 0.01), glowMat(sc))
+    glow.position.set(-0.7 + i * 0.7, 0.05, 0.02); g.add(glow)
+  }
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.55, 8), stdMat('#90a4ae'))
+  arm.rotation.z = Math.PI / 2; arm.position.set(0.95, 0.35, 0); g.add(arm)
+  return g
+}
+
+/** 外壳装配线 */
+function buildShellLine(sc) {
+  const g = new THREE.Group()
+  const press = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.35, 0.85), stdMat('#cfd8dc'))
+  g.add(press)
+  const window = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.42, 0.02), glowMat(sc))
+  window.position.set(0, 0.25, 0.44); g.add(window)
+  const mold = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.12, 0.55), stdMat('#78909c'))
+  mold.position.set(0, -0.55, 0.2); g.add(mold)
+  const hopper = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 0.45, 10), stdMat('#b0bec5'))
+  hopper.position.set(-0.55, 0.75, 0); g.add(hopper)
+  return g
+}
+
+/** 支架底座装配线 */
+function buildBracketLine(sc) {
+  const g = new THREE.Group()
+  const table = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 0.8), stdMat('#b0bec5'))
+  table.position.y = -0.35; g.add(table)
+  for (const x of [-0.75, 0.75]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.7, 8), stdMat('#78909c'))
+    leg.position.set(x, -0.7, 0); g.add(leg)
+  }
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.55, 0.55), stdMat('#eceff1'))
+  frame.position.set(0, 0.05, 0); g.add(frame)
+  const stand = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 0.12), stdMat('#607d8b'))
+  stand.position.set(0, -0.05, 0.28); g.add(stand)
+  const screen = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.22, 0.01), glowMat(sc))
+  screen.position.set(0.55, 0.15, 0.35); g.add(screen)
+  return g
+}
+
 function pickBuilder(type) {
   const t = type ?? ''
+  if (t.includes('主板')) return (sc) => buildBoardLine(sc, '#2e7d32')
+  if (t.includes('电源')) return (sc) => buildBoardLine(sc, '#1565c0')
+  if (t.includes('接口')) return (sc) => buildBoardLine(sc, '#6a1b9a')
+  if (t.includes('显示屏')) return buildDisplayLine
+  if (t.includes('外壳')) return buildShellLine
+  if (t.includes('支架')) return buildBracketLine
   if (t.includes('流水') || t.includes('组装')) return buildConveyor
   if (t.includes('贴附') || t.includes('调校')) return buildMachine
   if (t.includes('老化') || t.includes('测试')) return buildAging
+  if (t.includes('检测') || t.includes('检验')) return buildInspectionLine
   return buildPacking
+}
+
+/** 检测工位 */
+function buildInspectionLine(sc) {
+  const g = new THREE.Group()
+  const bench = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, 0.9), stdMat('#eceff1'))
+  bench.position.y = -0.2; g.add(bench)
+  const cam = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.12), stdMat('#607d8b'))
+  cam.position.set(0.5, 0.45, 0.3); g.add(cam)
+  const screen = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.38, 0.02), glowMat(sc))
+  screen.position.set(-0.35, 0.28, 0.46); g.add(screen)
+  const probe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8), stdMat('#90a4ae'))
+  probe.position.set(0.15, 0.15, -0.2); g.add(probe)
+  return g
+}
+
+export function createConveyorMesh(length, axis = 'x') {
+  const g = new THREE.Group()
+  const mat = stdMat('#37474f')
+  const railMat = stdMat('#546e7a')
+  const isX = axis === 'x'
+  const belt = isX
+    ? new THREE.Mesh(new THREE.BoxGeometry(length, 0.06, 0.7), mat)
+    : new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.06, length), mat)
+  belt.position.y = 0.04; g.add(belt)
+  const rail1 = isX
+    ? new THREE.Mesh(new THREE.BoxGeometry(length, 0.1, 0.05), railMat)
+    : new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, length), railMat)
+  rail1.position.set(isX ? 0 : -0.38, 0.1, isX ? -0.38 : 0); g.add(rail1)
+  const rail2 = isX
+    ? new THREE.Mesh(new THREE.BoxGeometry(length, 0.1, 0.05), railMat)
+    : new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, length), railMat)
+  rail2.position.set(isX ? 0 : 0.38, 0.1, isX ? 0.38 : 0); g.add(rail2)
+  return g
+}
+
+export function createBufferRack() {
+  const g = new THREE.Group()
+  for (let i = 0; i < 3; i++) {
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.04, 0.6), stdMat('#78909c'))
+    shelf.position.y = -0.3 + i * 0.45; g.add(shelf)
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.28, 0.35), stdMat('#b0bec5'))
+    box.position.set(-0.35, -0.12 + i * 0.45, 0); g.add(box)
+  }
+  for (const x of [-0.65, 0.65]) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.1, 0.05), stdMat('#607d8b'))
+    p.position.set(x, 0.1, 0); g.add(p)
+  }
+  return g
+}
+
+export function createAgvMesh(color = '#ff8f00') {
+  const g = new THREE.Group()
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.5), stdMat(color))
+  body.position.y = 0.12; g.add(body)
+  for (const [x, z] of [[-0.22, -0.15], [0.22, -0.15], [-0.22, 0.15], [0.22, 0.15]]) {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.04, 12), stdMat('#263238'))
+    w.rotation.x = Math.PI / 2; w.position.set(x, 0.04, z); g.add(w)
+  }
+  const mast = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, 0.08), stdMat('#455a64'))
+  mast.position.set(0, 0.35, 0); g.add(mast)
+  return g
+}
+
+export function createWorkstationPad(w, d) {
+  const g = new THREE.Group()
+  const pad = new THREE.Mesh(
+    new THREE.BoxGeometry(w, 0.04, d),
+    new THREE.MeshStandardMaterial({ color: 0x2a3544, metalness: 0.2, roughness: 0.8 })
+  )
+  pad.position.y = -0.48; g.add(pad)
+  const edge = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(w, 0.04, d)),
+    new THREE.LineBasicMaterial({ color: 0x4a5a6a })
+  )
+  edge.position.y = -0.48; g.add(edge)
+  return g
 }
 
 export function createEquipmentMesh(equipData) {

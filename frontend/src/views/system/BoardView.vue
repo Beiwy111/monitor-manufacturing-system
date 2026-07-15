@@ -2,7 +2,6 @@
   <div class="kanban">
     <header class="kanban__header">
       <div class="kanban__brand">
-        <span class="kanban__brand-mark">MES</span>
         <div>
           <strong>生产主管实时大屏</strong>
           <small>数据源：数据库实时快照 /mes/dashboard/snapshot</small>

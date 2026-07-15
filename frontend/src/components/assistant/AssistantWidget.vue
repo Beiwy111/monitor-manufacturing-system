@@ -20,7 +20,7 @@ const route = useRoute()
 const sessionId = `${user.userInfo?.username || 'anon'}-${Date.now()}`
 
 const open = ref(false)
-const messages = ref([{ role: 'assistant', text: '你好，我是 MES 全局助手。查询研判全局可用：概况、售后追溯/研判（"你觉得怎么处理"）、设备诊断（"EQ-xxx 健康怎么样"）。写操作只在所属模块页面可执行，会先请你确认；跨模块请用协办通知（"通知生产…"）。还支持一句话串多步，如"受理星辰这单并启动根因协查"。' }])
+const messages = ref([{ role: 'assistant', text: '你好，我是 MES 全局助手。查询研判全局可用：概况、查库存（"查库存""MAT-001有多少"）、售后追溯/研判、设备诊断（"EQ-xxx 健康怎么样"）。写操作只在所属模块页面可执行，会先请你确认；跨模块请用协办通知（"通知生产…"）。还支持一句话串多步。' }])
 const confirmCard = ref(null)
 const editParam = ref('')
 const inputText = ref('')
@@ -187,7 +187,7 @@ async function onApprove(decision) {
     confirmCard.value = null
     if (res.ok) {
       ElMessage.success((res.reply || '已执行').split('\n')[0])
-      mes.hydrateFromApi().catch(() => {})   // 刷新各页面共享的 MES 快照数据
+      mes.hydrateForPage().catch(() => {})   // 刷新各页面共享的 MES 快照数据
       emit('executed', res.data)
     }
     // 多步流：本步执行完，后端直接推进下一步（读步的应答或下一张确认卡）

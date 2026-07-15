@@ -242,7 +242,7 @@ onMounted(async () => {
 })
 
 async function refresh() {
-  try { await mes.hydrateFromApi() } catch { /* ignore */ }
+  try { await mes.hydrateForPage() } catch { /* ignore */ }
 }
 
 function woProgress(row) {

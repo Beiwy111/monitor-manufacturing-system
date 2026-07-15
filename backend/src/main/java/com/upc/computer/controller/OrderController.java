@@ -1,13 +1,17 @@
 package com.upc.computer.controller;
 
+import com.upc.computer.common.Result;
+import com.upc.computer.service.OrderOcrService;
 import com.upc.computer.service.OrderService;
 import com.upc.computer.entity.CustomerOrder;
 import com.upc.computer.entity.CustomerOrderItem;
 import com.upc.computer.entity.DeliveryOrder;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.ArrayList;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/order")
@@ -15,6 +19,8 @@ public class OrderController {
 
     @Autowired
     private OrderService orderService;
+    @Autowired
+    private OrderOcrService orderOcrService;
 
     // 查询客户订单列表
     @RequestMapping("/customerOrder/list")
@@ -104,6 +110,21 @@ public class OrderController {
     @RequestMapping("/delivery/delete")
     public void deleteDelivery(Long deliveryId) {
         orderService.deleteDelivery(deliveryId);
+    }
+
+    /** AI识图下单：上传微信聊天截图，提取订单字段 */
+    @PostMapping("/ai/screenshot/parse")
+    public Result<Map<String, Object>> parseWechatScreenshot(
+            @RequestParam("file") MultipartFile file) {
+        return Result.success(orderOcrService.recognizeUpload(file, null));
+    }
+
+    /** 兼容旧路径 */
+    @PostMapping("/ai/ocr/parse")
+    public Result<Map<String, Object>> parseOrderAiOcr(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "orderId", required = false) String orderId) {
+        return Result.success(orderOcrService.recognizeUpload(file, orderId));
     }
 
 }

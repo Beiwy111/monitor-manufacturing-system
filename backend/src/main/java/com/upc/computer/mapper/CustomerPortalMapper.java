@@ -101,12 +101,25 @@ public interface CustomerPortalMapper {
 
     @Select("""
         SELECT material_id AS materialId, material_code AS materialCode, material_name AS materialName,
-               material_type AS materialType, specification, unit, standard_cost AS standardCost, status
+               material_type AS materialType, specification, unit, standard_cost AS standardCost,
+               image_url AS imageUrl, product_summary AS productSummary, ports,
+               sort_order AS sortOrder, status
         FROM material
         WHERE material_type = 'FINISHED' AND status = 1
-        ORDER BY material_code
+        ORDER BY sort_order ASC, material_code ASC
         """)
     List<Map<String, Object>> listFinishedProducts();
+
+    @Select("""
+        SELECT material_id AS materialId, material_code AS materialCode, material_name AS materialName,
+               material_type AS materialType, specification, unit, standard_cost AS standardCost,
+               image_url AS imageUrl, product_summary AS productSummary, ports,
+               sort_order AS sortOrder, status
+        FROM material
+        WHERE material_id = #{materialId} AND material_type = 'FINISHED' AND status = 1
+        LIMIT 1
+        """)
+    Map<String, Object> getFinishedProduct(Long materialId);
 
     @Select("""
         SELECT a.case_no AS caseNo, a.order_id AS orderId, co.order_no AS orderNo,

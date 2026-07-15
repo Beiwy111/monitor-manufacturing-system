@@ -7,17 +7,17 @@ import org.apache.ibatis.annotations.*;
 @Mapper
 public interface MaterialMapper {
 
-    @Select("SELECT material_id, material_code, material_name, material_type, specification, unit, safety_stock, standard_cost, supplier_id, status, created_at, updated_at FROM material")
+    @Select("SELECT material_id, material_code, material_name, material_type, specification, image_url, product_summary, ports, sort_order, unit, safety_stock, standard_cost, supplier_id, status, created_at, updated_at FROM material")
     ArrayList<Material> materialList();
 
-    @Select("SELECT material_id, material_code, material_name, material_type, specification, unit, safety_stock, standard_cost, supplier_id, status, created_at, updated_at FROM material WHERE material_id = #{materialId}")
+    @Select("SELECT material_id, material_code, material_name, material_type, specification, image_url, product_summary, ports, sort_order, unit, safety_stock, standard_cost, supplier_id, status, created_at, updated_at FROM material WHERE material_id = #{materialId}")
     Material getMaterialById(Long materialId);
 
-    @Insert("INSERT INTO material (material_code, material_name, material_type, specification, unit, safety_stock, standard_cost, supplier_id, status, created_at, updated_at) VALUES (#{materialCode}, #{materialName}, #{materialType}, #{specification}, #{unit}, #{safetyStock}, #{standardCost}, #{supplierId}, #{status}, #{createdAt}, #{updatedAt})")
+    @Insert("INSERT INTO material (material_code, material_name, material_type, specification, image_url, product_summary, ports, sort_order, unit, safety_stock, standard_cost, supplier_id, status, created_at, updated_at) VALUES (#{materialCode}, #{materialName}, #{materialType}, #{specification}, #{imageUrl}, #{productSummary}, #{ports}, #{sortOrder}, #{unit}, #{safetyStock}, #{standardCost}, #{supplierId}, #{status}, #{createdAt}, #{updatedAt})")
     @Options(useGeneratedKeys = true, keyProperty = "materialId")
     void insertMaterial(Material material);
 
-    @Update("UPDATE material SET material_code=#{materialCode}, material_name=#{materialName}, material_type=#{materialType}, specification=#{specification}, unit=#{unit}, safety_stock=#{safetyStock}, standard_cost=#{standardCost}, supplier_id=#{supplierId}, status=#{status}, updated_at=#{updatedAt} WHERE material_id = #{materialId}")
+    @Update("UPDATE material SET material_code=#{materialCode}, material_name=#{materialName}, material_type=#{materialType}, specification=#{specification}, image_url=#{imageUrl}, product_summary=#{productSummary}, ports=#{ports}, sort_order=#{sortOrder}, unit=#{unit}, safety_stock=#{safetyStock}, standard_cost=#{standardCost}, supplier_id=#{supplierId}, status=#{status}, updated_at=#{updatedAt} WHERE material_id = #{materialId}")
     void updateMaterial(Material material);
 
     @Delete("DELETE FROM material WHERE material_id = #{materialId}")

@@ -95,6 +95,8 @@ public class MesWorkflowService {
     private WarehouseBarcodeService warehouseBarcodeService;
     @Autowired
     private PurchaseService purchaseService;
+    @Autowired
+    private MesSnapshotService mesSnapshotService;
 
     @Transactional
     public Object execute(MesActionRequest req) {
@@ -105,7 +107,7 @@ public class MesWorkflowService {
         String operator = req.getOperator() != null ? req.getOperator() : "system";
         String roleKey = req.getRoleKey() != null ? req.getRoleKey() : "system";
 
-        return switch (req.getAction()) {
+        Object result = switch (req.getAction()) {
             case "createOrder" -> createOrder(payload, operator, roleKey);
             case "auditOrder" -> auditOrder(payload, operator, roleKey);
             case "recognizeOrderOcr" -> recognizeOrderAttachment(payload);
@@ -141,6 +143,8 @@ public class MesWorkflowService {
             case "createDispatch" -> createDispatch(payload, operator, roleKey);
             case "acceptDispatch" -> acceptDispatch(payload, operator, roleKey);
             case "startDispatch" -> startDispatch(payload, operator, roleKey);
+            case "listPickTasks" -> listPickTasks(payload);
+            case "pickMaterial" -> pickMaterial(payload, operator, roleKey);
             case "submitReport" -> submitReport(payload, operator, roleKey);
             case "submitToInspection" -> submitToInspection(payload, operator, roleKey);
             case "confirmReport" -> confirmReport(payload, operator, roleKey);
@@ -180,6 +184,8 @@ public class MesWorkflowService {
             case "deleteIssueTask" -> deleteIssueTask(payload, operator, roleKey);
             default -> throw new BusinessException("未知动作: " + req.getAction());
         };
+        mesSnapshotService.invalidateSnapshotCache();
+        return result;
     }
 
     /**
@@ -1159,22 +1165,93 @@ public class MesWorkflowService {
         }
         OperatorWorkshopCatalog.ensureSingleActiveDispatch(
                 op.getUserId(), d.getDispatchId(), dispatchTaskMapper.dispatchList(), buildStepById());
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        WorkOrder wo = workOrderMapper.getWorkOrderById(d.getWorkOrderId());
+        if (wo != null) {
+            createIssueTasksFromBom(wo, runtime, wo.getWorkOrderNo(), LocalDateTime.now());
+            ensureMaterialsIssued(runtime, wo.getWorkOrderNo());
+        }
         LocalDateTime now = LocalDateTime.now();
         d.setStatus("PRODUCING");
         d.setUpdatedAt(now);
         dispatchTaskMapper.updateDispatch(d);
 
-        WorkOrder wo = workOrderMapper.getWorkOrderById(d.getWorkOrderId());
         if (wo != null) {
             wo.setStatus("PRODUCING");
             wo.setActualStartTime(now);
             wo.setUpdatedAt(now);
             workOrderMapper.updateWorkOrder(wo);
         }
-        MesRuntimeState runtime = mesRuntimeStore.load();
         appendLog(runtime, "现场作业", "开始生产", dispatchNo, operator, roleKey);
         mesRuntimeStore.save(runtime);
         return true;
+    }
+
+    /** 生产前领料闸门：工单存在未领齐的领料任务时禁止开工 */
+    private void ensureMaterialsIssued(MesRuntimeState runtime, String workOrderNo) {
+        List<String> shortage = runtime.getIssueTasks().stream()
+                .filter(t -> workOrderNo.equals(String.valueOf(t.get("workOrderId"))))
+                .filter(t -> !"已完成".equals(String.valueOf(t.get("status"))))
+                .map(t -> t.get("materialName") + "（还差 "
+                        + Math.max(0, intVal(t.get("requiredQty")) - intVal(t.get("issuedQty"))) + "）")
+                .toList();
+        if (!shortage.isEmpty()) {
+            throw new BusinessException("请先到仓库领料再开始生产，未领齐物料：" + String.join("、", shortage));
+        }
+    }
+
+    /** 操作员查看某派工对应工单的领料任务（附当前库存余量） */
+    private List<Map<String, Object>> listPickTasks(Map<String, Object> p) {
+        String dispatchNo = str(p, "dispatchId");
+        DispatchTask d = findDispatchByNo(dispatchNo);
+        if (d == null) {
+            throw new BusinessException("派工不存在");
+        }
+        WorkOrder wo = workOrderMapper.getWorkOrderById(d.getWorkOrderId());
+        if (wo == null) {
+            return List.of();
+        }
+        MesRuntimeState runtime = mesRuntimeStore.load();
+        createIssueTasksFromBom(wo, runtime, wo.getWorkOrderNo(), LocalDateTime.now());
+        mesRuntimeStore.save(runtime);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> t : runtime.getIssueTasks()) {
+            if (!wo.getWorkOrderNo().equals(String.valueOf(t.get("workOrderId")))) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>(t);
+            Material mat = findMaterialByCode(normalizeIssueMaterialCode(String.valueOf(t.get("materialCode"))));
+            Inventory inv = mat != null ? findInventoryByMaterial(mat.getMaterialId()) : null;
+            row.put("stockQty", inv != null ? inv.getQuantityOnHand() : BigDecimal.ZERO);
+            result.add(row);
+        }
+        return result;
+    }
+
+    /** 操作员生产前领料：校验派工归属后按领料任务扣减库存 */
+    private boolean pickMaterial(Map<String, Object> p, String operator, String roleKey) {
+        String dispatchNo = str(p, "dispatchId");
+        DispatchTask d = findDispatchByNo(dispatchNo);
+        if (d == null) {
+            throw new BusinessException("派工不存在");
+        }
+        if (!List.of("ACCEPTED", "PRODUCING", "RUNNING").contains(d.getStatus())) {
+            throw new BusinessException("请先接收派工后再领料");
+        }
+        User op = findUserByUsername(operator);
+        if (op == null || !op.getUserId().equals(d.getOperatorId())) {
+            throw new BusinessException("无权对该派工领料");
+        }
+        Map<String, Object> task = mesRuntimeStore.load().getIssueTasks().stream()
+                .filter(t -> str(p, "taskId").equals(String.valueOf(t.get("id"))))
+                .findFirst().orElse(null);
+        if (task != null) {
+            int remain = Math.max(0, intVal(task.get("requiredQty")) - intVal(task.get("issuedQty")));
+            if (intVal(p.get("qty")) > remain) {
+                throw new BusinessException("领取数量超出剩余需求（还需 " + remain + "）");
+            }
+        }
+        return issueMaterial(p, operator, roleKey);
     }
 
     // —— 报工 ——
@@ -1462,17 +1539,47 @@ public class MesWorkflowService {
     }
 
     private Map<String, Object> generateQualityReport(Map<String, Object> p, String operator, String roleKey) {
-        String qcNo = str(p, "qcId");
+        String qcKey = str(p, "qcId");
         MesRuntimeState runtime = mesRuntimeStore.load();
-        QualityInspection qi = findInspectionByNo(qcNo);
-        if (qi == null || "PENDING".equals(qi.getInspectionResult())) {
-            throw new BusinessException("质检单不存在或尚未完成");
-        }
-        Map<String, Object> report = createQualityReport(qcNo, runtime, operator, p);
+        QualityInspection qi = findInspectionForReport(qcKey);
+        assertInspectionReadyForReport(qi);
+        Map<String, Object> report = createQualityReport(qi.getInspectionNo(), runtime, operator, p);
         report.put("updatedAt", fmt(LocalDateTime.now()));
         appendLog(runtime, "质量报告", "重新生成质量报告", String.valueOf(report.get("id")), operator, roleKey);
         mesRuntimeStore.save(runtime);
         return report;
+    }
+
+    /** 生成/刷新质检报告前：已判定完成，或五步检测已同步抽检数量 */
+    private void assertInspectionReadyForReport(QualityInspection qi) {
+        if (qi == null) {
+            throw new BusinessException("质检单不存在或尚未完成");
+        }
+        if (!"PENDING".equals(qi.getInspectionResult())) {
+            return;
+        }
+        int sample = intVal(qi.getSampleQuantity());
+        int qual = intVal(qi.getQualifiedQuantity());
+        int unqual = intVal(qi.getUnqualifiedQuantity());
+        if (sample > 0 && qual + unqual > 0) {
+            return;
+        }
+        throw new BusinessException("质检单尚未完成，请先完成五步检测并进入报告页，或点击「质检通过」后再生成报告");
+    }
+
+    private QualityInspection findInspectionForReport(String qcKey) {
+        if (qcKey == null || qcKey.isBlank()) {
+            return null;
+        }
+        QualityInspection byNo = findInspectionByNo(qcKey);
+        if (byNo != null) {
+            return byNo;
+        }
+        try {
+            return qualityInspectionMapper.getInspectionById(Long.parseLong(qcKey));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private Map<String, Object> qualityReportDetail(Map<String, Object> p) {
@@ -3142,11 +3249,16 @@ public class MesWorkflowService {
                     .filter(m -> "FINISHED".equals(m.getMaterialType()))
                     .findFirst().orElse(null);
         }
-        Map<String, String> modelToCode = Map.of(
-                "DM-27-LCD-FHD", "PRD-001",
-                "DM-24-LCD-FHD", "PRD-001",
-                "DM-32-OLED-4K", "PRD-002",
-                "DM-34-OLED-UWQHD", "PRD-002"
+        Map<String, String> modelToCode = Map.ofEntries(
+                Map.entry("DM-27-LCD-FHD", "PRD-001"),
+                Map.entry("DM-24-LCD-FHD", "PRD-001"),
+                Map.entry("DM-32-OLED-4K", "PRD-002"),
+                Map.entry("DM-34-OLED-UWQHD", "PRD-002"),
+                Map.entry("DM-21-OFFICE", "PRD-004"),
+                Map.entry("DM-24-CURVE", "PRD-005"),
+                Map.entry("DM-32-GAMING", "PRD-006"),
+                Map.entry("DM-27-OLED", "PRD-007"),
+                Map.entry("DM-34-UW", "PRD-008")
         );
         String code = modelToCode.get(productModel);
         if (code != null) {

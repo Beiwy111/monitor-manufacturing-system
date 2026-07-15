@@ -259,7 +259,31 @@ public class CustomerPortalServiceImpl implements CustomerPortalService {
 
     @Override
     public List<Map<String, Object>> listProducts() {
-        return customerPortalMapper.listFinishedProducts();
+        List<Map<String, Object>> list = customerPortalMapper.listFinishedProducts();
+        list.forEach(this::enrichProductView);
+        return list;
+    }
+
+    @Override
+    public Map<String, Object> getProductDetail(Long materialId) {
+        Map<String, Object> row = customerPortalMapper.getFinishedProduct(materialId);
+        if (row == null || row.isEmpty()) {
+            throw new BusinessException("产品不存在或已下架");
+        }
+        enrichProductView(row);
+        return row;
+    }
+
+    private void enrichProductView(Map<String, Object> row) {
+        String code = row.get("materialCode") != null ? row.get("materialCode").toString() : "";
+        Object imageUrl = row.get("imageUrl");
+        if (imageUrl == null || !StringUtils.hasText(imageUrl.toString())) {
+            row.put("imageUrl", "/materials/products/" + code.toLowerCase() + ".jpg");
+        }
+        row.put("imagePlaceholder", "/materials/products/placeholder.svg");
+        if (row.get("productSummary") == null || !StringUtils.hasText(String.valueOf(row.get("productSummary")))) {
+            row.put("productSummary", row.get("specification"));
+        }
     }
 
     @Override

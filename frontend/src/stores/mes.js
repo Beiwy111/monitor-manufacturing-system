@@ -17,6 +17,11 @@ function calcWorkHours(startTime, endTime) {
   return Math.max(0.5, Math.round((ms / 3600000) * 10) / 10)
 }
 
+/** 快照请求去重 + TTL 节流，避免路由/多页面重复拉全量数据 */
+let hydratePromise = null
+let lastHydrateAt = 0
+const HYDRATE_TTL_MS = 60_000
+
 const LIST_KEYS = [
   'sysUsers', 'sysRoles', 'sysPermissions', 'sysMenus', 'customers', 'orders', 'plans',
   'workOrders', 'dispatches', 'workReports', 'inspections', 'defects', 'purchaseDemands',
@@ -197,10 +202,10 @@ export const useMesStore = defineStore('mes', {
         s.purchaseDemands.filter((d) => d.status === '待采购').forEach((d) => todos.push({ type: '采购', title: `${d.materialName} 缺口 ${d.gapQty}`, ref: d.id, path: '/purchase/demand' }))
       }
       if (roleKey === 'warehouse') {
-        s.inboundTasks.filter((t) => t.status === '待入库').forEach((t) => todos.push({ type: '入库', title: `${t.productModel} ${t.quantity}台`, ref: t.id, path: '/warehouse/inbound' }))
-        s.issueTasks.filter((t) => t.status !== '已完成').forEach((t) => todos.push({ type: '领料', title: `${t.materialName}`, ref: t.id, path: '/warehouse/issue' }))
-        s.deliveries.filter((d) => d.status === '待出库').forEach((d) => todos.push({ type: '发货', title: d.id, ref: d.id, path: '/delivery/list' }))
-        s.inventory.filter((i) => i.quantity < i.safeQty).forEach((i) => todos.push({ type: '预警', title: `${i.materialName} 低于安全库存`, ref: i.id, path: '/warehouse/alert' }))
+        s.inboundTasks.filter((t) => t.status === '待入库').forEach((t) => todos.push({ type: '入库', title: `${t.productModel} ${t.quantity}台`, ref: t.id, path: '/warehouse/inbound-hub?tab=finished' }))
+        s.issueTasks.filter((t) => t.status !== '已完成').forEach((t) => todos.push({ type: '领料', title: `${t.materialName}`, ref: t.id, path: '/warehouse/outbound-hub?tab=issue' }))
+        s.deliveries.filter((d) => d.status === '待出库').forEach((d) => todos.push({ type: '发货', title: d.id, ref: d.id, path: '/warehouse/outbound-hub?tab=delivery' }))
+        s.inventory.filter((i) => i.quantity < i.safeQty).forEach((i) => todos.push({ type: '预警', title: `${i.materialName} 低于安全库存`, ref: i.id, path: '/warehouse/location-map' }))
       }
       if (roleKey === 'device') {
         s.alarms.filter((a) => ['已上报', '已接收'].includes(a.status)).forEach((a) => todos.push({ type: '安灯', title: a.description, ref: a.id, path: '/device/alarm' }))
@@ -239,23 +244,57 @@ export const useMesStore = defineStore('mes', {
       log(this, module, action, target, operator, roleKey)
     },
 
-    async hydrateFromApi() {
+    /**
+     * 从后端拉取 MES 全量快照。
+     * @param {{ force?: boolean, maxAgeMs?: number }} opts
+     *   force=true 忽略 TTL（写操作后刷新）；默认 15s 内跳过重复请求。
+     */
+    async hydrateFromApi(opts = {}) {
+      const { force = false, maxAgeMs = HYDRATE_TTL_MS } = opts
       if (!MES_LIVE_MODE) {
         this.hydrated = true
         return
       }
-      this.loading = true
-      try {
-        const data = await fetchMesSnapshot()
-        const selectedId = this.selectedId
-        Object.keys(data).forEach((key) => {
-          this[key] = data[key]
-        })
-        this.selectedId = selectedId
-        this.hydrated = true
-      } finally {
-        this.loading = false
+      const now = Date.now()
+      if (!force && this.hydrated && now - lastHydrateAt < maxAgeMs) {
+        return
       }
+      if (hydratePromise) {
+        return hydratePromise
+      }
+      this.loading = true
+      hydratePromise = (async () => {
+        try {
+          const data = await fetchMesSnapshot()
+          const selectedId = this.selectedId
+          Object.keys(data).forEach((key) => {
+            this[key] = data[key]
+          })
+          this.selectedId = selectedId
+          this.hydrated = true
+          lastHydrateAt = Date.now()
+        } finally {
+          this.loading = false
+          hydratePromise = null
+        }
+      })()
+      return hydratePromise
+    },
+
+    /**
+     * 页面进入时调用：已有快照则立即渲染并后台刷新；首次进入才等待全量快照。
+     */
+    hydrateForPage(opts = {}) {
+      const { force = false } = opts
+      if (!MES_LIVE_MODE) {
+        this.hydrated = true
+        return Promise.resolve()
+      }
+      if (!force && this.hydrated) {
+        this.hydrateFromApi(opts).catch(() => {})
+        return Promise.resolve()
+      }
+      return this.hydrateFromApi(opts)
     },
 
     async _live(action, payload, operator, roleKey) {
@@ -265,7 +304,7 @@ export const useMesStore = defineStore('mes', {
         operator,
         roleKey
       })
-      await this.hydrateFromApi()
+      await this.hydrateFromApi({ force: true })
       return result
     },
 
@@ -400,7 +439,7 @@ export const useMesStore = defineStore('mes', {
       if (MES_LIVE_MODE) {
         const { postGenerateSmartPlans } = await import('@/api/mes')
         const result = await postGenerateSmartPlans({ orderIds, operator, roleKey, autoPublish, proposals })
-        await this.hydrateFromApi()
+        await this.hydrateFromApi({ force: true })
         return result
       }
       return { created: [], createdCount: 0 }
@@ -422,7 +461,7 @@ export const useMesStore = defineStore('mes', {
         const body = { planId, operator, roleKey }
         if (recommendations?.length) body.recommendations = recommendations
         const result = await postConfirmSmartDispatch(body)
-        await this.hydrateFromApi()
+        await this.hydrateFromApi({ force: true })
         return result
       }
       return { count: 0 }
@@ -435,7 +474,7 @@ export const useMesStore = defineStore('mes', {
       if (MES_LIVE_MODE) {
         const { postRefreshQualityReport } = await import('@/api/mes')
         const result = await postRefreshQualityReport({ qcId, operator, roleKey })
-        await this.hydrateFromApi()
+        await this.hydrateFromApi({ force: true })
         return result
       }
       return this.qualityReports?.find((r) => r.qcId === qcId) || null
@@ -807,6 +846,29 @@ export const useMesStore = defineStore('mes', {
       })
       log(this, '仓储管理', '生产领料', taskId, operator, roleKey)
       return true
+    },
+    async listPickTasks(dispatchId, operator, roleKey) {
+      if (MES_LIVE_MODE) {
+        const result = await postMesAction({
+          action: 'listPickTasks',
+          payload: { dispatchId },
+          operator,
+          roleKey
+        })
+        return Array.isArray(result) ? result : []
+      }
+      const dispatch = this.dispatches.find((d) => d.id === dispatchId)
+      const woNo = dispatch?.workOrderId || dispatch?.workOrderNo
+      return this.issueTasks
+        .filter((t) => t.workOrderId === woNo)
+        .map((t) => ({
+          ...t,
+          stockQty: this.inventory.find((i) => i.materialCode === t.materialCode)?.quantity ?? 0
+        }))
+    },
+    pickMaterial(dispatchId, taskId, qty, operator, roleKey) {
+      if (MES_LIVE_MODE) return this._live('pickMaterial', { dispatchId, taskId, qty }, operator, roleKey)
+      return this.issueMaterial(taskId, qty, operator, roleKey)
     },
     shipDelivery(dlvId, operator, roleKey) {
       if (MES_LIVE_MODE) return this._live('shipDelivery', { dlvId }, operator, roleKey)

@@ -232,7 +232,7 @@ async function save() {
     ElMessage.success('计划已保存')
     visible.value = false
     emit('success')
-    await mes.hydrateFromApi()
+    await mes.hydrateForPage()
   } catch (e) {
     ElMessage.error(e?.message || '保存失败')
   } finally {

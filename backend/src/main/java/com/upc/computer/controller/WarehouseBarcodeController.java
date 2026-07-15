@@ -3,6 +3,7 @@ package com.upc.computer.controller;
 import com.upc.computer.common.Result;
 import com.upc.computer.entity.BarcodeRule;
 import com.upc.computer.service.WarehouseBarcodeService;
+import com.upc.computer.service.WarehouseLocationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +15,8 @@ import java.util.Map;
 public class WarehouseBarcodeController {
     @Autowired
     private WarehouseBarcodeService warehouseBarcodeService;
+    @Autowired
+    private WarehouseLocationService warehouseLocationService;
 
     @GetMapping("/inventory/list")
     public Result<Object> inventoryList() {
@@ -65,5 +68,10 @@ public class WarehouseBarcodeController {
     @GetMapping("/scan/logs")
     public Result<Object> scanLogs() {
         return Result.success(warehouseBarcodeService.scanLogs());
+    }
+
+    @GetMapping("/location-map")
+    public Result<Object> locationMap() {
+        return Result.success(warehouseLocationService.locationMap());
     }
 }

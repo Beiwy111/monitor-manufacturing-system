@@ -5,7 +5,9 @@ import com.upc.computer.entity.NonconformingProduct;
 import com.upc.computer.entity.QualityInspection;
 import com.upc.computer.entity.QualityInspectionItem;
 import com.upc.computer.entity.Material;
+import com.upc.computer.entity.WorkOrder;
 import com.upc.computer.mapper.MaterialMapper;
+import com.upc.computer.mapper.WorkOrderMapper;
 import com.upc.computer.mapper.NonconformingProductMapper;
 import com.upc.computer.mapper.QualityInspectionItemMapper;
 import com.upc.computer.mapper.QualityInspectionMapper;
@@ -27,6 +29,7 @@ public class QualityServiceImpl implements QualityService {
     @Autowired private NonconformingProductMapper nonconformingMapper;
     @Autowired private QualityInspectionItemMapper itemMapper;
     @Autowired private MaterialMapper materialMapper;
+    @Autowired private WorkOrderMapper workOrderMapper;
     @Autowired private MesWorkflowService mesWorkflowService;
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -50,18 +53,8 @@ public class QualityServiceImpl implements QualityService {
         suppressSupersededPendingViews(list);
         list.forEach(row -> {
             enrichInspection(row);
-            Object matId = row.get("materialId");
-            if (matId != null) {
-                try {
-                    Material mat = materialMapper.getMaterialById(Long.parseLong(matId.toString()));
-                    if (mat != null) {
-                        row.put("materialName", mat.getMaterialName());
-                        row.put("materialCode", mat.getMaterialCode());
-                    }
-                } catch (NumberFormatException ignored) {
-                    // skip
-                }
-            }
+            enrichMaterial(row);
+            enrichWorkOrder(row);
         });
         return list;
     }
@@ -71,6 +64,8 @@ public class QualityServiceImpl implements QualityService {
         Map<String, Object> view = inspectionMapper.getInspectionDetailView(inspectionId);
         if (view == null) return Collections.emptyMap();
         enrichInspection(view);
+        enrichMaterial(view);
+        enrichWorkOrder(view);
         List<NonconformingProduct> ncList = nonconformingMapper.listByInspectionId(inspectionId);
         List<Map<String, Object>> ncViews = new ArrayList<>();
         for (NonconformingProduct nc : ncList) {
@@ -106,7 +101,11 @@ public class QualityServiceImpl implements QualityService {
     @Override
     public List<Map<String, Object>> listRecheckViews() {
         List<Map<String, Object>> list = inspectionMapper.listRecheckViews();
-        list.forEach(this::enrichInspection);
+        list.forEach(row -> {
+            enrichInspection(row);
+            enrichMaterial(row);
+            enrichWorkOrder(row);
+        });
         return list;
     }
 
@@ -510,6 +509,31 @@ public class QualityServiceImpl implements QualityService {
         row.put("inspectionCategoryCn", categoryCn(str(row, "inspectionCategory")));
         row.put("inspectionTypeCn",     inspectionTypeCn(str(row, "inspectionType")));
         fmtTime(row, "inspectedAt"); fmtTime(row, "updatedAt"); fmtTime(row, "createdAt");
+    }
+
+    private void enrichMaterial(Map<String, Object> row) {
+        Object matId = row.get("materialId");
+        if (matId == null) return;
+        try {
+            Material mat = materialMapper.getMaterialById(Long.parseLong(matId.toString()));
+            if (mat != null) {
+                row.put("materialName", mat.getMaterialName());
+                row.put("materialCode", mat.getMaterialCode());
+            }
+        } catch (NumberFormatException ignored) {
+            // skip
+        }
+    }
+
+    private void enrichWorkOrder(Map<String, Object> row) {
+        Object woId = row.get("workOrderId");
+        if (woId == null) return;
+        try {
+            WorkOrder wo = workOrderMapper.getWorkOrderById(Long.parseLong(woId.toString()));
+            if (wo != null) row.put("workOrderNo", wo.getWorkOrderNo());
+        } catch (NumberFormatException ignored) {
+            // skip
+        }
     }
 
     private void fmtTime(Map<String, Object> row, String key) {

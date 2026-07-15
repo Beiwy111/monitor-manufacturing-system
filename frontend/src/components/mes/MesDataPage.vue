@@ -170,7 +170,7 @@ function removeSelected() {
 
 <style scoped>
 .ruoyi-page--data {
-  min-height: calc(100vh - 130px);
+  min-height: var(--layout-content-min-h, calc(100vh - 92px));
 }
 .ruoyi-detail__head {
   display: flex;

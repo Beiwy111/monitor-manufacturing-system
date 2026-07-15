@@ -3,7 +3,7 @@
 .kanban {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 100px);
+  height: var(--layout-viewport-h, calc(100vh - 52px));
   min-height: 720px;
   padding: 10px 14px 14px;
   gap: 12px;

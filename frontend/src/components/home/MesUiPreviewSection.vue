@@ -7,7 +7,7 @@
             <span class="screen-dot"></span>
             <span class="screen-dot"></span>
             <span class="screen-dot"></span>
-            <span class="screen-title">电脑显示器制造 MES · 生产监控</span>
+            <span class="screen-title">{{ APP_TITLE_SHORT }} · 生产监控</span>
           </div>
           <div class="screen-body">
             <div class="mes-empty-preview">
@@ -41,6 +41,7 @@
 
 <script setup>
 import { mesPreviewFeatures } from '@/mock/homeData'
+import { APP_TITLE_SHORT } from '@/constants/brand'
 
 const kpiLabels = ['计划达成率', '工单完成', '质检合格率', '设备在线率']
 </script>

@@ -79,7 +79,7 @@ const groupedOptions = computed(() => {
 
 onMounted(async () => {
   try {
-    await mes.hydrateFromApi()
+    await mes.hydrateForPage()
   } catch {
     /* ignore */
   }
@@ -90,7 +90,7 @@ onMounted(async () => {
 <style scoped>
 .bom-guide-page {
   padding: 16px;
-  min-height: calc(100vh - 130px);
+  min-height: var(--layout-content-min-h, calc(100vh - 92px));
 }
 .guide-header h2 {
   margin: 0 0 6px;

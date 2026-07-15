@@ -14,11 +14,9 @@
 
     <div class="auth-shell">
       <aside class="auth-brand">
-        <div class="auth-brand__kicker">DISPLAY MES PLATFORM</div>
-        <h1 class="auth-brand__title">
-          <span class="auth-brand__title-cn">电脑显示器</span>
-          <span class="auth-brand__title-en">MES</span>
-        </h1>
+        <BrandLogo :size="56" stack variant="default" class="auth-brand__logo-wrap" />
+        <div class="auth-brand__kicker">JINGCHENG MES PLATFORM</div>
+        <h1 class="auth-brand__title">{{ APP_TITLE }}</h1>
         <p class="auth-brand__slogan">注册后由系统管理员分配角色与权限，分配完成即可登录使用</p>
         <div class="auth-brand__tags">
           <span v-for="tag in tags" :key="tag">{{ tag }}</span>
@@ -110,8 +108,10 @@ import { ElMessage } from 'element-plus'
 import { User, Lock, Postcard, Phone, OfficeBuilding } from '@element-plus/icons-vue'
 import { register } from '@/api/auth'
 import { homeImages } from '@/config/homeImages'
+import BrandLogo from '@/components/brand/BrandLogo.vue'
+import { APP_TITLE } from '@/constants/brand'
 
-const heroVideo = homeImages.heroVideo
+const heroVideo = homeImages.loginVideo
 const heroBg = homeImages.heroBg
 const tags = ['生产管理', '质量追溯', '设备监控', '库存仓储']
 
@@ -202,40 +202,38 @@ async function handleRegister() {
 }
 
 .auth-brand {
-  color: #fff;
+  color: #172033;
   padding-right: 24px;
 }
 
+.auth-brand__logo-wrap {
+  margin-bottom: 20px;
+}
+
+.auth-brand__logo-wrap :deep(.brand-logo__img) {
+  background: transparent;
+}
+
 .auth-brand__kicker {
-  font-size: 13px;
-  letter-spacing: 0.28em;
-  color: #4ade80;
-  margin-bottom: 18px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin-bottom: 12px;
 }
 
 .auth-brand__title {
   margin: 0;
-  line-height: 1.15;
-  font-weight: 400;
-}
-
-.auth-brand__title-cn {
-  display: block;
-  font-size: clamp(36px, 5vw, 56px);
-  color: #fff;
-}
-
-.auth-brand__title-en {
-  display: block;
-  font-size: clamp(42px, 6vw, 64px);
-  color: #2d8a66;
-  letter-spacing: 0.06em;
+  line-height: 1.35;
+  font-weight: 700;
+  font-size: clamp(24px, 3.2vw, 36px);
+  color: #172033;
+  letter-spacing: -0.02em;
 }
 
 .auth-brand__slogan {
   margin: 20px 0 28px;
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.82);
+  color: #475569;
   line-height: 1.6;
 }
 

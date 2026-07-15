@@ -24,6 +24,8 @@ public interface CustomerPortalService {
 
     List<Map<String, Object>> listProducts();
 
+    Map<String, Object> getProductDetail(Long materialId);
+
     List<Map<String, Object>> listFeedbacks(LoginResponse session);
 
     Map<String, Object> submitFeedback(LoginResponse session, CustomerFeedbackRequest request);

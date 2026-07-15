@@ -315,7 +315,7 @@ const kpis = computed(() => [
   },
   {
     key: 'inventory', label: '库存物料', icon: 'Box',
-    value: inventory.value.length, unit: '种', path: '/warehouse/inventory',
+    value: inventory.value.length, unit: '种', path: '/warehouse/capacity',
     theme: 'kpi-inv',
     sub: '预警 ' + inventory.value.filter(i => { const a=Number(i.quantityAvailable||0),s=Number(i.safetyStock||0); return s>0?a<s*0.3:a<=20 }).length + ' 种'
   },

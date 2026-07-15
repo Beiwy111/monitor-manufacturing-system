@@ -2,9 +2,13 @@
   <el-container class="layout-container">
     <el-aside width="168px" class="layout-aside">
       <div class="logo">
-        <img src="/logo-icon.svg" alt="" class="logo__icon" width="32" height="32" />
+        <router-link :to="homePath" class="logo__link" :title="APP_TITLE">
+          <BrandLogo :size="32" variant="sidebar" :text="BRAND_NAME" />
+        </router-link>
       </div>
-      <el-scrollbar class="layout-menu-scroll">
+      <!-- 对话进行中：左侧切换为聊天历史（返回主页可恢复业务菜单） -->
+      <ChatHistoryPanel v-if="showChatHistory" class="layout-chat-history" />
+      <el-scrollbar v-else class="layout-menu-scroll">
         <el-menu
           class="layout-menu"
           :default-active="activeMenu"
@@ -31,6 +35,12 @@
           </template>
         </el-menu>
       </el-scrollbar>
+      <div class="layout-aside__chat">
+        <router-link to="/chat" class="layout-aside__chat-link" :class="{ 'is-active': route.path === '/chat' }">
+          <el-icon><ChatDotRound /></el-icon>
+          <span>智能对话</span>
+        </router-link>
+      </div>
     </el-aside>
 
     <el-container class="layout-right">
@@ -66,11 +76,10 @@
           </el-dropdown>
         </div>
       </el-header>
-      <TagsView />
       <el-main class="layout-main ruoyi-app-main" :class="{ 'layout-main--screen': isScreenPage }">
         <router-view />
       </el-main>
-      <AssistantWidget />
+      <AssistantWidget v-if="route.path !== '/chat'" />
     </el-container>
   </el-container>
 </template>
@@ -80,18 +89,25 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Monitor, Setting, Box, ShoppingCart, OfficeBuilding, CircleCheck,
-  Tools, Service, FullScreen, ArrowDown, User
+  Tools, Service, FullScreen, ArrowDown, User, ChatDotRound
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import TagsView from '@/components/ruoyi/TagsView.vue'
+import { useChatStore } from '@/stores/chat'
 import NotificationCenter from '@/components/notification/NotificationCenter.vue'
 import AssistantWidget from '@/components/assistant/AssistantWidget.vue'
+import ChatHistoryPanel from '@/components/chat/ChatHistoryPanel.vue'
+import BrandLogo from '@/components/brand/BrandLogo.vue'
+import { APP_TITLE, BRAND_NAME } from '@/constants/brand'
 import { useGlobalBusinessMonitor } from '@/composables/useGlobalBusinessMonitor'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const chatStore = useChatStore()
 useGlobalBusinessMonitor()
+
+/** 助手页且已进入对话：侧栏切换为聊天历史；其余场景保持原业务菜单 */
+const showChatHistory = computed(() => route.path === '/chat' && chatStore.inChat)
 
 const homePath = computed(() => userStore.dashboardPath)
 const activeMenu = computed(() => route.path)
@@ -111,6 +127,8 @@ const breadcrumbModule = computed(() => {
   if (p.startsWith('/device')) return '设备管理'
   if (p.startsWith('/aftersale') || p.startsWith('/cost')) return '售后成本'
   if (p.startsWith('/delivery')) return '发货管理'
+  if (p.startsWith('/customer')) return '客户门户'
+  if (p.startsWith('/chat')) return '智能对话'
   return ''
 })
 
@@ -151,12 +169,25 @@ function toggleFullscreen() {
 <style scoped>
 .layout-container {
   height: 100vh;
+  overflow: hidden;
   font-family: var(--layout-font);
   background: transparent;
 }
 
+.layout-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
+}
+
 .layout-aside {
-  background: var(--sidebar-bg, #f7f9f4);
+  background: var(--layout-content-gradient, var(--layout-bg-gradient));
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--layout-border, #e8e8e3);
@@ -166,25 +197,73 @@ function toggleFullscreen() {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 56px;
-  background: var(--sidebar-bg, #f7f9f4);
+  min-height: 56px;
+  padding: 10px 8px;
+  background: transparent;
   border-bottom: 1px solid var(--layout-border, #e8e8e3);
 }
 
-.logo__icon {
-  display: block;
-  flex-shrink: 0;
+.logo__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  width: 100%;
 }
 
-.layout-right {
-  background: transparent;
+.layout-header__left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
 }
 
 .layout-menu-scroll {
   flex: 1;
+  min-height: 0;
+}
+
+.layout-aside__chat {
+  flex-shrink: 0;
+  padding: 10px 12px 14px;
+  border-top: 1px solid var(--layout-border, #e8e8e3);
+}
+
+.layout-aside__chat-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sidebar-text, #4f5560);
+  text-decoration: none;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.layout-aside__chat-link:hover {
+  color: var(--sidebar-text-hover, #25272a);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.layout-aside__chat-link.is-active {
+  color: var(--sidebar-active-text, #25272a);
+  font-weight: 700;
+}
+
+.layout-chat-history {
+  flex: 1;
+  min-height: 0;
+}
+
+.layout-menu-scroll :deep(.el-scrollbar__view),
+.layout-menu-scroll :deep(.el-scrollbar__wrap) {
+  background: transparent;
 }
 
 .layout-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -199,7 +278,8 @@ function toggleFullscreen() {
 .layout-header__left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
+  min-width: 0;
 }
 
 .header-user {
@@ -222,7 +302,7 @@ function toggleFullscreen() {
   gap: 6px;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--layout-text-body, #25272a);
 }
 
@@ -239,9 +319,16 @@ function toggleFullscreen() {
 }
 
 .layout-main {
+  flex: 1;
+  min-height: 0;
   padding: 0;
+  box-sizing: border-box;
   overflow: auto;
-  background: transparent;
+  display: flex;
+  flex-direction: column;
+  background: var(--layout-content-gradient, var(--layout-bg-gradient));
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 .layout-main--screen {
@@ -264,8 +351,8 @@ function toggleFullscreen() {
   height: 44px;
   line-height: 44px;
   font-size: 14px;
-  font-weight: 500;
-  color: var(--sidebar-text, #7e838b) !important;
+  font-weight: 600;
+  color: var(--sidebar-text, #4f5560) !important;
   margin: 0;
   padding-left: 20px !important;
   border-radius: 0;
@@ -275,7 +362,7 @@ function toggleFullscreen() {
 
 .layout-menu :deep(.el-menu-item .el-icon),
 .layout-menu :deep(.el-sub-menu__title .el-icon) {
-  color: var(--sidebar-text, #7e838b) !important;
+  color: var(--sidebar-text, #4f5560) !important;
   font-size: 16px;
   transition: color 0.15s;
 }
@@ -322,8 +409,8 @@ function toggleFullscreen() {
   padding-left: 44px !important;
   background: transparent !important;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--sidebar-text, #7e838b) !important;
+  font-weight: 600;
+  color: var(--sidebar-text, #4f5560) !important;
 }
 
 .layout-menu :deep(.el-sub-menu .el-menu-item .el-icon) {
@@ -362,7 +449,7 @@ function toggleFullscreen() {
 
 .layout-menu :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
   color: var(--layout-text-body, #25272a) !important;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .layout-menu :deep(.el-sub-menu.is-opened > .el-sub-menu__title .el-icon) {
@@ -381,7 +468,7 @@ function toggleFullscreen() {
 .layout-breadcrumb {
   color: var(--layout-text-caption, #7e838b);
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .layout-breadcrumb :deep(.ruoyi-breadcrumb__link) {
@@ -395,7 +482,7 @@ function toggleFullscreen() {
 
 .layout-breadcrumb :deep(.ruoyi-breadcrumb__current) {
   color: var(--layout-text-title, #25272a);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .layout-breadcrumb :deep(.ruoyi-breadcrumb__sep) {

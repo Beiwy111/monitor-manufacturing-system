@@ -372,7 +372,7 @@ onUnmounted(stopPolling)
   --pp-muted: #64748b;
   --pp-accent: #2563eb;
   --pp-accent2: #0d9488;
-  min-height: calc(100vh - 130px);
+  min-height: var(--layout-content-min-h, calc(100vh - 92px));
   padding: 12px 14px 16px;
   background: var(--pp-bg);
   color: var(--pp-text);

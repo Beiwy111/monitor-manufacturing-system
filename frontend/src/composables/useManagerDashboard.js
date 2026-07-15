@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { fetchDashboardSnapshot } from '@/api/mes'
 
-const POLL_MS = 5000
+const POLL_MS = 15000
 
 const EMPTY_SNAPSHOT = {
   refreshTime: '-',

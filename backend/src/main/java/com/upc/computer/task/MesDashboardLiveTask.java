@@ -24,7 +24,7 @@ import java.util.concurrent.ThreadLocalRandom;
 @Component
 public class MesDashboardLiveTask {
 
-    private static final int STEP_SECONDS = 5;
+    private static final int STEP_SECONDS = 30;
     private static final String[] ALARM_TYPES = {"EQUIPMENT", "QUALITY", "MATERIAL"};
     private static final String[] ALARM_LEVELS = {"GENERAL", "URGENT"};
     private static final String[] ALARM_DESC = {
@@ -67,6 +67,15 @@ public class MesDashboardLiveTask {
         tickShiftCapacity(today);
         tickEquipmentAlarms(hasActiveProduction);
         tickDowntimeReasons(today);
+        purgeOldClosedAlarms();
+    }
+
+    /** 清理历史已关闭安灯，避免全表扫描拖慢接口 */
+    private void purgeOldClosedAlarms() {
+        if (ThreadLocalRandom.current().nextInt(100) >= 20) {
+            return;
+        }
+        alarmMapper.deleteClosedBefore(LocalDateTime.now().minusDays(2));
     }
 
     private boolean tickProductionStep() {
@@ -209,9 +218,8 @@ public class MesDashboardLiveTask {
         }
         ArrayList<Equipment> equipmentList = equipmentMapper.equipmentList();
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        ArrayList<AndonAlarm> alarms = alarmMapper.alarmList();
-        long openCount = alarms.stream().filter(a -> !"CLOSED".equals(a.getAlarmStatus())).count();
-        if (openCount < 5 && rnd.nextInt(100) < 12) {
+        int openCount = alarmMapper.countOpenAlarms();
+        if (openCount < 5 && rnd.nextInt(100) < 8) {
             AndonAlarm alarm = new AndonAlarm();
             alarm.setAlarmNo("AL" + System.currentTimeMillis());
             ArrayList<WorkOrder> wos = workOrderMapper.listActiveWorkOrders();
@@ -231,9 +239,8 @@ public class MesDashboardLiveTask {
             alarm.setCreatedAt(now);
             alarm.setUpdatedAt(now);
             alarmMapper.insertAlarm(alarm);
-        } else if (openCount > 0 && rnd.nextInt(100) < 15) {
-            alarms.stream()
-                    .filter(a -> !"CLOSED".equals(a.getAlarmStatus()))
+        } else if (openCount > 0 && rnd.nextInt(100) < 20) {
+            alarmMapper.listOpenAlarms(1).stream()
                     .findFirst()
                     .ifPresent(a -> {
                         a.setAlarmStatus("CLOSED");

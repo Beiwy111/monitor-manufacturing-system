@@ -1,11 +1,5 @@
 <template>
   <div class="ruoyi-page order-audit-page">
-    <div class="ruoyi-stats">
-      <span class="ruoyi-stats__item">待审核：<em>{{ pendingCount }}</em></span>
-      <span class="ruoyi-stats__item ruoyi-stats__item--warn">有风险：<em>{{ riskCount }}</em></span>
-      <span class="ruoyi-stats__item">含附件：<em>{{ attachmentCount }}</em></span>
-    </div>
-
     <div class="ruoyi-toolbar">
       <span class="ruoyi-toolbar__title">订单审核</span>
       <el-input v-model="keyword" clearable placeholder="订单号 / 客户" style="width: 220px" />
@@ -261,10 +255,6 @@ const filteredOrders = computed(() => {
   )
 })
 
-const pendingCount = computed(() => pendingOrders.value.length)
-const attachmentCount = computed(() => pendingOrders.value.filter((o) => (o.attachments || []).length).length)
-const riskCount = computed(() => pendingOrders.value.filter((o) => detectAuditRisks(o, mes.bomGuide, mes.processGuide).length).length)
-
 const bomProduct = computed(() => (selected.value ? findBomProduct(selected.value, mes.bomGuide) : null))
 const checklist = computed(() =>
   selected.value ? buildAuditChecklist(selected.value, mes.bomGuide, mes.processGuide) : []
@@ -318,7 +308,7 @@ function onAttachmentSelect(row) {
 }
 
 async function refresh() {
-  await mes.hydrateFromApi()
+  await mes.hydrateForPage()
   if (selected.value) {
     selected.value = mes.orders.find((o) => o.id === selected.value.id) || null
   }
@@ -377,7 +367,7 @@ async function confirmAudit() {
     ElMessage.success(msg)
     auditDialogVisible.value = false
     selected.value = null
-    await mes.hydrateFromApi()
+    await mes.hydrateFromApi({ force: true })
   } finally {
     auditing.value = false
   }
@@ -410,7 +400,7 @@ function removeOrder(row) {
 
 .order-audit-layout__detail {
   border: 1px solid var(--el-border-color-light);
-  background: #fff;
+  background: transparent;
   padding: 12px 14px;
   min-height: 520px;
 }

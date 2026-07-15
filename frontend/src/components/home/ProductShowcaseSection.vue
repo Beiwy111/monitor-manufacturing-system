@@ -1,7 +1,7 @@
 <template>
   <section id="products" class="product-section">
     <div class="section-inner">
-      <h2 class="section-title">探索电脑显示器制造 MES 核心能力</h2>
+      <h2 class="section-title">探索 {{ APP_TITLE_SHORT }} 核心能力</h2>
       <p class="section-lead">
         面向 LCD / OLED 显示器制造场景，覆盖订单、计划、生产、质量、仓储、设备与售后追溯，
         构建从客户需求到产品交付的全流程数字化制造能力。
@@ -29,6 +29,7 @@
 
 <script setup>
 import { productShowcase } from '@/config/homeImages'
+import { APP_TITLE_SHORT } from '@/constants/brand'
 
 function scrollTo(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
@@ -46,10 +47,10 @@ function scrollTo(id) {
   margin: 0 auto;
 }
 .section-title {
-  margin: 0 0 14px;
+  margin: 0 0 10px;
   font-size: var(--fs-section-title);
   font-weight: var(--heading-weight);
-  line-height: var(--lh-heading);
+  line-height: 1.35;
   letter-spacing: var(--ls-section-title);
   color: var(--heading-color);
 }
@@ -57,7 +58,7 @@ function scrollTo(id) {
   margin: 0 0 48px;
   font-size: var(--fs-section-lead);
   font-weight: var(--body-weight);
-  line-height: var(--lh-lead);
+  line-height: 1.38;
   color: var(--text-muted);
   max-width: 860px;
 }

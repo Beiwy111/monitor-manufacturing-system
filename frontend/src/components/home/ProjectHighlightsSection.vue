@@ -7,7 +7,7 @@
       </div>
       <div class="highlights-content">
         <h2 class="home-section-title">项目亮点</h2>
-        <p class="home-section-subtitle">专为电脑显示器制造企业设计，打通计划、执行、质量、仓储与追溯关键环节。</p>
+        <p class="home-section-subtitle">专为 {{ APP_TITLE }} 设计，打通计划、执行、质量、仓储与追溯关键环节。</p>
         <div class="highlight-list">
           <div v-for="item in projectHighlights" :key="item.no" class="highlight-item">
             <div class="highlight-no">{{ item.no }}</div>
@@ -25,6 +25,7 @@
 <script setup>
 import { homeImages } from '@/config/homeImages'
 import { projectHighlights } from '@/mock/homeData'
+import { APP_TITLE } from '@/constants/brand'
 </script>
 
 <style scoped>

@@ -394,8 +394,8 @@ function selectSchemeFromDetail() {
 }
 
 .planner-workspace--fullscreen {
-  height: calc(100vh - 98px);
-  max-height: calc(100vh - 98px);
+  height: var(--layout-viewport-h, calc(100vh - 52px));
+  max-height: var(--layout-viewport-h, calc(100vh - 52px));
   overflow: hidden;
   background: #f8faf9;
 }

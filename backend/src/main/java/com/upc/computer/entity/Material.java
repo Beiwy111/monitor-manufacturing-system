@@ -10,6 +10,10 @@ public class Material {
     private String materialName;
     private String materialType;
     private String specification;
+    private String imageUrl;
+    private String productSummary;
+    private String ports;
+    private Integer sortOrder;
     private String unit;
     private BigDecimal safetyStock;
     private BigDecimal standardCost;
@@ -32,6 +36,18 @@ public class Material {
 
     public String getSpecification() { return specification; }
     public void setSpecification(String specification) { this.specification = specification; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public String getProductSummary() { return productSummary; }
+    public void setProductSummary(String productSummary) { this.productSummary = productSummary; }
+
+    public String getPorts() { return ports; }
+    public void setPorts(String ports) { this.ports = ports; }
+
+    public Integer getSortOrder() { return sortOrder; }
+    public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
 
     public String getUnit() { return unit; }
     public void setUnit(String unit) { this.unit = unit; }
