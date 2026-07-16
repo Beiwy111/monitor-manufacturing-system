@@ -4,6 +4,14 @@ export function fetchMesSnapshot() {
   return request.get('/mes/snapshot')
 }
 
+/** 操作员通知收件箱（派工等，按 username 过滤） */
+export function fetchOperatorNotifications(username) {
+  return request.get('/mes/notifications/inbox', {
+    params: { username },
+    silent: true
+  })
+}
+
 export function postMesAction(body, opts = {}) {
   return request.post('/mes/action', body, { silent: !!opts.silent })
 }

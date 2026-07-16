@@ -45,3 +45,15 @@ export function fetchScanLogs() {
 export function fetchWarehouseLocationMap() {
   return request.get('/warehouse/location-map')
 }
+
+export function fetchAvailableSlots(params = {}) {
+  return request.get('/warehouse/slots/available', { params })
+}
+
+export function fetchPendingPurchaseArrivals() {
+  return request.get('/warehouse/purchase/pending-arrivals')
+}
+
+export function confirmPurchaseArrivalWithSlots(body) {
+  return request.post('/warehouse/purchase/confirm-arrival', body)
+}

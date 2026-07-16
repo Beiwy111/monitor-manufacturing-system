@@ -174,6 +174,22 @@ export function stepProgress(planId, stepName, mes) {
   return plan?.status === '已完成' ? 100 : 0
 }
 
+export const GANTT_PLAN_COLORS = [
+  '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de',
+  '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#6b8fc7',
+  '#5ba8a8', '#c9956a', '#6b9fd4', '#8fad94', '#b89a4a'
+]
+
+export function ganttPlanColor(planId) {
+  const s = String(planId ?? '')
+  let hash = 0
+  for (let i = 0; i < s.length; i++) {
+    hash = ((hash << 5) - hash) + s.charCodeAt(i)
+    hash |= 0
+  }
+  return GANTT_PLAN_COLORS[Math.abs(hash) % GANTT_PLAN_COLORS.length]
+}
+
 export function ganttTaskStatus(plan, progress, scheduleEnd) {
   if (plan?.status === '已完成') return '已完成'
   const end = parseDateTime(scheduleEnd) || parseDate(plan?.planEnd)
@@ -227,6 +243,7 @@ function buildGanttRow(plan, sch, mes, fallback = false) {
     dateRangeLabel: `${formatShortDate(plannedStart)} ~ ${formatShortDate(plannedEnd)}`,
     progress,
     status: ganttTaskStatus(plan, progress, plannedEnd),
+    planColor: ganttPlanColor(plan.id),
     urgent: isUrgentPlan(plan),
     priorityLabel: priorityLabel(plan.priority)
   }
@@ -236,10 +253,7 @@ export function buildGanttRows(plans, scheduleMap, mes) {
   const rows = []
   plans.forEach((plan) => {
     const schedules = scheduleMap[plan.id] || []
-    if (!schedules.length) {
-      rows.push(buildGanttRow(plan, null, mes, true))
-      return
-    }
+    if (!schedules.length) return
     schedules
       .slice()
       .sort((a, b) => (a.stepNo ?? 0) - (b.stepNo ?? 0))

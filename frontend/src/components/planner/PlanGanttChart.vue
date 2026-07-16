@@ -16,6 +16,7 @@
         <el-button @click="scrollToday">定位今日</el-button>
       </el-button-group>
       <span class="plan-gantt__legend">
+        <i class="lg lg--palette" />按计划分色
         <i class="lg lg--idle" />未开始
         <i class="lg lg--run" />执行中
         <i class="lg lg--done" />已完成
@@ -58,12 +59,13 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
+import { ganttPlanColor } from '@/utils/planMetrics'
 
-const STATUS_COLOR = {
-  未开始: '#9ca3af',
-  执行中: '#3d7a5f',
-  已完成: '#217346',
-  延期: '#c4564c'
+const STATUS_BORDER = {
+  未开始: '#6b7280',
+  执行中: '#1d4ed8',
+  已完成: '#14532d',
+  延期: '#b91c1c'
 }
 
 const props = defineProps({
@@ -100,7 +102,7 @@ function hasConflict(idx) {
 
 const scale = ref('day')
 const zoom = ref(1)
-const rowHeight = 44
+const rowHeight = 48
 const leftRef = ref(null)
 const chartRef = ref(null)
 const chartWrapRef = ref(null)
@@ -137,6 +139,24 @@ function barEndTs(row) {
   return end || start
 }
 
+function shortStartDate(meta) {
+  if (!meta?.plannedStart) return ''
+  const s = String(meta.plannedStart).slice(0, 10)
+  const parts = s.split('-')
+  return parts.length === 3 ? `${parts[1]}/${parts[2]}` : ''
+}
+
+function buildBarLabel(meta, barWidth) {
+  if (!meta) return ''
+  const step = meta.stepName || ''
+  const pct = `${meta.progress || 0}%`
+  if (barWidth >= 240) return `${step}  ${meta.dateRangeLabel}  ${pct}`
+  if (barWidth >= 150) return `${step}  ${shortStartDate(meta)}  ${pct}`
+  if (barWidth >= 80) return step
+  if (barWidth >= 40) return pct
+  return ''
+}
+
 function timeRange() {
   const stamps = []
   props.rows.forEach((r) => {
@@ -157,7 +177,7 @@ function timeRange() {
 function buildSeriesData() {
   return props.rows.map((row, idx) => ({
     name: row.stepName,
-    value: [idx, parseTs(row.plannedStart), barEndTs(row), row.progress || 0, row.status, row.urgent],
+    value: [idx, parseTs(row.plannedStart), barEndTs(row), row.progress || 0, row.status, row.urgent, row.planId],
     meta: row
   }))
 }
@@ -262,15 +282,17 @@ function render() {
         const progress = api.value(3) || 0
         const status = api.value(4)
         const urgent = api.value(5)
+        const planId = api.value(6)
         const startPt = api.coord([start, idx])
         const endPt = api.coord([end, idx])
         const barH = rowHeight * 0.56
         const y = startPt[1] - barH / 2
         const w = Math.max(endPt[0] - startPt[0], 12)
-        const color = STATUS_COLOR[status] || STATUS_COLOR['未开始']
+        const meta = props.rows[idx]
         const active = hoverIndex.value === idx
         const conflict = hasConflict(idx)
-        const meta = props.rows[idx]
+        const fillColor = meta?.planColor || ganttPlanColor(planId)
+        const borderColor = conflict ? '#dc2626' : (STATUS_BORDER[status] || STATUS_BORDER['未开始'])
         const children = [
           {
             type: 'rect',
@@ -282,10 +304,10 @@ function render() {
             type: 'rect',
             shape: { x: startPt[0], y, width: w, height: barH, r: 2 },
             style: {
-              fill: color,
-              opacity: active ? 1 : 0.92,
-              stroke: conflict ? '#dc2626' : (active ? '#217346' : 'transparent'),
-              lineWidth: conflict ? 2 : (active ? 1 : 0)
+              fill: fillColor,
+              opacity: active ? 1 : 0.88,
+              stroke: borderColor,
+              lineWidth: conflict ? 2 : (active ? 2 : 1)
             }
           },
           {
@@ -315,9 +337,7 @@ function render() {
           })
         }
         if (meta) {
-          const label = w > 90
-            ? `${meta.stepName}  ${meta.dateRangeLabel}  ${progress}%`
-            : (w > 36 ? `${progress}%` : '')
+          const label = buildBarLabel(meta, w)
           if (label) {
             children.push({
               type: 'text',
@@ -326,11 +346,12 @@ function render() {
                 x: startPt[0] + 8,
                 y: y + barH / 2,
                 fill: '#fff',
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 500,
                 textVerticalAlign: 'middle',
-                width: w - 12,
-                overflow: 'truncate'
+                width: Math.max(w - 16, 0),
+                overflow: 'truncate',
+                ellipsis: '…'
               }
             })
           }
@@ -537,6 +558,7 @@ onBeforeUnmount(() => {
   margin-right: 4px;
   vertical-align: -1px;
 }
+.lg--palette { background: linear-gradient(90deg, #5470c6, #91cc75, #fac858, #ee6666); }
 .lg--idle { background: #9ca3af; }
 .lg--run { background: #3d7a5f; }
 .lg--done { background: #217346; }
@@ -554,7 +576,7 @@ onBeforeUnmount(() => {
 }
 
 .plan-gantt__left {
-  width: 300px;
+  width: 380px;
   flex-shrink: 0;
   border-right: 1px solid #e5e7eb;
   overflow-y: auto;
@@ -565,8 +587,8 @@ onBeforeUnmount(() => {
 .plan-gantt__left-head,
 .plan-gantt__left-row {
   display: grid;
-  grid-template-columns: 96px 1fr 88px;
-  gap: 6px;
+  grid-template-columns: 112px minmax(0, 1fr) 132px;
+  gap: 8px;
   padding: 0 10px;
   align-items: center;
   font-size: 13px;

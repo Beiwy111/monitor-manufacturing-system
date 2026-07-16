@@ -22,9 +22,7 @@
 }
 
 .ruoyi-page {
-  background: var(--layout-content-gradient, var(--layout-bg-gradient));
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+  background: var(--layout-content-bg, #ffffff);
   border-radius: 0;
   flex: 1;
   min-height: var(--layout-content-min-h, calc(100vh - 52px));
@@ -89,8 +87,14 @@
   min-height: 0;
 }
 
+.ruoyi-table-wrap .el-table,
+.ruoyi-table-wrap .el-table tr,
+.ruoyi-table-wrap .el-table td.el-table__cell {
+  background: #ffffff !important;
+}
+
 .ruoyi-table-wrap .el-table th.el-table__cell {
-  background: var(--layout-table-head) !important;
+  background: #ffffff !important;
   color: var(--layout-text-caption, #71717a);
   font-weight: 600;
   font-size: var(--fs-table, 14px);
@@ -100,6 +104,34 @@
   font-size: var(--fs-table, 14px);
   font-weight: 500;
   color: var(--layout-text-table, #25272a);
+}
+
+/* 仓储出入库：铺满整行、列宽均衡 */
+.ruoyi-table-wrap--compact .el-table,
+.pi-table-wrap--compact .el-table {
+  --el-table-border-color: #d0d7de;
+  width: 100% !important;
+  font-size: 14px;
+}
+
+.ruoyi-table-wrap--compact .el-table th.el-table__cell,
+.pi-table-wrap--compact .el-table th.el-table__cell {
+  padding: 10px 12px !important;
+  font-size: 14px;
+  background: #ffffff !important;
+}
+
+.ruoyi-table-wrap--compact .el-table td.el-table__cell,
+.pi-table-wrap--compact .el-table td.el-table__cell {
+  padding: 9px 12px !important;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ruoyi-table-wrap--compact .el-table .cell,
+.pi-table-wrap--compact .el-table .cell {
+  padding: 0 4px;
+  line-height: 1.45;
 }
 
 .ruoyi-pagination {
@@ -700,9 +732,7 @@
   color: var(--layout-text-body, #27272a);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  background: var(--layout-content-gradient, var(--layout-bg-gradient)) !important;
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+  background: var(--layout-content-bg, #ffffff) !important;
 }
 
 .layout-main.ruoyi-app-main h1,

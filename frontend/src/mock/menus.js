@@ -14,11 +14,11 @@ export const roleMenus = {
     ]}
   ],
   order: [
-    { menuId: 3, menuName: '订单管理', children: [
-      { menuId: 31, menuName: '客户订单', path: '/order/list' },
-      { menuId: 309, menuName: 'AI识图下单', path: '/order/ai-screenshot' },
+    { menuId: 3, menuCode: 'order', menuName: '订单管理', children: [
+      { menuId: 33, menuName: '订单跟踪', path: '/order/track' },
       { menuId: 32, menuName: '订单审核', path: '/order/audit' },
-      { menuId: 33, menuName: '订单跟踪', path: '/order/track' }
+      { menuId: 31, menuName: '客户订单', path: '/order/list' },
+      { menuId: 309, menuName: 'AI识图下单', path: '/order/ai-screenshot' }
     ]}
   ],
   planner: [
@@ -79,7 +79,8 @@ export const roleMenus = {
     ]}
   ],
   warehouse: [
-    { menuId: 8, menuName: '仓储管理', children: [
+    { menuId: 8, menuCode: 'warehouse', menuName: '仓储', children: [
+      { menuId: 8807, menuName: '仓储管理工作台', path: '/warehouse/workbench' },
       { menuId: 81, menuName: '入库', path: '/warehouse/inbound-hub' },
       { menuId: 82, menuName: '出库', path: '/warehouse/outbound-hub' },
       { menuId: 83, menuName: '库存容量查询', path: '/warehouse/capacity' },
@@ -89,29 +90,27 @@ export const roleMenus = {
   device: [
     { menuId: 9, menuName: '设备管理', children: [
       { menuId: 91, menuName: '设备台账', path: '/device/equipment' },
+      { menuId: 92, menuName: '生产车间状态', path: '/device/workshop-status' },
       { menuId: 93, menuName: '安灯报警', path: '/device/alarm' },
-      { menuId: 94, menuName: '维修处理', path: '/device/maintenance' },
-      { menuId: 95, menuName: '维护记录', path: '/device/records' }
+      { menuId: 94, menuName: '维修处理', path: '/device/maintenance' }
     ]}
   ],
   aftersale: [
     { menuId: 10, menuName: '售后管理', children: [
       { menuId: 100, menuName: '调查工作台', path: '/dashboard/aftersale' },
-      { menuId: 101, menuName: '售后登记', path: '/aftersale/case' },
-      { menuId: 102, menuName: '客户反馈', path: '/aftersale/feedback' },
-      { menuId: 103, menuName: '售后处理', path: '/aftersale/process' },
-      { menuId: 104, menuName: '质量追溯', path: '/aftersale/trace' },
-      { menuId: 105, menuName: '发货查询', path: '/delivery/list' }
+      { menuId: 101, menuName: '售后工单', path: '/aftersale/work-order' },
+      { menuId: 102, menuName: '方案审批', path: '/aftersale/plan' },
+      { menuId: 103, menuName: '执行协同', path: '/aftersale/execution' },
+      { menuId: 104, menuName: '验证闭环', path: '/aftersale/closure' }
     ]}
   ],
   cost: [
-    { menuId: 11, menuName: '成本管理', children: [
-      { menuId: 111, menuName: '工单成本', path: '/cost/work-order' },
-      { menuId: 112, menuName: '材料成本', path: '/cost/material' },
-      { menuId: 113, menuName: '人工成本', path: '/cost/labor' },
-      { menuId: 114, menuName: '设备成本', path: '/cost/equipment' },
-      { menuId: 115, menuName: '成本结算', path: '/cost/settlement' },
-      { menuId: 116, menuName: '成本报表', path: '/cost/report' }
+    { menuId: 11, menuName: '财务管理', children: [
+      { menuId: 111, menuName: '首页', path: '/dashboard/cost' },
+      { menuId: 112, menuName: '成本核算', path: '/finance/cost-accounting' },
+      { menuId: 113, menuName: '收益核算', path: '/finance/revenue' },
+      { menuId: 114, menuName: '财务大屏', path: '/finance/screen' },
+      { menuId: 115, menuName: '财务报表', path: '/finance/report' }
     ]}
   ],
   customer: [

@@ -42,4 +42,13 @@ public interface AndonAlarmMapper {
     @Delete("DELETE FROM andon_alarm WHERE alarm_id = #{alarmId}")
     public void deleteAlarm(Long alarmId);
 
+    /** 当月 ALyyyyMM### 格式报警号的最大序号（忽略时间戳型编号） */
+    @Select("""
+            SELECT COALESCE(MAX(CAST(SUBSTRING(alarm_no, LENGTH(#{prefix}) + 1) AS UNSIGNED)), 0)
+            FROM andon_alarm
+            WHERE alarm_no LIKE CONCAT(#{prefix}, '%')
+              AND LENGTH(alarm_no) = LENGTH(#{prefix}) + 3
+            """)
+    int maxAlarmSeqByPrefix(@Param("prefix") String prefix);
+
 }

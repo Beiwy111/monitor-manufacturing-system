@@ -4,7 +4,8 @@ import java.time.LocalDateTime;
 
 /**
  * 售后案例实体，对应表 after_sales_case
- * 状态流转：OPEN -> PROCESSING -> RESOLVED -> CLOSED
+ * 状态流转：OPEN -> ACCEPTED -> PENDING_PLAN -> PENDING_APPROVAL -> EXECUTING
+ * -> PENDING_RECHECK -> PENDING_CONFIRM -> RESOLVED -> CLOSED
  */
 public class AfterSalesCase {
 
@@ -28,6 +29,7 @@ public class AfterSalesCase {
     private Long serviceUserId;
     private LocalDateTime openedAt;
     private LocalDateTime processingAt;
+    private LocalDateTime slaDeadline;
     private LocalDateTime resolvedAt;
     private LocalDateTime closedAt;
     private LocalDateTime createdAt;
@@ -89,6 +91,9 @@ public class AfterSalesCase {
 
     public LocalDateTime getProcessingAt() { return processingAt; }
     public void setProcessingAt(LocalDateTime processingAt) { this.processingAt = processingAt; }
+
+    public LocalDateTime getSlaDeadline() { return slaDeadline; }
+    public void setSlaDeadline(LocalDateTime slaDeadline) { this.slaDeadline = slaDeadline; }
 
     public LocalDateTime getResolvedAt() { return resolvedAt; }
     public void setResolvedAt(LocalDateTime resolvedAt) { this.resolvedAt = resolvedAt; }

@@ -59,6 +59,54 @@ export function buildUnitList(sampleQty, batchNo) {
   return Array.from({ length: n }, (_, i) => ({
     unitNo: i + 1,
     serialNo: `${prefix}-${String(i + 1).padStart(3, '0')}`,
-    status: 'PENDING'
+    status: 'PASS'
   }))
+}
+
+export function storageKeyForMatrix(inspectionId) {
+  return `qc5-matrix:${inspectionId}`
+}
+
+/** 从已保存的 UNIT-xxx 检测项恢复矩阵（刷新后回显） */
+export function parseMatrixFromItems(items, stations, batchNo, sampleQty) {
+  const unitItems = (items || []).filter((i) => /^UNIT-\d{3}$/i.test(String(i.itemCode || '')))
+  if (!unitItems.length) return null
+
+  const sorted = [...unitItems].sort((a, b) =>
+    String(a.itemCode).localeCompare(String(b.itemCode), undefined, { numeric: true })
+  )
+
+  const prefix = (batchNo || 'BATCH').replace(/\s/g, '').slice(-8)
+  const units = sorted.map((it, i) => {
+    const no = parseInt(String(it.itemCode).replace(/UNIT-/i, ''), 10) || i + 1
+    const snFromName = String(it.itemName || '').replace(/^抽检成品\s*/, '').trim()
+    return {
+      unitNo: no,
+      serialNo: snFromName || `${prefix}-${String(no).padStart(3, '0')}`,
+      status: it.result === 'FAILED' ? 'FAIL' : 'PASS'
+    }
+  })
+
+  const records = {}
+  stations.forEach((s) => { records[s.id] = [] })
+
+  sorted.forEach((it, i) => {
+    const bits = String(it.measuredValue || '').padEnd(stations.length, '1').slice(0, stations.length)
+    const remark = String(it.remark || '')
+    const parts = remark.split(' · ')
+    stations.forEach((s, si) => {
+      const passed = bits[si] !== '0'
+      records[s.id][i] = {
+        passed,
+        saved: true,
+        measuredValue: passed ? '合格' : '不合格',
+        remark: passed ? '' : remark,
+        defectType: passed ? '' : (parts[0] || ''),
+        defectLocation: passed ? '' : (parts[1] || ''),
+        defectLevel: it.defectLevel || (passed ? '' : 'GENERAL')
+      }
+    })
+  })
+
+  return { units, records }
 }

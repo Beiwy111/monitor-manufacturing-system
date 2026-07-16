@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="print-page">
     <div class="page-header">
       <span class="page-title">报表打印</span>
@@ -34,6 +34,10 @@
         </el-button>
         <el-button v-if="current?.key==='inspection-report'" type="success" size="small" @click="doExportExcel">
           导出 Excel
+        </el-button>
+        <el-button v-if="current?.key==='inspection-report' && detail" type="warning" size="small"
+          :loading="pdfLoading" @click="doExportPdf">
+          导出 PDF
         </el-button>
         <el-button v-if="current?.key==='inspection-report' && detail" type="warning" size="small"
           :loading="aiLoading" :disabled="!canAiReport" @click="doGenerateAi">
@@ -229,6 +233,7 @@ import { postRefreshQualityReport } from '@/api/mes'
 import { useUserStore } from '@/stores/user'
 import { APP_TITLE } from '@/constants/brand'
 import { exportInspectionReportExcel, exportInspectionBatchExcel } from '@/utils/qualityExcelExport'
+import { exportInspectionReportPdf } from '@/utils/qualityPdfExport'
 
 const userStore = useUserStore()
 const route = useRoute()
@@ -245,6 +250,7 @@ const detail         = ref(null)
 const ncDetail       = ref(null)
 const items          = ref([])
 const aiLoading      = ref(false)
+const pdfLoading     = ref(false)
 const aiReport       = ref(null)
 
 const canAiReport = computed(() =>
@@ -341,6 +347,23 @@ function doExportExcel() {
   if (!detail.value) return
   exportInspectionReportExcel({ detail: detail.value, items: items.value, aiReport: aiReport.value })
   ElMessage.success('质检报告已导出 Excel')
+}
+
+async function doExportPdf() {
+  if (!detail.value) return
+  pdfLoading.value = true
+  try {
+    await exportInspectionReportPdf({
+      detail: detail.value,
+      items: items.value,
+      aiReport: aiReport.value
+    })
+    ElMessage.success('质检报告已导出 PDF')
+  } catch (e) {
+    ElMessage.error(e?.message || '导出 PDF 失败')
+  } finally {
+    pdfLoading.value = false
+  }
 }
 
 function doExportListExcel() {

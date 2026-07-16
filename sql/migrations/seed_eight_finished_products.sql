@@ -115,7 +115,7 @@ WHERE m.material_code IN ('PRD-004','PRD-005','PRD-006','PRD-007','PRD-008')
 
 -- 6. 复制工序（按模板产品）
 INSERT INTO process_step (route_id, step_no, step_code, step_name, standard_work_hours, standard_equipment_type, quality_required, status, created_at, updated_at)
-SELECT tr.route_id, ps.step_no, CONCAT('S-', tm.material_code, '-', LPAD(ps.step_no, 2, '0')), ps.step_name,
+SELECT tr.route_id, ps.step_no, CONCAT('S-', tm.material_code, '-', LPAD(CAST(ps.step_no AS CHAR), 3, '0')), ps.step_name,
        ps.standard_work_hours, ps.standard_equipment_type, ps.quality_required, ps.status, NOW(), NOW()
 FROM process_step ps
 JOIN process_route sr ON sr.route_id = ps.route_id

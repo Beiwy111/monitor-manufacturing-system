@@ -3,7 +3,7 @@
     <div class="qc5__header">
       <div class="qc5__header-main">
         <h3 class="qc5__title">显示器专业五步检测</h3>
-        <p class="qc5__desc">按行业终检标准逐台完成：坏点 → 色域 → 漏光 → 亮度均匀性 → 屏闪</p>
+        <p class="qc5__desc">按行业终检标准：坏点 → 色域 → 漏光 → 亮度均匀性 → 屏闪。下方表格默认全部合格，仅需标记异常项。</p>
       </div>
       <div class="qc5__header-actions">
         <el-button type="warning" plain @click="$emit('open-smart-vision')">
@@ -13,11 +13,11 @@
       <div class="qc5__progress">
         <span>总进度</span>
         <el-progress :percentage="overallPct" :stroke-width="14" :color="progressColor" />
-        <em>{{ completedCells }} / {{ totalCells }} 项</em>
+        <em>合格 {{ passCount }} / 共 {{ units.length }} 台</em>
       </div>
     </div>
 
-    <!-- 产品选择 -->
+    <!-- 本批次产品 -->
     <div class="qc5__units">
       <span class="qc5__units-label">本批次产品（逐台检测）</span>
       <div class="qc5__unit-chips">
@@ -27,24 +27,21 @@
           type="button"
           class="qc5__unit-chip"
           :class="{
-            'is-active': currentUnitIndex === idx,
+            'is-active': focusUnitIndex === idx,
             'is-done': unitOverallStatus(idx) === 'PASS',
-            'is-fail': unitOverallStatus(idx) === 'FAIL',
-            'is-partial': unitOverallStatus(idx) === 'PARTIAL'
+            'is-fail': unitOverallStatus(idx) === 'FAIL'
           }"
-          @click="currentUnitIndex = idx"
+          @click="selectUnit(idx)"
         >
           <span class="qc5__unit-no">#{{ u.unitNo }}</span>
           <span class="qc5__unit-sn">{{ u.serialNo }}</span>
-          <el-tag v-if="unitOverallStatus(idx) === 'PASS'" type="success" size="small">合格</el-tag>
-          <el-tag v-else-if="unitOverallStatus(idx) === 'FAIL'" type="danger" size="small">不合格</el-tag>
-          <el-tag v-else-if="unitOverallStatus(idx) === 'PARTIAL'" type="warning" size="small">检测中</el-tag>
-          <el-tag v-else type="info" size="small">待检</el-tag>
+          <el-tag v-if="unitOverallStatus(idx) === 'PASS'" type="success" size="small" effect="plain">合格</el-tag>
+          <el-tag v-else-if="unitOverallStatus(idx) === 'FAIL'" type="danger" size="small" effect="plain">不合格</el-tag>
         </button>
       </div>
     </div>
 
-    <!-- 五大工序大卡片 -->
+    <!-- 五大工序（保留原图卡片） -->
     <div class="qc5__stations">
       <div
         v-for="s in stations"
@@ -52,8 +49,8 @@
         class="qc5__station"
         :class="{
           'is-active': activeStationId === s.id,
-          'is-done': stationDoneCount(s.id) === units.length,
-          'is-partial': stationDoneCount(s.id) > 0 && stationDoneCount(s.id) < units.length
+          'is-done': stationFailCount(s.id) === 0,
+          'is-partial': stationFailCount(s.id) > 0
         }"
         @click="selectStation(s.id)"
       >
@@ -65,267 +62,413 @@
           <h4>{{ s.title }}</h4>
           <p>{{ s.subtitle }}</p>
           <div class="qc5__station-meta">
-            <el-tag size="small" :type="stationTagType(s.id)">
-              {{ stationDoneCount(s.id) }}/{{ units.length }} 台
+            <el-tag size="small" :type="stationTagType(s.id)" effect="plain">
+              {{ stationPassCount(s.id) }}/{{ units.length }} 台合格
             </el-tag>
-            <span v-if="currentRecord(s.id)?.saved" class="qc5__cur-result" :class="currentRecord(s.id)?.passed ? 'ok' : 'bad'">
-              当前：{{ currentRecord(s.id)?.passed ? '合格' : '不合格' }}
+            <span v-if="stationFailCount(s.id) > 0" class="qc5__cur-result bad">
+              异常 {{ stationFailCount(s.id) }} 台
             </span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 当前工序检测区 -->
-    <div v-if="activeStation" class="qc5__inspect">
-      <div class="qc5__inspect-hd">
-        <img :src="activeStation.image" :alt="activeStation.title" class="qc5__inspect-thumb" />
-        <div>
-          <h4>{{ activeStation.title }} · 第 {{ currentUnit?.unitNo }} 台</h4>
-          <p>序列号 {{ currentUnit?.serialNo }} · {{ activeStation.subtitle }}</p>
-        </div>
-        <el-input
-          v-model="currentUnit.serialNo"
-          size="default"
-          style="width:200px;margin-left:auto"
-          placeholder="可修改序列号"
-        />
+    <!-- 下方：表格质检操作区 -->
+    <div class="qc5__inspect-section">
+      <div class="qc5__inspect-section-hd">
+        <h4>质检录入</h4>
+        <span>默认全部合格，点击单元格切换；勾选多台后可批量标记不合格</span>
       </div>
 
-      <el-collapse v-model="simExpanded" class="qc5__sim-collapse">
-        <el-collapse-item title="展开仿真检测界面（可选）" name="sim">
-          <component
-            :is="simulatorMap[activeStation.id]"
-            v-if="simExpanded.includes('sim')"
-            v-model="unitRecords[activeStation.id][currentUnitIndex]"
-          />
-        </el-collapse-item>
-      </el-collapse>
-
-      <div class="qc5__verdict">
-        <span class="qc5__verdict-label">本台本工序判定</span>
-        <el-radio-group v-model="verdictPassed" size="large">
-          <el-radio-button :value="true">
-            <el-icon><CircleCheck /></el-icon> 合格
-          </el-radio-button>
-          <el-radio-button :value="false">
-            <el-icon><CircleClose /></el-icon> 不合格
-          </el-radio-button>
-        </el-radio-group>
-        <el-input
-          v-model="verdictRemark"
-          type="textarea"
-          :rows="2"
-          placeholder="检测备注（缺陷位置、数值等）"
-          style="flex:1;min-width:240px"
-        />
+      <div v-if="selectedRows.length" class="qc5__batch-bar">
+        <span>已勾选 <strong>{{ selectedRows.length }}</strong> 台</span>
+        <span class="qc5__batch-label">批量标记检测项为不合格：</span>
+        <el-button
+          v-for="s in stations"
+          :key="s.id"
+          size="small"
+          plain
+          class="qc5__batch-btn"
+          @click="openBatchFailDialog(s.id)"
+        >{{ s.title }}</el-button>
       </div>
+
+      <el-table
+        ref="tableRef"
+        :data="matrixRows"
+        border
+        size="small"
+        class="qc5__matrix"
+        :row-class-name="rowClassName"
+        @selection-change="onSelectionChange"
+      >
+        <el-table-column type="selection" width="42" fixed />
+        <el-table-column prop="serialNo" label="序列号" width="148" fixed show-overflow-tooltip />
+        <el-table-column
+          v-for="s in stations"
+          :key="s.id"
+          :label="s.title"
+          min-width="108"
+          align="center"
+          :class-name="activeStationId === s.id ? 'qc5__col--active' : ''"
+        >
+          <template #default="{ row }">
+            <button
+              type="button"
+              class="qc5__cell"
+              :class="cellClass(row, s.id)"
+              @click="toggleCell(row._idx, s.id)"
+            >{{ cellLabel(row, s.id) }}</button>
+          </template>
+        </el-table-column>
+        <el-table-column label="综合" width="88" align="center" fixed="right">
+          <template #default="{ row }">
+            <span class="qc5__overall" :class="overallClass(row)">{{ overallLabel(row) }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
 
       <div class="qc5__actions">
-        <el-button type="primary" size="large" @click="saveCurrent">保存本台本工序</el-button>
-        <el-button v-if="currentUnitIndex < units.length - 1" type="success" size="large" @click="saveAndNextUnit">
-          保存并下一台
-        </el-button>
-        <el-button v-else-if="hasNextStation" type="warning" size="large" @click="saveAndNextStation">
-          保存并下一工序
-        </el-button>
-        <el-button v-else type="success" size="large" plain :disabled="!allDone" @click="$emit('complete')">
-          全部完成
-        </el-button>
+        <el-button :loading="saving" @click="handleSave">保存</el-button>
+        <el-button :loading="saving" :disabled="!hasNextUnit" @click="handleSaveAndNext">保存并下一台</el-button>
+        <el-button type="primary" :loading="proceeding" @click="handleProceed">下一步：统计与报告</el-button>
       </div>
     </div>
 
-    <!-- 汇总表 -->
-    <el-table v-if="matrixRows.length" :data="matrixRows" border size="small" class="qc5__matrix">
-      <el-table-column prop="serialNo" label="序列号" width="140" fixed />
-      <el-table-column v-for="s in stations" :key="s.id" :label="s.title" width="100" align="center">
-        <template #default="{ row }">
-          <el-tag v-if="row[s.id] === true" type="success" size="small">合格</el-tag>
-          <el-tag v-else-if="row[s.id] === false" type="danger" size="small">不合格</el-tag>
-          <span v-else class="qc5__pending">—</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="综合" width="88" align="center" fixed="right">
-        <template #default="{ row }">
-          <el-tag :type="row.overall === 'PASS' ? 'success' : row.overall === 'FAIL' ? 'danger' : 'info'" size="small">
-            {{ row.overall === 'PASS' ? '合格' : row.overall === 'FAIL' ? '不合格' : '未完成' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-    </el-table>
+    <el-dialog
+      v-model="failDialogVisible"
+      title="标记不合格"
+      width="420px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
+      <p v-if="failDialogContext" class="qc5__fail-hint">
+        {{ failDialogContext.serialNo }} · {{ failDialogContext.stationTitle }}
+        <template v-if="failDialogContext.batch">（等 {{ failDialogContext.batch }} 台）</template>
+      </p>
+      <el-form :model="failForm" label-width="80px" size="default">
+        <el-form-item label="缺陷类型" required>
+          <el-select v-model="failForm.defectType" style="width:100%">
+            <el-option v-for="t in DEFECT_TYPES" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="缺陷等级" required>
+          <el-select v-model="failForm.defectLevel" style="width:100%">
+            <el-option v-for="l in DEFECT_LEVELS" :key="l.value" :label="l.label" :value="l.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="缺陷位置">
+          <el-input v-model="failForm.defectLocation" placeholder="如：左上角、边框右侧" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="failForm.remark" type="textarea" :rows="2" placeholder="补充说明（可选）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="failDialogVisible = false">取消</el-button>
+        <el-button type="danger" plain @click="confirmFail">确认不合格</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
-import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { FP_STATIONS, buildUnitList } from '@/config/fpInspectionStations'
-import DeadPixelSimulator from '@/components/quality/simulators/DeadPixelSimulator.vue'
-import GamutSimulator from '@/components/quality/simulators/GamutSimulator.vue'
-import LeakageSimulator from '@/components/quality/simulators/LeakageSimulator.vue'
-import UniformitySimulator from '@/components/quality/simulators/UniformitySimulator.vue'
-import FlickerSimulator from '@/components/quality/simulators/FlickerSimulator.vue'
+import { computed, reactive, ref, watch, nextTick } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { FP_STATIONS, buildUnitList, parseMatrixFromItems, storageKeyForMatrix } from '@/config/fpInspectionStations'
 
 const props = defineProps({
   inspection: { type: Object, required: true },
-  sampleQuantity: { type: Number, default: 1 }
+  sampleQuantity: { type: Number, default: 1 },
+  initialItems: { type: Array, default: () => [] },
+  saving: { type: Boolean, default: false },
+  proceeding: { type: Boolean, default: false }
 })
 
-defineEmits(['complete', 'update:matrix', 'open-smart-vision'])
+const emit = defineEmits(['save', 'proceed', 'open-smart-vision', 'complete'])
 
 const stations = FP_STATIONS
-const simulatorMap = {
-  deadPixel: DeadPixelSimulator,
-  gamut: GamutSimulator,
-  leakage: LeakageSimulator,
-  uniformity: UniformitySimulator,
-  flicker: FlickerSimulator
-}
+const DEFECT_TYPES = ['外观缺陷', '色差', '坏点', '漏光', 'PCB不良', '其他']
+const DEFECT_LEVELS = [
+  { label: '轻微', value: 'MINOR' },
+  { label: '一般', value: 'GENERAL' },
+  { label: '严重', value: 'MAJOR' }
+]
 
 const units = ref([])
 const unitRecords = reactive({})
-const currentUnitIndex = ref(0)
-const activeStationId = ref(stations[0].id)
-const simExpanded = ref([])
+const selectedRows = ref([])
+const focusUnitIndex = ref(0)
+const activeStationId = ref(stations[0]?.id || 'deadPixel')
+const tableRef = ref(null)
+
+const failDialogVisible = ref(false)
+const failDialogContext = ref(null)
+const failForm = reactive({
+  defectType: '外观缺陷',
+  defectLevel: 'GENERAL',
+  defectLocation: '',
+  remark: ''
+})
 
 stations.forEach((s) => { unitRecords[s.id] = [] })
 
-function initUnits() {
-  units.value = buildUnitList(props.sampleQuantity, props.inspection?.batchNo)
-  stations.forEach((s) => {
-    unitRecords[s.id] = units.value.map(() => ({}))
-  })
-  currentUnitIndex.value = 0
-  activeStationId.value = stations[0].id
+function defaultRecord() {
+  return { passed: true, saved: true, measuredValue: '合格' }
 }
 
-watch(() => [props.sampleQuantity, props.inspection?.inspectionId], initUnits, { immediate: true })
+function loadFromStorage() {
+  const id = props.inspection?.inspectionId
+  if (!id) return null
+  try {
+    const raw = localStorage.getItem(storageKeyForMatrix(id))
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
 
-const currentUnit = computed(() => units.value[currentUnitIndex.value])
-const activeStation = computed(() => stations.find((s) => s.id === activeStationId.value))
+function persistToStorage() {
+  const id = props.inspection?.inspectionId
+  if (!id) return
+  const data = {
+    units: units.value,
+    records: stations.reduce((acc, s) => {
+      acc[s.id] = unitRecords[s.id].map((r) => ({ ...r }))
+      return acc
+    }, {})
+  }
+  localStorage.setItem(storageKeyForMatrix(id), JSON.stringify(data))
+}
 
-const totalCells = computed(() => units.value.length * stations.length)
-const completedCells = computed(() =>
-  stations.reduce((sum, s) => sum + unitRecords[s.id].filter((r) => r.saved).length, 0)
+let initializedKey = ''
+
+function initUnits() {
+  const key = `${props.inspection?.inspectionId || ''}:${props.sampleQuantity}`
+  if (initializedKey === key && units.value.length) return
+
+  const fromStorage = loadFromStorage()
+  const fromItems = fromStorage ? null : parseMatrixFromItems(
+    props.initialItems,
+    stations,
+    props.inspection?.batchNo,
+    props.sampleQuantity
+  )
+  const restored = fromStorage || fromItems
+
+  units.value = restored?.units?.length
+    ? restored.units
+    : buildUnitList(props.sampleQuantity, props.inspection?.batchNo)
+
+  stations.forEach((s) => {
+    unitRecords[s.id] = units.value.map((_, idx) => {
+      const saved = restored?.records?.[s.id]?.[idx]
+      if (saved) {
+        return {
+          passed: saved.passed !== false,
+          saved: true,
+          measuredValue: saved.measuredValue || (saved.passed === false ? '不合格' : '合格'),
+          remark: saved.remark || '',
+          defectType: saved.defectType || '',
+          defectLevel: saved.defectLevel || '',
+          defectLocation: saved.defectLocation || ''
+        }
+      }
+      return defaultRecord()
+    })
+  })
+  focusUnitIndex.value = 0
+  activeStationId.value = stations[0]?.id || 'deadPixel'
+  selectedRows.value = []
+  initializedKey = key
+}
+
+watch(
+  () => [props.sampleQuantity, props.inspection?.inspectionId],
+  initUnits,
+  { immediate: true }
 )
-const overallPct = computed(() =>
-  totalCells.value ? Math.round((completedCells.value / totalCells.value) * 100) : 0
+
+function ensureRecord(stationId, unitIdx) {
+  if (!unitRecords[stationId][unitIdx]) {
+    unitRecords[stationId][unitIdx] = defaultRecord()
+  }
+  return unitRecords[stationId][unitIdx]
+}
+
+function isCellPass(unitIdx, stationId) {
+  const rec = unitRecords[stationId]?.[unitIdx]
+  return rec?.passed !== false
+}
+
+const matrixRows = computed(() =>
+  units.value.map((u, idx) => {
+    const row = { serialNo: u.serialNo, unitNo: u.unitNo, _idx: idx }
+    let anyFail = false
+    stations.forEach((s) => {
+      const pass = isCellPass(idx, s.id)
+      row[s.id] = pass
+      if (!pass) anyFail = true
+    })
+    row.overall = anyFail ? 'FAIL' : 'PASS'
+    return row
+  })
 )
+
+const passCount = computed(() => matrixRows.value.filter((r) => r.overall === 'PASS').length)
+const failCount = computed(() => matrixRows.value.filter((r) => r.overall === 'FAIL').length)
+const allDone = computed(() => units.value.length > 0)
+const hasNextUnit = computed(() => focusUnitIndex.value < units.value.length - 1)
+
+const overallPct = computed(() => {
+  if (!units.value.length) return 0
+  return Math.round((passCount.value / units.value.length) * 100)
+})
 const progressColor = computed(() => {
   const p = overallPct.value
   if (p >= 100) return '#67c23a'
-  if (p >= 50) return '#409eff'
+  if (p >= 80) return '#409eff'
   return '#e6a23c'
 })
 
-const allDone = computed(() => completedCells.value === totalCells.value && totalCells.value > 0)
-
-const hasNextStation = computed(() => {
-  const idx = stations.findIndex((s) => s.id === activeStationId.value)
-  return idx >= 0 && idx < stations.length - 1
-})
-
-const verdictPassed = computed({
-  get() {
-    const rec = currentRecord(activeStationId.value)
-    if (!rec || rec.passed === undefined) return true
-    return rec.passed === true
-  },
-  set(v) {
-    const rec = ensureRecord(activeStationId.value)
-    rec.passed = v === true
-  }
-})
-
-const verdictRemark = computed({
-  get() {
-    return currentRecord(activeStationId.value)?.remark || ''
-  },
-  set(v) {
-    const rec = ensureRecord(activeStationId.value)
-    rec.remark = v
-  }
-})
-
-function ensureRecord(stationId) {
-  if (!unitRecords[stationId][currentUnitIndex.value]) {
-    unitRecords[stationId][currentUnitIndex.value] = {}
-  }
-  return unitRecords[stationId][currentUnitIndex.value]
+function unitOverallStatus(unitIdx) {
+  const row = matrixRows.value[unitIdx]
+  if (!row) return 'PASS'
+  return row.overall === 'FAIL' ? 'FAIL' : 'PASS'
 }
 
-function currentRecord(stationId) {
-  return unitRecords[stationId]?.[currentUnitIndex.value]
+function stationPassCount(stationId) {
+  return unitRecords[stationId].filter((r) => r.passed !== false).length
 }
 
-function stationDoneCount(stationId) {
-  return unitRecords[stationId].filter((r) => r.saved).length
+function stationFailCount(stationId) {
+  return unitRecords[stationId].filter((r) => r.passed === false).length
 }
 
 function stationTagType(stationId) {
-  const done = stationDoneCount(stationId)
-  const total = units.value.length
-  if (done === total) return 'success'
-  if (done > 0) return 'warning'
-  return 'info'
+  const fails = stationFailCount(stationId)
+  if (fails === 0) return 'success'
+  return 'warning'
 }
 
-function unitOverallStatus(unitIdx) {
-  const recs = stations.map((s) => unitRecords[s.id][unitIdx]).filter((r) => r?.saved)
-  if (!recs.length) return 'PENDING'
-  if (recs.length < stations.length) return 'PARTIAL'
-  return recs.every((r) => r.passed) ? 'PASS' : 'FAIL'
+function selectUnit(idx) {
+  focusUnitIndex.value = idx
+  scrollToUnit(idx)
 }
 
 function selectStation(id) {
   activeStationId.value = id
 }
 
-function saveCurrent() {
-  const rec = ensureRecord(activeStationId.value)
-  rec.saved = true
-  if (rec.passed === undefined) rec.passed = true
-  rec.measuredValue = rec.measuredValue || (rec.passed ? '合格' : '不合格')
-  units.value[currentUnitIndex.value].status = unitOverallStatus(currentUnitIndex.value) === 'PASS' ? 'PASS'
-    : unitOverallStatus(currentUnitIndex.value) === 'FAIL' ? 'FAIL' : 'PARTIAL'
-  ElMessage.success('已保存')
+function cellLabel(row, stationId) {
+  return row[stationId] ? '合格' : '不合格'
 }
 
-function saveAndNextUnit() {
-  saveCurrent()
-  if (currentUnitIndex.value < units.value.length - 1) currentUnitIndex.value++
+function cellClass(row, stationId) {
+  return row[stationId] ? 'is-pass' : 'is-fail'
 }
 
-function saveAndNextStation() {
-  saveCurrent()
-  const idx = stations.findIndex((s) => s.id === activeStationId.value)
-  if (idx < stations.length - 1) {
-    activeStationId.value = stations[idx + 1].id
-    currentUnitIndex.value = unitRecords[activeStationId.value].findIndex((r) => !r.saved)
-    if (currentUnitIndex.value < 0) currentUnitIndex.value = 0
+function overallLabel(row) {
+  return row.overall === 'PASS' ? '合格' : '不合格'
+}
+
+function overallClass(row) {
+  return row.overall === 'PASS' ? 'is-pass' : 'is-fail'
+}
+
+function rowClassName({ row }) {
+  return row._idx === focusUnitIndex.value ? 'qc5__row--focus' : ''
+}
+
+function onSelectionChange(rows) {
+  selectedRows.value = rows || []
+}
+
+function resetFailForm() {
+  Object.assign(failForm, {
+    defectType: '外观缺陷',
+    defectLevel: 'GENERAL',
+    defectLocation: '',
+    remark: ''
+  })
+}
+
+function openFailDialog(unitIndices, stationId, batchCount = 0) {
+  const station = stations.find((s) => s.id === stationId)
+  const firstIdx = unitIndices[0]
+  failDialogContext.value = {
+    unitIndices,
+    stationId,
+    stationTitle: station?.title || '',
+    serialNo: units.value[firstIdx]?.serialNo || '',
+    batch: batchCount
+  }
+  const existing = ensureRecord(stationId, firstIdx)
+  if (existing.passed === false) {
+    Object.assign(failForm, {
+      defectType: existing.defectType || '外观缺陷',
+      defectLevel: existing.defectLevel || 'GENERAL',
+      defectLocation: existing.defectLocation || '',
+      remark: existing.remark || ''
+    })
+  } else {
+    resetFailForm()
+  }
+  failDialogVisible.value = true
+}
+
+function openBatchFailDialog(stationId) {
+  if (!selectedRows.value.length) {
+    ElMessage.warning('请先勾选需要批量标记的产品')
+    return
+  }
+  const indices = selectedRows.value.map((r) => r._idx)
+  openFailDialog(indices, stationId, indices.length)
+}
+
+function toggleCell(unitIdx, stationId) {
+  if (isCellPass(unitIdx, stationId)) {
+    openFailDialog([unitIdx], stationId)
+  } else {
+    const rec = ensureRecord(stationId, unitIdx)
+    rec.passed = true
+    rec.saved = true
+    rec.measuredValue = '合格'
+    rec.remark = ''
+    rec.defectType = ''
+    rec.defectLevel = ''
+    rec.defectLocation = ''
+    persistToStorage()
   }
 }
 
-const matrixRows = computed(() =>
-  units.value.map((u, idx) => {
-    const row = { serialNo: u.serialNo, unitNo: u.unitNo }
-    let allSaved = true
-    let anyFail = false
-    stations.forEach((s) => {
-      const r = unitRecords[s.id][idx]
-      if (r?.saved) {
-        row[s.id] = r.passed
-        if (!r.passed) anyFail = true
-      } else {
-        row[s.id] = null
-        allSaved = false
-      }
-    })
-    row.overall = !allSaved ? 'PENDING' : anyFail ? 'FAIL' : 'PASS'
-    return row
+function confirmFail() {
+  const ctx = failDialogContext.value
+  if (!ctx) return
+  const parts = [failForm.defectType, failForm.defectLocation, failForm.remark].filter(Boolean)
+  const remark = parts.join(' · ')
+  ctx.unitIndices.forEach((idx) => {
+    const rec = ensureRecord(ctx.stationId, idx)
+    rec.passed = false
+    rec.saved = true
+    rec.measuredValue = '不合格'
+    rec.defectType = failForm.defectType
+    rec.defectLevel = failForm.defectLevel
+    rec.defectLocation = failForm.defectLocation
+    rec.remark = remark
   })
-)
+  failDialogVisible.value = false
+  persistToStorage()
+  ElMessage.success(ctx.unitIndices.length > 1 ? `已批量标记 ${ctx.unitIndices.length} 台` : '已标记不合格')
+}
+
+function scrollToUnit(idx) {
+  focusUnitIndex.value = idx
+  nextTick(() => {
+    const el = tableRef.value?.$el?.querySelector('.qc5__row--focus')
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  })
+}
 
 function getInspectionSummary() {
   const matrix = matrixRows.value
@@ -341,9 +484,12 @@ function getInspectionSummary() {
       records: unitRecords[s.id].map((r, i) => ({
         serialNo: units.value[i]?.serialNo,
         passed: r.passed !== false,
-        saved: r.saved,
-        measuredValue: r.measuredValue,
-        remark: r.remark
+        saved: true,
+        measuredValue: r.measuredValue || (r.passed === false ? '不合格' : '合格'),
+        remark: r.remark || '',
+        defectType: r.defectType || '',
+        defectLevel: r.defectLevel || '',
+        defectLocation: r.defectLocation || ''
       }))
     })),
     passUnits,
@@ -354,22 +500,63 @@ function getInspectionSummary() {
   }
 }
 
+async function handleSave() {
+  persistToStorage()
+  emit('save', getInspectionSummary())
+}
+
+async function handleSaveAndNext() {
+  persistToStorage()
+  emit('save', getInspectionSummary())
+  if (hasNextUnit.value) {
+    scrollToUnit(focusUnitIndex.value + 1)
+  }
+}
+
+async function handleProceed() {
+  const sum = getInspectionSummary()
+  const failUnits = sum.failUnits || 0
+  const msg = failUnits > 0
+    ? `本批共抽检 ${sum.sampleQuantity} 台，其中 ${failUnits} 台不合格。将进入统计与 AI 报告页，由您最终判定本批是否合格。`
+    : `本批共抽检 ${sum.sampleQuantity} 台全部合格。将进入统计与 AI 报告页，由您最终判定本批是否合格。`
+  try {
+    await ElMessageBox.confirm(msg, '进入统计与报告', {
+      type: 'info',
+      confirmButtonText: '下一步',
+      cancelButtonText: '取消'
+    })
+  } catch {
+    return
+  }
+  persistToStorage()
+  emit('proceed', sum)
+}
+
 function applyVisionRemark(payload) {
-  const rec = ensureRecord(activeStationId.value)
+  const stationId = activeStationId.value || stations[0]?.id || 'deadPixel'
+  const rec = ensureRecord(stationId, focusUnitIndex.value)
   const prefix = rec.remark ? `${rec.remark}\n` : ''
   rec.remark = prefix + (payload?.summary || '')
   if (payload?.defect) {
     rec.passed = false
     rec.measuredValue = 'AI检测：外观不合格'
-  } else if (payload?.passed) {
-    rec.measuredValue = rec.measuredValue || 'AI检测：外观正常'
+    rec.defectType = '外观缺陷'
+    rec.defectLevel = 'MAJOR'
   }
-  ElMessage.success('AI 检测结论已写入当前工序备注')
+  persistToStorage()
+  ElMessage.success('AI 检测结论已写入当前产品')
 }
 
-const currentUnitLabel = computed(() => currentUnit.value?.serialNo || '')
+const currentUnitLabel = computed(() => units.value[focusUnitIndex.value]?.serialNo || '')
 
-defineExpose({ getInspectionSummary, allDone, matrixRows, applyVisionRemark, currentUnitLabel })
+defineExpose({
+  getInspectionSummary,
+  allDone,
+  matrixRows,
+  applyVisionRemark,
+  currentUnitLabel,
+  persistToStorage
+})
 </script>
 
 <style scoped>
@@ -387,23 +574,6 @@ defineExpose({ getInspectionSummary, allDone, matrixRows, applyVisionRemark, cur
   gap: 16px;
   margin-bottom: 12px;
   flex-wrap: wrap;
-}
-
-.qc5__header-actions {
-  flex-shrink: 0;
-}
-
-.qc5__title {
-  margin: 0 0 6px;
-  font-size: 20px;
-  font-weight: 700;
-  color: #1a1a2e;
-}
-
-.qc5__desc {
-  margin: 0;
-  font-size: 14px;
-  color: #606266;
 }
 
 .qc5__progress {
@@ -451,9 +621,8 @@ defineExpose({ getInspectionSummary, allDone, matrixRows, applyVisionRemark, cur
 
 .qc5__unit-chip:hover { border-color: #409eff; }
 .qc5__unit-chip.is-active { border-color: #409eff; box-shadow: 0 0 0 2px rgba(64,158,255,.2); }
-.qc5__unit-chip.is-done { border-color: #67c23a; background: #f0f9eb; }
-.qc5__unit-chip.is-fail { border-color: #f56c6c; background: #fef0f0; }
-.qc5__unit-chip.is-partial { border-color: #e6a23c; }
+.qc5__unit-chip.is-done { border-color: #b7ebc6; background: #f0f9eb; }
+.qc5__unit-chip.is-fail { border-color: #f5c4c4; background: #fef0f0; }
 
 .qc5__unit-no {
   font-weight: 700;
@@ -465,7 +634,6 @@ defineExpose({ getInspectionSummary, allDone, matrixRows, applyVisionRemark, cur
   color: #606266;
 }
 
-/* 五大工序 — 专业亮点大卡片 */
 .qc5__stations {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -499,7 +667,7 @@ defineExpose({ getInspectionSummary, allDone, matrixRows, applyVisionRemark, cur
   box-shadow: 0 8px 24px rgba(64, 158, 255, .25);
 }
 
-.qc5__station.is-done { border-color: #67c23a; }
+.qc5__station.is-done { border-color: #b7ebc6; }
 .qc5__station.is-partial { border-color: #e6a23c; }
 
 .qc5__station-img {
@@ -558,73 +726,142 @@ defineExpose({ getInspectionSummary, allDone, matrixRows, applyVisionRemark, cur
 }
 
 .qc5__cur-result { font-size: 12px; font-weight: 600; }
-.qc5__cur-result.ok { color: #67c23a; }
-.qc5__cur-result.bad { color: #f56c6c; }
+.qc5__cur-result.bad { color: #cf6b6b; }
 
-.qc5__inspect {
+.qc5__inspect-section {
   background: #fff;
   border: 1px solid #ebeef5;
   border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
+  padding: 16px;
 }
 
-.qc5__inspect-hd {
+.qc5__inspect-section-hd {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
-.qc5__inspect-thumb {
-  width: 80px;
-  height: 60px;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid #e4e7ed;
-}
-
-.qc5__inspect-hd h4 {
-  margin: 0 0 4px;
-  font-size: 16px;
+.qc5__inspect-section-hd h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
   color: #303133;
 }
 
-.qc5__inspect-hd p {
-  margin: 0;
-  font-size: 13px;
+.qc5__inspect-section-hd span {
+  font-size: 12px;
   color: #909399;
 }
 
-.qc5__sim-collapse {
-  margin-bottom: 16px;
+.qc5__matrix :deep(.qc5__col--active) {
+  background: #f5f9ff;
 }
 
-.qc5__verdict {
+.qc5__title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.qc5__desc {
+  margin: 0;
+  font-size: 14px;
+  color: #606266;
+}
+
+.qc5__batch-bar {
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
+  align-items: center;
   flex-wrap: wrap;
-  padding: 16px;
-  background: #f5f7fa;
-  border-radius: 8px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  border-radius: 6px;
+  font-size: 13px;
 }
 
-.qc5__verdict-label {
+.qc5__batch-label {
+  color: #8c6d1f;
+}
+
+.qc5__batch-btn {
+  --el-button-hover-text-color: #cf6b6b;
+  --el-button-hover-border-color: #f5c4c4;
+  --el-button-hover-bg-color: #fdeeed;
+}
+
+.qc5__matrix {
+  margin-bottom: 14px;
+}
+
+.qc5__matrix :deep(.qc5__row--focus) {
+  background: #f0f7ff !important;
+}
+
+.qc5__cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity .15s, box-shadow .15s;
+  background: transparent;
+}
+
+.qc5__cell:hover {
+  opacity: 0.85;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .06);
+}
+
+.qc5__cell.is-pass {
+  background: #e8f8ef;
+  color: #389e6b;
+  border-color: #b7ebc6;
+}
+
+.qc5__cell.is-fail {
+  background: #fdeeed;
+  color: #cf6b6b;
+  border-color: #f5c4c4;
+}
+
+.qc5__overall {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
   font-weight: 600;
-  color: #303133;
-  padding-top: 8px;
-  white-space: nowrap;
+}
+
+.qc5__overall.is-pass {
+  background: #e8f8ef;
+  color: #389e6b;
+}
+
+.qc5__overall.is-fail {
+  background: #fdeeed;
+  color: #cf6b6b;
 }
 
 .qc5__actions {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  padding-top: 4px;
 }
 
-.qc5__matrix { margin-top: 8px; }
-.qc5__pending { color: #c0c4cc; }
+.qc5__fail-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #606266;
+}
 </style>

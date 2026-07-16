@@ -40,7 +40,7 @@ public interface AfterSalesService {
     Map<String,Object> triageCase(String caseNo, boolean force);
 
     // ── 状态流转 ──────────────────────────────────────────────
-    /** OPEN -> PROCESSING：受理案例 */
+    /** OPEN -> ACCEPTED：受理案例 */
     AfterSalesCase acceptCase(String caseNo, String operator);
 
     /** PROCESSING -> RESOLVED：标记已解决 */

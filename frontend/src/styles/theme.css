@@ -5,24 +5,23 @@
 :root {
   --layout-font: Inter, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 
-  /* 页面主背景 — 低饱和奶白/浅绿/浅粉/浅紫渐变 */
-  --layout-bg-gradient: linear-gradient(
-    120deg,
-    #f3faef 0%,
-    #fff7ee 35%,
-    #f6efff 70%,
-    #edf4ff 100%
-  );
-  --layout-surface: #fffdf9;
+  /* 页面外框 — 极浅灰，避免黄/蓝突兀跳变 */
+  --layout-bg-gradient: linear-gradient(180deg, #f7f8fa 0%, #f5f6f8 100%);
+  --layout-surface: #ffffff;
   --layout-content-bg: #ffffff;
-  /* 主内容区与页面外框同款渐变（表格/卡片仍用 layout-content-bg 纯白） */
-  --layout-content-gradient: var(--layout-bg-gradient);
+  /* 主内容区纯白底；侧栏单独用更柔和的浅色渐变 */
+  --layout-content-gradient: #ffffff;
+  --sidebar-bg-gradient: linear-gradient(
+    180deg,
+    #f6faf7 0%,
+    #faf9fc 48%,
+    #f7f8fb 100%
+  );
   --layout-card-radius: 10px;
   --layout-shadow: 0 1px 2px rgba(37, 39, 42, 0.04), 0 4px 12px rgba(37, 39, 42, 0.03);
   --layout-divider: #e8e8e3;
   --layout-border: #e8e8e3;
   --sidebar-panel-bg: transparent;
-  --layout-panel-bg: transparent;
 
   /* 文字色 — 深灰黑 / 次要灰 */
   --layout-text-body: #25272a;
@@ -35,16 +34,16 @@
   --layout-text: var(--layout-text-body);
   --layout-text-secondary: var(--layout-text-caption);
   --layout-text-muted: var(--layout-text-caption);
-  --layout-table-head: rgba(250, 250, 248, 0.42);
-  --layout-table-row-hover: rgba(243, 245, 240, 0.55);
-  --layout-panel-bg: transparent;
-  --layout-input-bg: rgba(255, 253, 249, 0.58);
+  --layout-table-head: #ffffff;
+  --layout-table-row-hover: #f5f7fa;
+  --layout-panel-bg: #ffffff;
+  --layout-input-bg: #ffffff;
 
-  /* 侧栏 */
-  /* 侧栏与主内容区同款渐变（菜单项本身仍透明） */
+  /* 侧栏 — 独立浅色渐变，选中项胶囊底 */
   --sidebar-bg: transparent;
-  --sidebar-hover-bg: #eef1ea;
-  --sidebar-active-bg: #e8efe4;
+  --sidebar-hover-bg: rgba(0, 0, 0, 0.03);
+  --sidebar-active-bg: #e8f2ea;
+  --sidebar-active-bg-sub: #ede9f7;
   --sidebar-active-text: #25272a;
   --sidebar-text: #4f5560;
   --sidebar-text-hover: #25272a;
@@ -146,8 +145,8 @@ body,
 }
 
 .layout-aside {
-  background: var(--layout-content-gradient, var(--layout-bg-gradient)) !important;
-  background-attachment: fixed;
+  background: var(--sidebar-bg-gradient, #f8f9fb) !important;
+  background-attachment: local;
   background-repeat: no-repeat;
   border-right-color: var(--layout-border, #e8e8e3) !important;
 }
@@ -168,9 +167,7 @@ body,
 
 .layout-main:not(.layout-main--screen),
 .layout-main.ruoyi-app-main:not(.layout-main--screen) {
-  background: var(--layout-content-gradient) !important;
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+  background: var(--layout-content-bg, #ffffff) !important;
 }
 
 /* ========== 管理后台内容区 ========== */
@@ -441,11 +438,11 @@ body,
   background: var(--layout-table-row-hover) !important;
 }
 
-/* 表格主体透出渐变 */
+/* 表格 — 全局白底 */
 .layout-main.ruoyi-app-main .el-table {
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: var(--layout-table-head);
+  --el-table-bg-color: #ffffff;
+  --el-table-tr-bg-color: #ffffff;
+  --el-table-header-bg-color: #ffffff;
 }
 
 .layout-main.ruoyi-app-main .el-table,
@@ -453,15 +450,15 @@ body,
 .layout-main.ruoyi-app-main .el-table__body-wrapper,
 .layout-main.ruoyi-app-main .el-table tr,
 .layout-main.ruoyi-app-main .el-table td.el-table__cell {
-  background-color: transparent !important;
+  background-color: #ffffff !important;
 }
 
 .layout-main.ruoyi-app-main .el-table th.el-table__cell {
-  background-color: var(--layout-table-head) !important;
+  background-color: #ffffff !important;
 }
 
 .layout-main.ruoyi-app-main .el-table__empty-block {
-  background: transparent !important;
+  background: #ffffff !important;
 }
 
 /* 各业务页内常见白底容器 */
@@ -475,11 +472,11 @@ body,
   .cp-form-panel,
   .cp-detail
 ) {
-  background: var(--layout-panel-bg) !important;
+  background: #ffffff !important;
   box-shadow: none !important;
 }
 
-/* 卡片/面板去白底，透出页面渐变 */
+/* 卡片/面板白底 */
 .layout-main.ruoyi-app-main :is(
   .ruoyi-stats,
   .ruoyi-detail,
@@ -498,12 +495,12 @@ body,
   .pdb,
   .pdb-panel
 ) {
-  background: var(--layout-panel-bg) !important;
+  background: #ffffff !important;
   box-shadow: none !important;
 }
 
 .layout-main.ruoyi-app-main .el-card {
-  background: var(--layout-panel-bg) !important;
+  background: #ffffff !important;
   box-shadow: none !important;
 }
 
@@ -645,7 +642,7 @@ body,
   border-radius: var(--layout-card-radius);
   border-color: var(--layout-border);
   box-shadow: none;
-  background: transparent;
+  background: #ffffff;
 }
 
 .page-title {

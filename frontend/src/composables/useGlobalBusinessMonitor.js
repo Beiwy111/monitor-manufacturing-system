@@ -1,8 +1,10 @@
 import { onMounted, onUnmounted } from 'vue'
 import { fetchAlarmViews } from '@/api/business'
 import { fetchVoiceNotices } from '@/api/assistant'
+import { fetchOperatorNotifications } from '@/api/mes'
 import { useNotificationStore, NOTIF_TYPE } from '@/stores/notification'
 import { useUserStore } from '@/stores/user'
+import { resolveOperatorUsername } from '@/utils/operatorWorkshop'
 
 const POLL_INTERVAL = 15000
 
@@ -83,15 +85,37 @@ export function useGlobalBusinessMonitor() {
       }))
   }
 
+  /** 派工 / 质检待检通知：按 targetUsername 投递 */
+  function buildDispatchInbox(notices) {
+    const username = resolveOperatorUsername(user.roleKey, user.userInfo?.username)
+    if (!username) return []
+    return (notices || []).map(n => ({
+      type: NOTIF_TYPE.PROCESS,
+      sourceKey: `${n.kind || 'dispatch'}-notice:${n.id}:${username}`,
+      title: n.title || (n.kind === 'qc' ? '新成品质检任务' : '新派工任务'),
+      content: n.content || '',
+      from: n.from || (n.kind === 'qc' ? '操作员' : '生产主管'),
+      link: n.link || (n.kind === 'qc' ? '/quality/fp/inspection' : '/production/my-dispatch'),
+      createdAt: Date.parse(n.createdAt) || Date.now()
+    }))
+  }
+
   async function poll() {
     try {
-      const [alarmRes, noticeRes] = await Promise.all([
+      const username = resolveOperatorUsername(user.roleKey, user.userInfo?.username)
+      const [alarmRes, noticeRes, dispatchRes] = await Promise.all([
         fetchAlarmViews(),
-        fetchVoiceNotices().catch(() => [])
+        fetchVoiceNotices().catch(() => []),
+        username ? fetchOperatorNotifications(username).catch(() => []) : Promise.resolve([])
       ])
       const alarms = Array.isArray(alarmRes) ? alarmRes : alarmRes?.data || []
       const notices = Array.isArray(noticeRes) ? noticeRes : noticeRes?.data || []
-      notifications.sync([...buildAlarmInbox(alarms), ...buildNoticeInbox(notices)])
+      const dispatchNotices = Array.isArray(dispatchRes) ? dispatchRes : dispatchRes?.data || []
+      notifications.sync([
+        ...buildAlarmInbox(alarms),
+        ...buildNoticeInbox(notices),
+        ...buildDispatchInbox(dispatchNotices)
+      ])
     } catch {
       // 保留上一次成功同步的收件箱。
     }

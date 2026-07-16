@@ -53,7 +53,8 @@
             height="100%"
             highlight-current-row
             size="small"
-            @current-change="onSelectOrder"
+            @row-click="onRowClick"
+            @current-change="onCurrentChange"
             @selection-change="onSelectionChange"
           >
             <el-table-column
@@ -104,120 +105,126 @@
           </el-table>
         </div>
       </div>
+    </div>
 
-      <div class="order-track-bottom">
-        <template v-if="sel">
-          <div class="order-track-bottom__bar">
-            <span class="order-track-bottom__label">订单详情</span>
-            <span class="order-track-bottom__meta">{{ sel.id }} · {{ sel.productModel }} · {{ sel.customerName }}</span>
-          </div>
-          <el-tabs v-model="detailTab" class="order-track-tabs">
-            <el-tab-pane label="基本信息" name="basic">
-              <div class="order-track-pane">
-                <el-table :data="basicRows" border stripe size="small" class="ot-compact-table">
-                  <el-table-column prop="label" label="字段" width="120" />
-                  <el-table-column prop="value" label="内容" min-width="200" show-overflow-tooltip />
-                </el-table>
-              </div>
-            </el-tab-pane>
+    <el-dialog
+      v-model="detailVisible"
+      class="order-track-dialog"
+      width="920px"
+      top="6vh"
+      destroy-on-close
+      :title="detailDialogTitle"
+      @closed="onDetailClosed"
+    >
+      <div v-if="sel" v-loading="ctxLoading" class="order-track-dialog__body">
+        <el-tabs v-model="detailTab" class="order-track-tabs">
+          <el-tab-pane label="基本信息" name="basic">
+            <div class="order-track-pane">
+              <el-table :data="basicRows" border stripe size="small" class="ot-compact-table">
+                <el-table-column prop="label" label="字段" width="120" />
+                <el-table-column prop="value" label="内容" min-width="200" show-overflow-tooltip />
+              </el-table>
+            </div>
+          </el-tab-pane>
 
-            <el-tab-pane label="物料齐套" name="material">
-              <div class="order-track-pane" v-loading="ctxLoading">
-                <el-table :data="materialRows" border stripe size="small" class="ot-compact-table" empty-text="暂无物料数据">
-                  <el-table-column prop="materialCode" label="物料编码" width="110" />
-                  <el-table-column prop="materialName" label="物料名称" min-width="140" show-overflow-tooltip />
-                  <el-table-column prop="requiredQty" label="需求" width="72" align="right" />
-                  <el-table-column prop="availableQty" label="库存" width="72" align="right" />
-                  <el-table-column prop="gapQty" label="缺口" width="72" align="right" />
-                  <el-table-column label="齐套" width="72" align="center">
-                    <template #default="{ row }">
-                      <span class="ot-tag" :class="row.status === '齐套' ? 'ot-tag--ok' : 'ot-tag--warn'">{{ row.status }}</span>
-                    </template>
-                  </el-table-column>
-                </el-table>
-              </div>
-            </el-tab-pane>
+          <el-tab-pane label="物料齐套" name="material">
+            <div class="order-track-pane">
+              <el-table :data="materialRows" border stripe size="small" class="ot-compact-table" empty-text="暂无物料数据">
+                <el-table-column prop="materialCode" label="物料编码" width="110" />
+                <el-table-column prop="materialName" label="物料名称" min-width="140" show-overflow-tooltip />
+                <el-table-column prop="requiredQty" label="需求" width="72" align="right" />
+                <el-table-column prop="availableQty" label="库存" width="72" align="right" />
+                <el-table-column prop="gapQty" label="缺口" width="72" align="right" />
+                <el-table-column label="齐套" width="72" align="center">
+                  <template #default="{ row }">
+                    <span class="ot-tag" :class="row.status === '齐套' ? 'ot-tag--ok' : 'ot-tag--warn'">{{ row.status }}</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </el-tab-pane>
 
-            <el-tab-pane label="设备产能" name="capacity">
-              <div class="order-track-pane" v-loading="ctxLoading">
-                <div class="ot-section-title">设备资源</div>
-                <el-table :data="equipmentRows" border stripe size="small" class="ot-compact-table" empty-text="暂无设备数据">
-                  <el-table-column prop="code" label="设备编号" width="100" />
-                  <el-table-column prop="name" label="设备名称" min-width="130" show-overflow-tooltip />
-                  <el-table-column prop="type" label="类型" width="100" />
-                  <el-table-column prop="line" label="产线/区域" width="100" />
-                  <el-table-column prop="status" label="状态" width="80" align="center">
-                    <template #default="{ row }">
-                      <span class="ot-tag" :class="equipStatusClass(row.status)">{{ row.status }}</span>
-                    </template>
-        </el-table-column>
-                  <el-table-column prop="risk" label="产能风险" min-width="120" show-overflow-tooltip />
-      </el-table>
-                <div class="ot-section-title">人员配置</div>
-                <el-table :data="personnelRows" border stripe size="small" class="ot-compact-table">
-                  <el-table-column prop="role" label="岗位" width="120" />
-                  <el-table-column prop="available" label="在岗人数" width="90" align="right" />
-                  <el-table-column prop="capacity" label="人员产能上限" width="110" align="right" />
-                  <el-table-column prop="status" label="状态" width="80" align="center">
-                    <template #default="{ row }">
-                      <span class="ot-tag" :class="row.status === '充足' ? 'ot-tag--ok' : 'ot-tag--danger'">{{ row.status }}</span>
-    </template>
-                  </el-table-column>
-                  <el-table-column prop="remark" label="说明" min-width="160" show-overflow-tooltip />
-                </el-table>
-              </div>
-            </el-tab-pane>
+          <el-tab-pane label="设备产能" name="capacity">
+            <div class="order-track-pane">
+              <div class="ot-section-title">设备资源</div>
+              <el-table :data="equipmentRows" border stripe size="small" class="ot-compact-table" empty-text="暂无设备数据">
+                <el-table-column prop="code" label="设备编号" width="100" />
+                <el-table-column prop="name" label="设备名称" min-width="130" show-overflow-tooltip />
+                <el-table-column prop="type" label="类型" width="100" />
+                <el-table-column prop="line" label="产线/区域" width="100" />
+                <el-table-column prop="status" label="状态" width="80" align="center">
+                  <template #default="{ row }">
+                    <span class="ot-tag" :class="equipStatusClass(row.status)">{{ row.status }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="risk" label="产能风险" min-width="120" show-overflow-tooltip />
+              </el-table>
+              <div class="ot-section-title">人员配置</div>
+              <el-table :data="personnelRows" border stripe size="small" class="ot-compact-table">
+                <el-table-column prop="role" label="岗位" width="120" />
+                <el-table-column prop="available" label="在岗人数" width="90" align="right" />
+                <el-table-column prop="capacity" label="人员产能上限" width="110" align="right" />
+                <el-table-column prop="status" label="状态" width="80" align="center">
+                  <template #default="{ row }">
+                    <span class="ot-tag" :class="row.status === '充足' ? 'ot-tag--ok' : 'ot-tag--danger'">{{ row.status }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="remark" label="说明" min-width="160" show-overflow-tooltip />
+              </el-table>
+            </div>
+          </el-tab-pane>
 
-            <el-tab-pane label="工艺路线" name="route">
-              <div class="order-track-pane" v-loading="ctxLoading">
-                <el-table :data="routeRows" border stripe size="small" class="ot-compact-table" empty-text="未配置工艺路线">
-                  <el-table-column prop="stepNo" label="序号" width="56" align="center" />
-                  <el-table-column prop="stepCode" label="工序编码" width="100" />
-                  <el-table-column prop="stepName" label="工序名称" min-width="120" />
-                  <el-table-column prop="standardEquipmentType" label="建议设备" width="110" />
-                  <el-table-column prop="standardWorkHours" label="标准工时" width="88" align="right" />
-                  <el-table-column prop="qualityRequiredText" label="需质检" width="72" align="center" />
-                </el-table>
-              </div>
-            </el-tab-pane>
+          <el-tab-pane label="工艺路线" name="route">
+            <div class="order-track-pane">
+              <el-table :data="routeRows" border stripe size="small" class="ot-compact-table" empty-text="未配置工艺路线">
+                <el-table-column prop="stepNo" label="序号" width="56" align="center" />
+                <el-table-column prop="stepCode" label="工序编码" width="100" />
+                <el-table-column prop="stepName" label="工序名称" min-width="120" />
+                <el-table-column prop="standardEquipmentType" label="建议设备" width="110" />
+                <el-table-column prop="standardWorkHours" label="标准工时" width="88" align="right" />
+                <el-table-column prop="qualityRequiredText" label="需质检" width="72" align="center" />
+              </el-table>
+            </div>
+          </el-tab-pane>
 
-            <el-tab-pane label="流程跟踪" name="flow">
-              <div class="order-track-pane">
-                <div class="track-steps">
-                  <div
-                    v-for="(step, i) in timeline"
-                    :key="i"
-                    class="track-step"
-                    :class="`track-step--${step.status}`"
-                  >
-                    <div class="track-step__indicator">
-                      <span class="track-step__dot" />
-                      <span v-if="i < timeline.length - 1" class="track-step__connector" />
-                    </div>
-                    <div class="track-step__content">
-                      <div class="track-step__title">{{ step.title }}</div>
-                      <div class="track-step__desc">{{ step.desc }}</div>
-                    </div>
+          <el-tab-pane label="流程跟踪" name="flow">
+            <div class="order-track-pane">
+              <div class="track-steps">
+                <div
+                  v-for="(step, i) in timeline"
+                  :key="i"
+                  class="track-step"
+                  :class="`track-step--${step.status}`"
+                >
+                  <div class="track-step__indicator">
+                    <span class="track-step__dot" />
+                    <span v-if="i < timeline.length - 1" class="track-step__connector" />
+                  </div>
+                  <div class="track-step__content">
+                    <div class="track-step__title">{{ step.title }}</div>
+                    <div class="track-step__desc">{{ step.desc }}</div>
                   </div>
                 </div>
-                <el-table :data="flowStatsRows" border stripe size="small" class="ot-compact-table ot-flow-stats">
-                  <el-table-column prop="label" label="环节" width="120" />
-                  <el-table-column prop="count" label="记录数" width="80" align="right" />
-                  <el-table-column prop="status" label="当前状态" min-width="120" />
-                </el-table>
               </div>
-            </el-tab-pane>
-          </el-tabs>
-    </template>
-        <div v-else class="order-track-empty">请在上方表格选择订单查看详情</div>
+              <el-table :data="flowStatsRows" border stripe size="small" class="ot-compact-table ot-flow-stats">
+                <el-table-column prop="label" label="环节" width="120" />
+                <el-table-column prop="count" label="记录数" width="80" align="right" />
+                <el-table-column prop="status" label="当前状态" min-width="120" />
+              </el-table>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
       </div>
-    </div>
+      <template #footer>
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, reactive, watch, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
@@ -226,6 +233,7 @@ import { fetchOrderPlanningContext } from '@/api/planner'
 import { navigateToSmartScheduling } from '@/composables/usePlannerAgent'
 
 const router = useRouter()
+const route = useRoute()
 const mes = useMesStore()
 const userStore = useUserStore()
 
@@ -240,12 +248,18 @@ const tableRef = ref(null)
 const selectedRows = ref([])
 const lockedModel = ref('')
 const detailTab = ref('basic')
+const detailVisible = ref(false)
 const tableLoading = ref(false)
 const ctxLoading = ref(false)
 const planningCtx = ref(null)
 const metricsMap = reactive({})
 
 const chain = computed(() => (sel.value ? mes.traceChain(sel.value.id) : null))
+
+const detailDialogTitle = computed(() => {
+  if (!sel.value) return '订单详情'
+  return `订单详情 · ${sel.value.id} · ${sel.value.productModel || '—'} · ${sel.value.customerName || '—'}`
+})
 
 const scheduleTargets = computed(() => {
   if (selectedRows.value.length) return selectedRows.value
@@ -520,19 +534,32 @@ async function prefetchMetrics() {
   }))
 }
 
-async function onSelectOrder(row) {
+async function openOrderDetail(row) {
+  if (!row) return
   sel.value = row
-  if (!row) {
-    planningCtx.value = null
-    return
-  }
   detailTab.value = 'basic'
+  detailVisible.value = true
   ctxLoading.value = true
   try {
     planningCtx.value = await loadContext(row.id)
   } finally {
     ctxLoading.value = false
   }
+}
+
+function onRowClick(row) {
+  openOrderDetail(row)
+}
+
+function onCurrentChange(row) {
+  sel.value = row
+  if (!row) {
+    planningCtx.value = null
+  }
+}
+
+function onDetailClosed() {
+  planningCtx.value = null
 }
 
 function applyFilter() {
@@ -774,11 +801,10 @@ onMounted(async () => {
 }
 
 .order-track-top {
-  flex: 0 0 42%;
-  min-height: 180px;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid #e5e7eb;
 }
 
 .order-track-query {
@@ -802,40 +828,24 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-.order-track-bottom {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+.order-track-table-wrap :deep(.el-table__row) {
+  cursor: pointer;
 }
 
-.order-track-bottom__bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 36px;
-  padding: 0 12px;
-  border-bottom: 1px solid #f3f4f6;
-  flex-shrink: 0;
+.order-track-dialog :deep(.el-dialog__body) {
+  padding-top: 8px;
 }
 
-.order-track-bottom__label {
-  font-weight: 500;
-  color: #111827;
-}
-
-.order-track-bottom__meta {
-  font-size: 13px;
-  color: #6b7280;
+.order-track-dialog__body {
+  min-height: 420px;
+  max-height: calc(84vh - 120px);
 }
 
 .order-track-tabs {
-  flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 0 12px 8px;
+  height: 100%;
+  min-height: 400px;
 }
 
 .order-track-tabs :deep(.el-tabs__header) {
@@ -849,21 +859,12 @@ onMounted(async () => {
 }
 
 .order-track-tabs :deep(.el-tab-pane) {
-  height: 100%;
+  max-height: calc(84vh - 200px);
 }
 
 .order-track-pane {
-  height: 100%;
+  max-height: calc(84vh - 200px);
   overflow: auto;
-}
-
-.order-track-empty {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #9ca3af;
-  font-size: 13px;
 }
 
 .ot-compact-table :deep(.el-table__cell) {

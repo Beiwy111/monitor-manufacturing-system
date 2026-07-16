@@ -62,7 +62,11 @@ public class AfterSalesServiceImpl implements AfterSalesService {
             row.put("caseLevelCn",   levelCn(str(row, "caseLevel")));
             row.put("problemTypeCn", problemTypeCn(str(row, "problemType")));
             fmtTime(row, "openedAt"); fmtTime(row, "processingAt");
-            fmtTime(row, "resolvedAt"); fmtTime(row, "closedAt"); fmtTime(row, "updatedAt");
+            fmtTime(row, "slaDeadline"); fmtTime(row, "resolvedAt");
+            fmtTime(row, "closedAt"); fmtTime(row, "updatedAt");
+            if (str(row, "aiTriageLevel").isBlank() && str(row, "aiTriageCategory").isBlank()) {
+                row.put("aiTriageLevel", "-");
+            }
         });
         return list;
     }
@@ -297,10 +301,13 @@ public class AfterSalesServiceImpl implements AfterSalesService {
     public AfterSalesCase acceptCase(String caseNo, String operator) {
         AfterSalesCase c = require(caseNo);
         if (!"OPEN".equals(c.getCaseStatus()))
-            throw new BusinessException("仅 OPEN 状态可受理（当前：" + statusCn(c.getCaseStatus()) + "）");
-        c.setCaseStatus("PROCESSING");
-        c.setProcessingAt(LocalDateTime.now());
-        c.setUpdatedAt(LocalDateTime.now());
+            throw new BusinessException("仅待受理状态可受理（当前：" + statusCn(c.getCaseStatus()) + "）");
+        c.setCaseStatus("ACCEPTED");
+        LocalDateTime now = LocalDateTime.now();
+        c.setProcessingAt(now);
+        int slaHours = List.of("CRITICAL", "URGENT", "HIGH").contains(c.getCaseLevel()) ? 24 : 72;
+        c.setSlaDeadline(now.plusHours(slaHours));
+        c.setUpdatedAt(now);
         applyOperator(c, operator);
         caseMapper.updateAfterSalesCase(c);
         return c;
@@ -310,8 +317,8 @@ public class AfterSalesServiceImpl implements AfterSalesService {
     @Transactional
     public AfterSalesCase resolveCase(String caseNo, String solution, String traceResult, String operator) {
         AfterSalesCase c = require(caseNo);
-        if (!"PROCESSING".equals(c.getCaseStatus()))
-            throw new BusinessException("仅受理中状态可标记解决（当前：" + statusCn(c.getCaseStatus()) + "）");
+        if (!List.of("PROCESSING", "ACCEPTED", "PENDING_CONFIRM").contains(c.getCaseStatus()))
+            throw new BusinessException("当前状态不可标记解决（当前：" + statusCn(c.getCaseStatus()) + "）");
         if (solution == null || solution.isBlank())
             throw new BusinessException("解决方案不能为空");
         c.setCaseStatus("RESOLVED");
@@ -698,8 +705,14 @@ public class AfterSalesServiceImpl implements AfterSalesService {
         if (s == null) return "-";
         return switch (s) {
             case "OPEN"       -> "待受理";
+            case "ACCEPTED"   -> "已受理";
+            case "PENDING_PLAN" -> "待方案";
+            case "PENDING_APPROVAL" -> "待审批";
+            case "EXECUTING"  -> "执行中";
+            case "PENDING_RECHECK" -> "待复检";
+            case "PENDING_CONFIRM" -> "待客户确认";
             case "TRACING"    -> "追溯中";
-            case "PROCESSING" -> "处理中";
+            case "PROCESSING" -> "已受理";
             case "RESOLVED"   -> "已解决";
             case "CLOSED"     -> "已关闭";
             case "CANCELLED"  -> "已取消";

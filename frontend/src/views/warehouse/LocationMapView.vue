@@ -89,7 +89,9 @@
             >
               <template #content>
                 <div class="bin-tooltip">
-                  <div><b>库位编号</b> {{ cell.id }}</div>
+                  <div><b>储位编号</b> {{ cell.id }}</div>
+                  <div v-if="cell.slotLabel"><b>位置</b> {{ cell.slotLabel }}</div>
+                  <div v-else-if="cell.rowNo"><b>位置</b> 第{{ cell.rowNo }}层第{{ cell.colNo }}格</div>
                   <div><b>物料名称</b> {{ cell.materialName || '空闲' }}</div>
                   <div><b>容量</b> {{ cell.capacity }}</div>
                   <div><b>已占用</b> {{ cell.occupied }}</div>

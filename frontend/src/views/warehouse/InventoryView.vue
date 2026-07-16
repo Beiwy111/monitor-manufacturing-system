@@ -41,24 +41,36 @@
               <el-button type="primary" @click="loadData">刷新</el-button>
             </div>
           </div>
-          <div class="catalog-main catalog-main--full">
-            <el-table :data="filteredFlows" border stripe v-loading="loading" class="catalog-table">
-              <el-table-column prop="flowType" label="业务类型" width="110" />
-              <el-table-column prop="materialCode" label="物料编码" width="120" />
-              <el-table-column prop="materialName" label="物料名称" min-width="160" />
-              <el-table-column prop="direction" label="方向" width="70" align="center">
+          <div class="catalog-main catalog-main--full pi-table-wrap--compact">
+            <el-table
+              :data="filteredFlows"
+              border
+              stripe
+              style="width:100%"
+              v-loading="loading"
+              class="catalog-table"
+            >
+              <el-table-column prop="flowType" label="业务类型" min-width="100" show-overflow-tooltip />
+              <el-table-column prop="materialCode" label="物料编码" min-width="110" show-overflow-tooltip />
+              <el-table-column prop="materialName" label="物料名称" min-width="140" show-overflow-tooltip />
+              <el-table-column prop="direction" label="方向" width="72" align="center">
                 <template #default="{ row }">
                   <el-tag :type="row.direction === '入' ? 'success' : 'warning'" size="small">
                     {{ row.direction }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="quantity" label="数量" width="90" align="right" />
-              <el-table-column prop="warehouseCode" label="仓库" width="100" />
-              <el-table-column prop="batchNo" label="批次" min-width="140" />
-              <el-table-column prop="refNo" label="关联单据" min-width="160" show-overflow-tooltip />
-              <el-table-column prop="operator" label="操作人" width="100" />
-              <el-table-column prop="createdAt" label="时间" min-width="160" />
+              <el-table-column prop="quantity" label="数量" min-width="90" align="right" />
+              <el-table-column prop="warehouseCode" label="仓库" min-width="90" align="center" />
+              <el-table-column prop="locationCode" label="库位储位" min-width="180" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.slotLabel || row.locationCode || '—' }}</template>
+              </el-table-column>
+              <el-table-column prop="batchNo" label="批次" min-width="120" show-overflow-tooltip />
+              <el-table-column prop="refNo" label="关联单据" min-width="130" show-overflow-tooltip />
+              <el-table-column prop="operator" label="操作人" min-width="90" show-overflow-tooltip />
+              <el-table-column label="时间" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">{{ formatCompactDateTime(row.createdAt) }}</template>
+              </el-table-column>
             </el-table>
           </div>
         </div>
@@ -72,6 +84,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import CatalogSection from './components/InventoryCatalogSection.vue'
 import { fetchWarehouseCatalog, fetchWarehouseTransactions } from '@/api/warehouse'
+import { formatCompactDateTime } from '@/utils/formatCompactDateTime'
 import { useMesStore } from '@/stores/mes'
 
 const mes = useMesStore()

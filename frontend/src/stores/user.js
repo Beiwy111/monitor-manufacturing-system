@@ -46,7 +46,7 @@ function buildUserInfo(session) {
   }
 }
 
-const _MENU_VERSION = '21'
+const _MENU_VERSION = '25'
 
 /**
  * 登录态存 sessionStorage（按浏览器标签页隔离）：

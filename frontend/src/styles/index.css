@@ -7,13 +7,13 @@ html, body, #app {
   padding: 0;
   height: 100%;
   min-height: 100%;
-  background: var(--layout-bg-gradient, linear-gradient(120deg, #f3faef 0%, #fff7ee 35%, #f6efff 70%, #edf4ff 100%));
+  background: var(--layout-bg-gradient, linear-gradient(180deg, #f7f8fa 0%, #f5f6f8 100%));
   background-attachment: fixed;
   background-repeat: no-repeat;
 }
 
 .page-card {
-  background: transparent;
+  background: #ffffff;
   border: 1px solid var(--layout-border, #e8e8e3);
   border-radius: var(--layout-card-radius, 10px);
   padding: 20px;
@@ -67,6 +67,16 @@ html, body, #app {
 .el-table th.el-table__cell,
 .el-table td.el-table__cell {
   padding: 10px 12px;
+  background-color: #ffffff;
+}
+
+.el-table th.el-table__cell {
+  background-color: #ffffff !important;
+}
+
+.el-table tr,
+.el-table td.el-table__cell {
+  background-color: #ffffff !important;
 }
 
 .el-table th.el-table__cell .cell {

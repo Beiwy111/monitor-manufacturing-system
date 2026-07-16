@@ -5,6 +5,9 @@
       <el-button size="small" type="success" :icon="Download" :disabled="!detail" @click="doExportExcel">
         导出 Excel
       </el-button>
+      <el-button size="small" type="warning" :icon="Download" :loading="pdfLoading" :disabled="!detail" @click="doExportPdf">
+        导出 PDF
+      </el-button>
       <el-button size="small" type="primary" :loading="aiLoading" :disabled="!canGenerateAi" @click="doGenerateAi">
         {{ aiReport?.aiGenerated ? '重新生成 AI 报告' : '生成 AI 质检报告' }}
       </el-button>
@@ -88,8 +91,8 @@
       </template>
       <p v-else class="qc-report-panel__ai-text">{{ aiReport.aiAnalysis || aiReport.conclusion }}</p>
     </div>
-    <p v-else-if="canGenerateAi" class="qc-report-panel__hint">
-      {{ props.optionalAi ? 'AI 质检报告为可选项，无需生成也可直接质检通过' : '检验完成后，点击「生成 AI 质检报告」获取千问智能分析' }}
+    <p v-else-if="canGenerateAi && !aiLoading" class="qc-report-panel__hint">
+      {{ props.autoGenerateAi ? '正在自动生成 AI 质检报告…' : props.optionalAi ? 'AI 质检报告为可选项，无需生成也可直接质检通过' : '检验完成后，点击「生成 AI 质检报告」获取千问智能分析' }}
     </p>
   </div>
 </template>
@@ -101,6 +104,7 @@ import { ElMessage } from 'element-plus'
 import BoardChart from '@/components/board/BoardChart.vue'
 import { postRefreshQualityReport } from '@/api/mes'
 import { exportInspectionReportExcel } from '@/utils/qualityExcelExport'
+import { exportInspectionReportPdf } from '@/utils/qualityPdfExport'
 import { useUserStore } from '@/stores/user'
 
 const props = defineProps({
@@ -108,12 +112,14 @@ const props = defineProps({
   items: { type: Array, default: () => [] },
   unitMatrix: { type: Object, default: null },
   optionalAi: { type: Boolean, default: false },
+  autoGenerateAi: { type: Boolean, default: false },
   beforeGenerateAi: { type: Function, default: null }
 })
 
 const userStore = useUserStore()
 const aiReport = ref(null)
 const aiLoading = ref(false)
+const pdfLoading = ref(false)
 
 const canGenerateAi = computed(() => !!(props.detail?.inspectionNo || props.detail?.inspectionId))
 
@@ -188,6 +194,28 @@ function doExportExcel() {
   }
 }
 
+async function doExportPdf() {
+  if (!props.detail) {
+    ElMessage.warning('暂无报告数据可导出')
+    return
+  }
+  pdfLoading.value = true
+  try {
+    await exportInspectionReportPdf({
+      detail: props.detail,
+      items: props.items,
+      aiReport: aiReport.value,
+      unitMatrix: props.unitMatrix
+    })
+    ElMessage.success('质检报告已导出 PDF')
+  } catch (e) {
+    console.error('export pdf failed:', e)
+    ElMessage.error(e?.message || '导出 PDF 失败')
+  } finally {
+    pdfLoading.value = false
+  }
+}
+
 async function doGenerateAi() {
   const qcId = props.detail?.inspectionNo || props.detail?.inspectionId
   if (!qcId) return
@@ -211,6 +239,8 @@ async function doGenerateAi() {
 }
 
 watch(() => props.detail?.inspectionId, () => { aiReport.value = null })
+
+defineExpose({ generateAi: doGenerateAi })
 </script>
 
 <style scoped>

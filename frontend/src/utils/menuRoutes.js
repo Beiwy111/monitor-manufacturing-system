@@ -56,6 +56,7 @@ export const MENU_PATH_MAP = {
   'warehouse:inboundHub': '/warehouse/inbound-hub',
   'warehouse:outboundHub': '/warehouse/outbound-hub',
   'warehouse:capacity': '/warehouse/capacity',
+  'warehouse:workbench': '/warehouse/workbench',
   'order:list': '/order/list',
   'order:aiScreenshot': '/order/ai-screenshot',
   'order:audit': '/order/audit',
@@ -66,6 +67,7 @@ export const MENU_PATH_MAP = {
   'production:processGuide': '/production/process-guide',
   'report:productionProgress': '/report/production-progress',
   'device:equipment': '/device/equipment',
+  'device:workshop': '/device/workshop-status',
   'device:status': '/device/status',
   'device:alarm': '/device/alarm',
   'device:maintenance': '/device/maintenance',
@@ -75,20 +77,30 @@ export const MENU_PATH_MAP = {
   'purchase:order': '/purchase/order',
   'purchase:supplier': '/purchase/supplier',
   'purchase:arrival': '/purchase/arrival',
-  'aftersale:case': '/aftersale/case',
-  'aftersale:feedback': '/aftersale/feedback',
-  'aftersale:process': '/aftersale/process',
-  'aftersale:trace': '/aftersale/trace',
-  'cost:workOrder': '/cost/work-order',
-  'cost:material': '/cost/material',
-  'cost:labor': '/cost/labor',
-  'cost:equipment': '/cost/equipment',
-  'cost:settlement': '/cost/settlement',
-  'cost:report': '/cost/report',
+  'aftersale:case': '/aftersale/work-order',
+  'aftersale:workbench': '/dashboard/aftersale',
+  'aftersale:work-order': '/aftersale/work-order',
+  'aftersale:plan': '/aftersale/plan',
+  'aftersale:execution': '/aftersale/execution',
+  'aftersale:closure': '/aftersale/closure',
+  'aftersale:feedback': '/aftersale/work-order',
+  'aftersale:process': '/aftersale/execution',
+  'aftersale:trace': '/dashboard/aftersale',
+  'cost:home': '/dashboard/cost',
+  'cost:accounting': '/finance/cost-accounting',
+  'cost:revenue': '/finance/revenue',
+  'cost:screen': '/finance/screen',
+  'cost:financeReport': '/finance/report',
+  'cost:workOrder': '/finance/cost-accounting',
+  'cost:material': '/finance/cost-accounting',
+  'cost:labor': '/finance/cost-accounting',
+  'cost:equipment': '/finance/cost-accounting',
+  'cost:settlement': '/finance/cost-accounting',
+  'cost:report': '/finance/report',
   'equipment:equipment': '/device/equipment',
   'equipment:alarm': '/device/alarm',
   'equipment:maintenance': '/device/maintenance',
-  'afterSales:afterSalesCase': '/aftersale/case',
+  'afterSales:afterSalesCase': '/aftersale/work-order',
   'afterSales:settlement': '/cost/settlement',
   'customer:newOrder': '/customer/order/new',
   'customer:orders': '/customer/orders',
@@ -112,8 +124,8 @@ export const MANAGER_ONLY_PATHS = new Set([
 ])
 
 /** 已下线、需从导航中移除的菜单（按 path 或 menuCode 匹配） */
-const REMOVED_MENU_PATHS = new Set(['/purchase/arrival', '/device/status'])
-const REMOVED_MENU_CODES = new Set(['purchase:arrival', 'device:status'])
+const REMOVED_MENU_PATHS = new Set(['/purchase/arrival', '/device/status', '/device/records'])
+const REMOVED_MENU_CODES = new Set(['purchase:arrival', 'device:status', 'device:records'])
 
 /** 设备模块 menuCode 别名（后端 sys_menu 可能为 device 或 equipment） */
 const EQUIPMENT_MODULE_CODES = new Set(['equipment', 'device'])
@@ -164,9 +176,9 @@ export function sanitizeMenus(menus) {
 const ROLE_MENU_EXTRAS = {
   order: {
     order: [
-      { menuId: 9030, menuName: 'AI识图下单', path: '/order/ai-screenshot' },
+      { menuId: 9032, menuName: '订单跟踪', path: '/order/track' },
       { menuId: 9031, menuName: '订单审核', path: '/order/audit' },
-      { menuId: 9032, menuName: '订单跟踪', path: '/order/track' }
+      { menuId: 9030, menuName: 'AI识图下单', path: '/order/ai-screenshot' }
     ]
   },
   planner: {
@@ -204,6 +216,7 @@ const ROLE_MENU_EXTRAS = {
   },
   warehouse: {
     warehouse: [
+      { menuId: 8807, menuName: '仓储管理工作台', path: '/warehouse/workbench' },
       { menuId: 9071, menuName: '入库', path: '/warehouse/inbound-hub' },
       { menuId: 9072, menuName: '出库', path: '/warehouse/outbound-hub' },
       { menuId: 9073, menuName: '库存容量查询', path: '/warehouse/capacity' },
@@ -211,12 +224,77 @@ const ROLE_MENU_EXTRAS = {
     ]
   },
   aftersale: {
-    afterSales: [{ menuId: 9100, menuName: '调查工作台', path: '/dashboard/aftersale' }]
+    aftersale: [
+      { menuId: 9100, menuName: '调查工作台', path: '/dashboard/aftersale' },
+      { menuId: 9101, menuName: '售后工单', path: '/aftersale/work-order' },
+      { menuId: 9102, menuName: '方案审批', path: '/aftersale/plan' },
+      { menuId: 9103, menuName: '执行协同', path: '/aftersale/execution' },
+      { menuId: 9104, menuName: '验证闭环', path: '/aftersale/closure' }
+    ]
   },
   device: {
     equipment: [{ menuId: 9091, menuName: '3D 车间大屏', path: '/dashboard/device' }]
   },
   customer: {}
+}
+
+/** 角色侧栏：同一模块下子菜单的 path 顺序 */
+const ROLE_CHILD_MENU_ORDER = {
+  order: {
+    order: [
+      '/order/track',
+      '/order/audit',
+      '/order/list',
+      '/order/ai-screenshot'
+    ]
+  },
+  warehouse: {
+    warehouse: [
+      '/warehouse/workbench',
+      '/warehouse/inbound-hub',
+      '/warehouse/outbound-hub',
+      '/warehouse/capacity',
+      '/warehouse/location-map'
+    ]
+  },
+  aftersale: {
+    aftersale: [
+      '/dashboard/aftersale',
+      '/aftersale/work-order',
+      '/aftersale/plan',
+      '/aftersale/execution',
+      '/aftersale/closure'
+    ]
+  }
+}
+
+const WAREHOUSE_ROLE_ALLOWED_PATHS = new Set([
+  '/warehouse/workbench',
+  '/warehouse/inbound-hub',
+  '/warehouse/outbound-hub',
+  '/warehouse/capacity',
+  '/warehouse/location-map'
+])
+
+function sortRoleMenuChildren(menus, roleKey) {
+  const moduleOrders = ROLE_CHILD_MENU_ORDER[roleKey]
+  if (!moduleOrders) return menus
+
+  return menus.map((m) => {
+    const paths = moduleOrders[m.menuCode]
+      || ((m.menuCode === 'order' || m.menuName === '订单管理' || m.menuName === '订单发货')
+        ? moduleOrders.order
+        : null)
+    if (!paths?.length || !m.children?.length) return m
+
+    const rank = new Map(paths.map((p, i) => [p, i]))
+    const children = [...m.children].sort((a, b) => {
+      const ra = rank.has(a.path) ? rank.get(a.path) : 999
+      const rb = rank.has(b.path) ? rank.get(b.path) : 999
+      return ra - rb || String(a.menuName).localeCompare(String(b.menuName), 'zh-CN')
+    })
+    return { ...m, children }
+  })
 }
 
 /** 按模块 menuCode 推断前端一级模块名 */
@@ -233,7 +311,7 @@ const MODULE_NAME_MAP = {
   device: '设备管理',
   afterSales: '售后成本',
   aftersale: '售后管理',
-  cost: '成本管理',
+  cost: '财务管理',
   customer: '客户门户',
   attendance: '考勤管理',
   devWorkbench: '角色工作台',
@@ -258,7 +336,7 @@ const ADMIN_MENU_ORDER = [
     workbench: { menuId: 8804, menuName: '工序报工', path: '/production/report' }
   },
   { roleKey: 'quality', menuName: '质检', workbench: { menuId: 8805, menuName: '质检员工作台', path: '/dashboard/quality' } },
-  { roleKey: 'warehouse', menuName: '仓储', workbench: { menuId: 8807, menuName: '仓储管理工作台', path: '/dashboard/warehouse' } },
+  { roleKey: 'warehouse', menuName: '仓储', workbench: { menuId: 8807, menuName: '仓储管理工作台', path: '/warehouse/workbench' } },
   { roleKey: 'device', menuName: '设备维护', workbench: { menuId: 8808, menuName: '设备维护工作台', path: '/dashboard/device' } },
   { roleKey: 'aftersale', menuName: '售后', workbench: { menuId: 8809, menuName: '售后调查工作台', path: '/dashboard/aftersale' } },
   { roleKey: 'cost', menuName: '财务管理', workbench: { menuId: 8810, menuName: '财务成本工作台', path: '/dashboard/cost' } }
@@ -303,6 +381,7 @@ export function normalizeMenus(apiMenus, roleKey, fallbackMenus) {
     menus = mergeAdminDevMenus(menus)
   } else {
     menus = mergeRoleExtras(menus, roleKey)
+    menus = sortRoleMenuChildren(menus, roleKey)
   }
 
   if (!menus.length && fallbackMenus?.length) {
@@ -374,6 +453,28 @@ function mergeRoleExtras(menus, roleKey, { strict = true } = {}) {
         m.children = m.children.filter((c) => c.path === '/device/alarm')
       }
     })
+  }
+  if (strict && roleKey === 'warehouse') {
+    const paths = new Set()
+    const children = []
+    const pushChild = (item) => {
+      if (!item?.path || !WAREHOUSE_ROLE_ALLOWED_PATHS.has(item.path) || paths.has(item.path)) return
+      children.push({ ...item })
+      paths.add(item.path)
+    }
+    result.forEach((m) => {
+      ;(m.children || []).forEach(pushChild)
+    })
+    ;(extras.warehouse || []).forEach(pushChild)
+    const order = ROLE_CHILD_MENU_ORDER.warehouse.warehouse
+    const rank = new Map(order.map((p, i) => [p, i]))
+    children.sort((a, b) => (rank.get(a.path) ?? 999) - (rank.get(b.path) ?? 999))
+    return [{
+      menuId: 6,
+      menuCode: 'warehouse',
+      menuName: '仓储',
+      children
+    }]
   }
   return result.filter((m) => m.children?.length)
 }
@@ -596,7 +697,7 @@ const ROLE_HOME_TITLE = {
   operator: '生产操作员工作台',
   quality: '质检员工作台',
   purchase: '采购员工作台',
-  warehouse: '仓库管理工作台',
+  warehouse: '仓储人员首页',
   device: '设备维护工作台',
   aftersale: '调查工作台',
   cost: '财务/成本工作台',

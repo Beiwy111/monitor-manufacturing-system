@@ -1,9 +1,16 @@
 const STATUS_TYPES = {
   aftersaleCase: {
     OPEN: 'danger',
+    ACCEPTED: 'warning',
     PROCESSING: 'warning',
-    RESOLVED: 'primary',
-    CLOSED: 'info'
+    PENDING_PLAN: 'warning',
+    PENDING_APPROVAL: '',
+    EXECUTING: 'primary',
+    PENDING_RECHECK: 'warning',
+    PENDING_CONFIRM: 'primary',
+    RESOLVED: 'success',
+    CLOSED: 'info',
+    CANCELLED: 'info'
   },
   costSettlement: {
     DRAFT: 'info',

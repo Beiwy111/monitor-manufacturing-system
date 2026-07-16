@@ -8,37 +8,12 @@
       <el-button :loading="loading" @click="loadAll">刷新</el-button>
     </div>
 
-    <!-- KPI -->
-    <KpiStrip :cards="kpiCards" :metrics="kpi" />
-
-    <!-- 生产车间（与主管大屏一致） -->
-    <div v-loading="loading" class="dm-card">
-      <div class="dm-card__title">
-        生产车间状态
-        <el-tag type="info" size="small" effect="plain" style="margin-left:8px">八道生产工序 · {{ workshops.length }} 车间</el-tag>
-      </div>
-      <el-table :data="workshops" border stripe size="small">
-        <el-table-column prop="parentStepName" label="工序" width="100" />
-        <el-table-column prop="name" label="车间" min-width="140" />
-        <el-table-column label="设备" width="64" align="center">
-          <template #default="{ row }">{{ row.total || row.machines?.length || 0 }}</template>
-        </el-table-column>
-        <el-table-column label="运行" width="64" align="center">
-          <template #default="{ row }">{{ row.running || row.active || 0 }}</template>
-        </el-table-column>
-        <el-table-column label="故障" width="64" align="center">
-          <template #default="{ row }">
-            <span :style="{ color: Number(row.fault || row.abnormal) > 0 ? '#f56c6c' : '' }">{{ row.fault || row.abnormal || 0 }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="88" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'running' ? 'success' : row.status === 'abnormal' ? 'danger' : 'info'" size="small">
-              {{ row.status === 'running' ? '运行中' : row.status === 'abnormal' ? '异常' : '待机' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
+    <div class="dm-stats">
+      <span>设备总数：<em>{{ kpi.total ?? 0 }}</em></span>
+      <span class="dm-stats--ok">正常：<em>{{ kpi.normal ?? 0 }}</em></span>
+      <span class="dm-stats--danger">故障：<em>{{ kpi.fault ?? 0 }}</em></span>
+      <span class="dm-stats--warn">维保中：<em>{{ kpi.maintaining ?? 0 }}</em></span>
+      <span class="dm-stats--open">未闭环报警：<em>{{ kpi.openAlarms ?? 0 }}</em></span>
     </div>
 
     <!-- 待处理设备（故障 + 维保中） -->
@@ -110,6 +85,32 @@
       </el-table>
     </div>
 
+    <!-- 维修记录（完成维保后自动写入） -->
+    <div v-loading="loading" class="dm-card">
+      <div class="dm-card__title">
+        维修记录
+        <el-tag type="info" size="small" effect="plain" style="margin-left:8px">{{ records.length }} 条</el-tag>
+      </div>
+      <el-empty v-if="!loading && !records.length" description="暂无维修记录，完成维保后将自动记录" :image-size="80" />
+      <el-table v-else :data="records" border stripe size="small">
+        <el-table-column prop="maintenanceNo" label="单号" width="130" />
+        <el-table-column prop="equipmentCode" label="设备编码" width="100" />
+        <el-table-column prop="equipmentName" label="设备名称" min-width="130" show-overflow-tooltip />
+        <el-table-column prop="maintenanceTypeCn" label="类型" width="72" align="center" />
+        <el-table-column prop="faultDescription" label="故障描述" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="maintenanceContent" label="维护小结" min-width="160" show-overflow-tooltip />
+        <el-table-column label="结果" width="88" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.inProgress ? 'warning' : 'success'" size="small">{{ row.maintenanceResultCn }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="downtimeMinutes" label="停机(分)" width="88" align="right" />
+        <el-table-column prop="maintainerName" label="维护人" width="88" />
+        <el-table-column prop="startTime" label="开始时间" width="150" />
+        <el-table-column prop="endTime" label="结束时间" width="150" />
+      </el-table>
+    </div>
+
     <!-- 开始维保弹窗 -->
     <el-dialog v-model="startVisible" title="开始维保" width="440px">
       <el-form :model="startForm" label-width="80px">
@@ -168,23 +169,12 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import KpiStrip from '@/components/module/KpiStrip.vue'
 import ModulePageShell from '@/components/module/ModulePageShell.vue'
 import { moduleStatusType } from '@/constants/moduleStatus'
 import {
   fetchEquipmentViews, fetchEquipmentKpi, fetchAlarmViews, fetchMaintenanceViews,
-  fetchEquipmentWorkshopOverview,
   receiveAlarm, resolveAlarm, startMaintenance, finishMaintenance
 } from '@/api/business'
-import { mergeWorkshopData } from '@/composables/useWorkshopScene'
-
-const kpiCards = [
-  { key: 'total', kpiKey: 'total', label: '设备总数', cls: '' },
-  { key: 'normal', kpiKey: 'normal', label: '正常', cls: 'passed' },
-  { key: 'fault', kpiKey: 'fault', label: '故障', cls: 'failed' },
-  { key: 'maintaining', kpiKey: 'maintaining', label: '维保中', cls: 'recheck' },
-  { key: 'openAlarms', kpiKey: 'openAlarms', label: '未闭环报警', cls: 'open' },
-]
 
 const userStore = useUserStore()
 const operator = computed(() => userStore.userInfo?.username || '')
@@ -193,7 +183,6 @@ const loading = ref(false)
 const acting = ref(false)
 const kpi = ref({})
 const equipments = ref([])
-const workshops = ref([])
 const alarms = ref([])
 const records = ref([])
 let alarmPollTimer = null
@@ -233,17 +222,15 @@ function isAlarmOpen(s) {
 async function loadAll() {
   loading.value = true
   try {
-    const [kRes, eqRes, alRes, mrRes, ovRes] = await Promise.allSettled([
-      fetchEquipmentKpi(), fetchEquipmentViews(), fetchAlarmViews(), fetchMaintenanceViews(),
-      fetchEquipmentWorkshopOverview()
+    const [kRes, eqRes, alRes, mrRes] = await Promise.allSettled([
+      fetchEquipmentKpi(), fetchEquipmentViews(), fetchAlarmViews(), fetchMaintenanceViews()
     ])
     const pick = (res, fallback) => (res.status === 'fulfilled' ? (res.value ?? fallback) : fallback)
     kpi.value = pick(kRes, {})
     equipments.value = pick(eqRes, [])
     alarms.value = pick(alRes, [])
     records.value = pick(mrRes, [])
-    workshops.value = mergeWorkshopData(pick(ovRes, {})?.workshops || [])
-    const results = [kRes, eqRes, alRes, mrRes, ovRes]
+    const results = [kRes, eqRes, alRes, mrRes]
     const failed = results.filter((r) => r.status === 'rejected')
     if (failed.length === results.length) {
       ElMessage.error(failed[0]?.reason?.message || '加载设备数据失败')
@@ -296,7 +283,7 @@ async function doFinish() {
       ...finishForm,
       operator: operator.value
     })
-    ElMessage.success('维保完成，设备已恢复正常')
+    ElMessage.success('维保完成，设备已恢复正常，维修记录已更新')
     finishVisible.value = false
     await loadAll()
   } catch (e) {
@@ -346,8 +333,23 @@ onUnmounted(() => { if (alarmPollTimer) clearInterval(alarmPollTimer) })
 </script>
 
 <style scoped>
-.dm-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.dm-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .dm-title { font-size: 18px; font-weight: 700; color: #001b3f; }
+.dm-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-bottom: 14px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: #606266;
+  border-bottom: 1px solid #ebeef5;
+}
+.dm-stats em { font-style: normal; font-weight: 700; margin-left: 4px; color: #303133; }
+.dm-stats--ok em { color: #67c23a; }
+.dm-stats--danger em { color: #f56c6c; }
+.dm-stats--warn em { color: #e6a23c; }
+.dm-stats--open em { color: #f56c6c; }
 .dm-card { background: #fff; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
 .dm-card__title { font-size: 15px; font-weight: 600; color: #001b3f; margin-bottom: 10px; }
 </style>

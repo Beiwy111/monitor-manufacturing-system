@@ -35,6 +35,8 @@ public class WarehouseBarcodeService {
     private MaterialMapper materialMapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private WarehouseSlotService warehouseSlotService;
 
     public List<BarcodeRule> rules() {
         try {
@@ -198,7 +200,8 @@ public class WarehouseBarcodeService {
 
     public List<Map<String, Object>> inventoryList() {
         try {
-            return inventoryMapper.inventoryDetailList();
+            List<Map<String, Object>> rows = inventoryMapper.inventoryDetailList();
+            return enrichInventoryRows(rows);
         } catch (Exception e) {
             if (isMissingBarcodeSchema(e)) {
                 return inventoryMapper.inventoryList().stream().map(inv -> {
@@ -212,6 +215,7 @@ public class WarehouseBarcodeService {
                     row.put("warehouseCode", inv.getWarehouseCode());
                     row.put("warehouseName", inv.getWarehouseName());
                     row.put("locationCode", inv.getLocationCode());
+                    row.put("slotLabel", warehouseSlotService.formatSlotLabel(inv.getLocationCode()));
                     row.put("batchNo", inv.getBatchNo());
                     row.put("quantityOnHand", inv.getQuantityOnHand());
                     row.put("quantityReserved", inv.getQuantityReserved());
@@ -227,6 +231,16 @@ public class WarehouseBarcodeService {
             }
             throw e;
         }
+    }
+
+    private List<Map<String, Object>> enrichInventoryRows(List<Map<String, Object>> rows) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> item = new LinkedHashMap<>(row);
+            item.put("slotLabel", warehouseSlotService.formatSlotLabel(text(row.get("locationCode"))));
+            list.add(item);
+        }
+        return list;
     }
 
     public List<Map<String, Object>> inventoryCatalog() {
@@ -263,6 +277,7 @@ public class WarehouseBarcodeService {
             item.put("direction", flowDirection(type));
             item.put("warehouseCode", row.get("warehouseCode"));
             item.put("locationCode", row.get("locationCode"));
+            item.put("slotLabel", warehouseSlotService.formatSlotLabel(text(row.get("locationCode"))));
             item.put("batchNo", row.get("batchNo"));
             item.put("refNo", row.get("remark"));
             item.put("operator", row.get("operatorName"));

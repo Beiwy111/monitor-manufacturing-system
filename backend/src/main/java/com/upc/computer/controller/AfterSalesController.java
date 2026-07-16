@@ -5,6 +5,7 @@ import com.upc.computer.common.Result;
 import com.upc.computer.entity.AfterSalesCase;
 import com.upc.computer.entity.CostSettlement;
 import com.upc.computer.service.AfterSalesService;
+import com.upc.computer.service.AfterSalesWorkflowService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +30,9 @@ public class AfterSalesController {
 
     @Autowired
     private AfterSalesService afterSalesService;
+
+    @Autowired
+    private AfterSalesWorkflowService workflowService;
 
     // ── 视图查询 ──────────────────────────────────────────────
 
@@ -118,6 +122,94 @@ public class AfterSalesController {
                 caseNo, str(body, "remark"), str(body, "operator")));
     }
 
+    // ── 售后流程：方案 / 执行 / 闭环 ───────────────────────────
+
+    @GetMapping("/workflow/plans")
+    public Result<List<Map<String, Object>>> listPlans() {
+        return Result.success(workflowService.listPlans());
+    }
+
+    @GetMapping("/workflow/plan")
+    public Result<Map<String, Object>> getPlan(@RequestParam String caseNo) {
+        return Result.success(workflowService.getPlanByCase(caseNo));
+    }
+
+    @PostMapping("/workflow/plan/save")
+    public Result<Map<String, Object>> savePlan(@RequestBody Map<String, Object> body) {
+        return Result.success("方案已保存", workflowService.savePlan(body));
+    }
+
+    @PostMapping("/workflow/plan/submit")
+    public Result<Map<String, Object>> submitPlan(@RequestBody Map<String, Object> body) {
+        Long planId = longVal(body.get("planId"));
+        if (planId == null) throw new BusinessException("planId 不能为空");
+        return Result.success("方案已提交审批", workflowService.submitPlan(planId));
+    }
+
+    @PostMapping("/workflow/plan/approve")
+    public Result<Map<String, Object>> approvePlan(@RequestBody Map<String, Object> body) {
+        Long planId = longVal(body.get("planId"));
+        if (planId == null) throw new BusinessException("planId 不能为空");
+        return Result.success("方案已通过，执行任务已生成", workflowService.approvePlan(planId, str(body, "operator")));
+    }
+
+    @PostMapping("/workflow/plan/reject")
+    public Result<Map<String, Object>> rejectPlan(@RequestBody Map<String, Object> body) {
+        Long planId = longVal(body.get("planId"));
+        if (planId == null) throw new BusinessException("planId 不能为空");
+        return Result.success("方案已驳回", workflowService.rejectPlan(planId, str(body, "remark")));
+    }
+
+    @GetMapping("/workflow/tasks")
+    public Result<List<Map<String, Object>>> listWorkflowTasks(@RequestParam(required = false) String caseNo) {
+        if (caseNo != null && !caseNo.isBlank()) {
+            return Result.success(workflowService.listTasksByCase(caseNo));
+        }
+        return Result.success(workflowService.listTasks());
+    }
+
+    @PostMapping("/workflow/task/update")
+    public Result<Map<String, Object>> updateWorkflowTask(@RequestBody Map<String, Object> body) {
+        return Result.success("任务已更新", workflowService.updateTask(body));
+    }
+
+    @PostMapping("/workflow/case/advance")
+    public Result<Map<String, Object>> advanceCase(@RequestBody Map<String, Object> body) {
+        String caseNo = str(body, "caseNo");
+        String targetStatus = str(body, "targetStatus");
+        if (caseNo.isBlank() || targetStatus.isBlank()) throw new BusinessException("caseNo 与 targetStatus 不能为空");
+        return Result.success("状态已更新", workflowService.advanceCase(caseNo, targetStatus));
+    }
+
+    @GetMapping("/workflow/closure")
+    public Result<Map<String, Object>> getClosure(@RequestParam String caseNo) {
+        return Result.success(workflowService.getClosure(caseNo));
+    }
+
+    @GetMapping("/workflow/closures")
+    public Result<List<Map<String, Object>>> listClosures() {
+        return Result.success(workflowService.listClosures());
+    }
+
+    @PostMapping("/workflow/closure/save")
+    public Result<Map<String, Object>> saveClosure(@RequestBody Map<String, Object> body) {
+        return Result.success("闭环信息已保存", workflowService.saveClosure(body));
+    }
+
+    @PostMapping("/workflow/closure/confirm-customer")
+    public Result<Map<String, Object>> confirmCustomer(@RequestBody Map<String, Object> body) {
+        String caseNo = str(body, "caseNo");
+        if (caseNo.isBlank()) throw new BusinessException("caseNo 不能为空");
+        return Result.success("客户已确认", workflowService.confirmCustomer(caseNo));
+    }
+
+    @PostMapping("/workflow/closure/close")
+    public Result<Map<String, Object>> closeWithClosure(@RequestBody Map<String, Object> body) {
+        String caseNo = str(body, "caseNo");
+        if (caseNo.isBlank()) throw new BusinessException("caseNo 不能为空");
+        return Result.success("案例已关闭", workflowService.closeWithClosure(caseNo, str(body, "operator")));
+    }
+
     // ── 原始 CRUD 兼容 ────────────────────────────────────────
 
     @RequestMapping("/afterSalesCase/list")
@@ -179,5 +271,11 @@ public class AfterSalesController {
     private String str(Map<String, Object> m, String k) {
         Object v = m.get(k);
         return v != null ? v.toString() : "";
+    }
+
+    private Long longVal(Object v) {
+        if (v == null) return null;
+        if (v instanceof Number n) return n.longValue();
+        try { return Long.parseLong(v.toString()); } catch (Exception e) { return null; }
     }
 }

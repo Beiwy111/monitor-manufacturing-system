@@ -174,7 +174,8 @@ public interface AfterSalesRcaMapper {
     int insertAnalysis(Map<String,Object> row);
 
     @Select("""
-        SELECT snapshot_json snapshotJson FROM after_sales_rca_analysis
+        SELECT conclusion, top_cause topCause, top_department topDepartment, top_score topScore,
+               snapshot_json snapshotJson FROM after_sales_rca_analysis
         WHERE case_no=#{caseNo} ORDER BY analysis_id DESC LIMIT 1
         """)
     Map<String,Object> latestAnalysis(String caseNo);

@@ -10,16 +10,16 @@ import java.util.Map;
 @Mapper
 public interface AfterSalesCaseMapper {
 
-    @Select("SELECT case_no,order_id,delivery_id,material_id,batch_no,quality_inspection_id,customer_name,contact_name,contact_phone,problem_description,attachment_urls,problem_type,case_level,case_status,trace_result,handle_result,service_user_id,opened_at,processing_at,resolved_at,closed_at,created_at,updated_at FROM after_sales_case ORDER BY created_at DESC")
+    @Select("SELECT case_no,order_id,delivery_id,material_id,batch_no,quality_inspection_id,customer_name,contact_name,contact_phone,problem_description,attachment_urls,problem_type,case_level,case_status,trace_result,handle_result,service_user_id,opened_at,processing_at,sla_deadline,resolved_at,closed_at,created_at,updated_at FROM after_sales_case ORDER BY created_at DESC")
     ArrayList<AfterSalesCase> afterSalesCaseList();
 
-    @Select("SELECT case_no,order_id,delivery_id,material_id,batch_no,quality_inspection_id,customer_name,contact_name,contact_phone,problem_description,attachment_urls,problem_type,case_level,case_status,trace_result,handle_result,service_user_id,opened_at,processing_at,resolved_at,closed_at,created_at,updated_at FROM after_sales_case WHERE case_no = #{caseNo}")
+    @Select("SELECT case_no,order_id,delivery_id,material_id,batch_no,quality_inspection_id,customer_name,contact_name,contact_phone,problem_description,attachment_urls,problem_type,case_level,case_status,trace_result,handle_result,service_user_id,opened_at,processing_at,sla_deadline,resolved_at,closed_at,created_at,updated_at FROM after_sales_case WHERE case_no = #{caseNo}")
     AfterSalesCase getAfterSalesCaseById(String caseNo);
 
-    @Insert("INSERT INTO after_sales_case (case_no,order_id,delivery_id,material_id,batch_no,quality_inspection_id,customer_name,contact_name,contact_phone,problem_description,attachment_urls,problem_type,case_level,case_status,trace_result,handle_result,service_user_id,opened_at,processing_at,resolved_at,closed_at,created_at,updated_at) VALUES (#{caseNo},#{orderId},#{deliveryId},#{materialId},#{batchNo},#{qualityInspectionId},#{customerName},#{contactName},#{contactPhone},#{problemDescription},#{attachmentUrls},#{problemType},#{caseLevel},#{caseStatus},#{traceResult},#{handleResult},#{serviceUserId},#{openedAt},#{processingAt},#{resolvedAt},#{closedAt},#{createdAt},#{updatedAt})")
+    @Insert("INSERT INTO after_sales_case (case_no,order_id,delivery_id,material_id,batch_no,quality_inspection_id,customer_name,contact_name,contact_phone,problem_description,attachment_urls,problem_type,case_level,case_status,trace_result,handle_result,service_user_id,opened_at,processing_at,sla_deadline,resolved_at,closed_at,created_at,updated_at) VALUES (#{caseNo},#{orderId},#{deliveryId},#{materialId},#{batchNo},#{qualityInspectionId},#{customerName},#{contactName},#{contactPhone},#{problemDescription},#{attachmentUrls},#{problemType},#{caseLevel},#{caseStatus},#{traceResult},#{handleResult},#{serviceUserId},#{openedAt},#{processingAt},#{slaDeadline},#{resolvedAt},#{closedAt},#{createdAt},#{updatedAt})")
     void insertAfterSalesCase(AfterSalesCase afterSalesCase);
 
-    @Update("UPDATE after_sales_case SET order_id=#{orderId},delivery_id=#{deliveryId},material_id=#{materialId},batch_no=#{batchNo},quality_inspection_id=#{qualityInspectionId},customer_name=#{customerName},contact_name=#{contactName},contact_phone=#{contactPhone},problem_description=#{problemDescription},attachment_urls=#{attachmentUrls},problem_type=#{problemType},case_level=#{caseLevel},case_status=#{caseStatus},trace_result=#{traceResult},handle_result=#{handleResult},service_user_id=#{serviceUserId},opened_at=#{openedAt},processing_at=#{processingAt},resolved_at=#{resolvedAt},closed_at=#{closedAt},updated_at=#{updatedAt} WHERE case_no=#{caseNo}")
+    @Update("UPDATE after_sales_case SET order_id=#{orderId},delivery_id=#{deliveryId},material_id=#{materialId},batch_no=#{batchNo},quality_inspection_id=#{qualityInspectionId},customer_name=#{customerName},contact_name=#{contactName},contact_phone=#{contactPhone},problem_description=#{problemDescription},attachment_urls=#{attachmentUrls},problem_type=#{problemType},case_level=#{caseLevel},case_status=#{caseStatus},trace_result=#{traceResult},handle_result=#{handleResult},service_user_id=#{serviceUserId},opened_at=#{openedAt},processing_at=#{processingAt},sla_deadline=#{slaDeadline},resolved_at=#{resolvedAt},closed_at=#{closedAt},updated_at=#{updatedAt} WHERE case_no=#{caseNo}")
     void updateAfterSalesCase(AfterSalesCase afterSalesCase);
 
     @Delete("DELETE FROM after_sales_case WHERE case_no = #{caseNo}")
@@ -46,6 +46,11 @@ public interface AfterSalesCaseMapper {
           a.case_status        AS caseStatus,
           a.trace_result       AS traceResult,
           a.handle_result      AS handleResult,
+          a.service_user_id    AS serviceUserId,
+          su.real_name         AS assigneeName,
+          a.sla_deadline       AS slaDeadline,
+          (SELECT t.risk_level FROM after_sales_triage t WHERE t.case_no=a.case_no ORDER BY t.triage_id DESC LIMIT 1) AS aiTriageLevel,
+          (SELECT t.category_name FROM after_sales_triage t WHERE t.case_no=a.case_no ORDER BY t.triage_id DESC LIMIT 1) AS aiTriageCategory,
           a.opened_at          AS openedAt,
           a.processing_at      AS processingAt,
           a.resolved_at        AS resolvedAt,
@@ -55,6 +60,7 @@ public interface AfterSalesCaseMapper {
         LEFT JOIN customer_order co ON co.order_id = a.order_id
         LEFT JOIN material m        ON m.material_id = a.material_id
         LEFT JOIN quality_inspection qi ON qi.inspection_id = a.quality_inspection_id
+        LEFT JOIN user su ON su.user_id = a.service_user_id
         ORDER BY a.created_at DESC
         """)
     List<Map<String, Object>> listCaseViews();
@@ -102,6 +108,18 @@ public interface AfterSalesCaseMapper {
         """)
     Map<String, Object> getTraceDetail(String caseNo);
 
-    @Select("SELECT COUNT(*) AS total, SUM(CASE WHEN case_status='OPEN' THEN 1 ELSE 0 END) AS open, SUM(CASE WHEN case_status='PROCESSING' THEN 1 ELSE 0 END) AS processing, SUM(CASE WHEN case_status='RESOLVED' THEN 1 ELSE 0 END) AS resolved, SUM(CASE WHEN case_status='CLOSED' THEN 1 ELSE 0 END) AS closed FROM after_sales_case")
+    @Select("""
+        SELECT COUNT(*) AS total,
+          SUM(CASE WHEN case_status='OPEN' THEN 1 ELSE 0 END) AS open,
+          SUM(CASE WHEN case_status IN ('ACCEPTED','PROCESSING') THEN 1 ELSE 0 END) AS accepted,
+          SUM(CASE WHEN case_status='PENDING_PLAN' THEN 1 ELSE 0 END) AS pendingPlan,
+          SUM(CASE WHEN case_status='PENDING_APPROVAL' THEN 1 ELSE 0 END) AS pendingApproval,
+          SUM(CASE WHEN case_status='EXECUTING' THEN 1 ELSE 0 END) AS executing,
+          SUM(CASE WHEN case_status='PENDING_RECHECK' THEN 1 ELSE 0 END) AS pendingRecheck,
+          SUM(CASE WHEN case_status='PENDING_CONFIRM' THEN 1 ELSE 0 END) AS pendingConfirm,
+          SUM(CASE WHEN case_status='RESOLVED' THEN 1 ELSE 0 END) AS resolved,
+          SUM(CASE WHEN case_status='CLOSED' THEN 1 ELSE 0 END) AS closed
+        FROM after_sales_case
+        """)
     Map<String, Object> caseKpi();
 }

@@ -36,6 +36,12 @@ public class MesController {
         return Result.success(mesSnapshotService.buildSnapshot());
     }
 
+    /** 操作员业务通知（派工等），按登录账号过滤 */
+    @GetMapping("/notifications/inbox")
+    public Result<List<Map<String, Object>>> operatorNotifications(@RequestParam String username) {
+        return Result.success(mesWorkflowService.listOperatorNotices(username));
+    }
+
     @PostMapping("/action")
     public Result<Object> action(@RequestBody MesActionRequest req) {
         return Result.success(mesWorkflowService.execute(req));

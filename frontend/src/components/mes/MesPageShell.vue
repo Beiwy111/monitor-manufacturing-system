@@ -28,7 +28,7 @@
       <template #extra><slot name="toolbar-extra" /></template>
     </SearchToolbar>
 
-    <div class="ruoyi-table-wrap">
+    <div class="ruoyi-table-wrap" :class="{ 'ruoyi-table-wrap--compact': compactTable }">
       <slot name="table" />
     </div>
 
@@ -56,6 +56,7 @@ const props = defineProps({
   detailTitle: { type: String, default: '详情' },
   detailRows: { type: Array, default: () => [] },
   showDetailPanel: { type: Boolean, default: true },
+  compactTable: { type: Boolean, default: false },
   modelKeyword: { type: String, default: '' },
   modelStatus: { type: String, default: '' }
 })

@@ -55,3 +55,59 @@ export function fetchRcaTaskProgress(caseNo) {
 export function fetchAfterSalesTriage(caseNo, force = false) {
   return request.get('/afterSales/triage', { params: { caseNo, force } })
 }
+
+export function fetchPlans() {
+  return request.get('/afterSales/workflow/plans')
+}
+
+export function fetchPlanByCase(caseNo) {
+  return request.get('/afterSales/workflow/plan', { params: { caseNo } })
+}
+
+export function savePlan(data) {
+  return request.post('/afterSales/workflow/plan/save', data)
+}
+
+export function submitPlan(data) {
+  return request.post('/afterSales/workflow/plan/submit', data)
+}
+
+export function approvePlan(data) {
+  return request.post('/afterSales/workflow/plan/approve', data)
+}
+
+export function rejectPlan(data) {
+  return request.post('/afterSales/workflow/plan/reject', data)
+}
+
+export function fetchWorkflowTasks(caseNo) {
+  return request.get('/afterSales/workflow/tasks', { params: caseNo ? { caseNo } : {} })
+}
+
+export function updateWorkflowTask(data) {
+  return request.post('/afterSales/workflow/task/update', data)
+}
+
+export function advanceCase(data) {
+  return request.post('/afterSales/workflow/case/advance', data)
+}
+
+export function fetchClosure(caseNo) {
+  return request.get('/afterSales/workflow/closure', { params: { caseNo } })
+}
+
+export function fetchClosures() {
+  return request.get('/afterSales/workflow/closures')
+}
+
+export function saveClosure(data) {
+  return request.post('/afterSales/workflow/closure/save', data)
+}
+
+export function confirmCustomer(data) {
+  return request.post('/afterSales/workflow/closure/confirm-customer', data)
+}
+
+export function closeWithClosure(data) {
+  return request.post('/afterSales/workflow/closure/close', data)
+}

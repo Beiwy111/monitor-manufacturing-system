@@ -315,6 +315,7 @@ async function submit() {
     ElMessage.warning('请填写生产数量')
     return
   }
+  const dispatchId = selected.value.id
   try {
     const rpt = await mes.submitReport(
       {
@@ -322,7 +323,7 @@ async function submit() {
         startTime: form.startTime,
         endTime: form.endTime,
         remark: form.remark,
-        dispatchId: selected.value.id,
+        dispatchId,
         operatorName: operatorDisplayName.value
       },
       operatorUsername.value,
@@ -330,9 +331,15 @@ async function submit() {
     )
     if (rpt) {
       ElMessage.success('报工已提交')
-      resetFormDefaults(selected.value)
-      if (selected.value.completedQty >= selected.value.planQty) {
-        ElMessage.info(canSubmitQc(selected.value)
+      const updated = mes.dispatches.find((d) => d.id === dispatchId)
+      if (updated && activeDispatches.value.some((d) => d.id === dispatchId)) {
+        selected.value = updated
+        resetFormDefaults(updated)
+      } else {
+        selected.value = null
+      }
+      if (updated && Number(updated.completedQty || 0) >= Number(updated.planQty || 0)) {
+        ElMessage.info(canSubmitQc(updated)
           ? '最后一道工序已完成，请点击「提交质检」'
           : '当前工序已完成，等待后续工序继续生产')
       }

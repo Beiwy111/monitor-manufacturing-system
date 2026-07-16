@@ -1,6 +1,7 @@
 package com.upc.computer.service.impl;
 
 import com.upc.computer.service.PurchaseService;
+import com.upc.computer.service.WarehouseSlotService;
 import com.upc.computer.common.BusinessException;
 import com.upc.computer.dto.GeneratePurchaseRequest;
 import com.upc.computer.dto.UpdatePurchaseOrderDraftRequest;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -49,6 +51,9 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     @Autowired
     private InventoryMapper inventoryMapper;
+
+    @Autowired
+    private WarehouseSlotService warehouseSlotService;
 
     @Autowired
     private SupplierMapper supplierMapper;
@@ -256,8 +261,8 @@ public class PurchaseServiceImpl implements PurchaseService {
                 src.setWorkOrderId(sd.ref.workOrderId);
                 src.setWorkOrderNo(sd.ref.workOrderNo);
                 src.setMaterialId(materialId);
-                src.setRequiredQuantity(sd.quantity);
-                src.setShortageQuantity(sd.quantity);
+                src.setRequiredQuantity(ceilQuantity(sd.quantity));
+                src.setShortageQuantity(ceilQuantity(sd.quantity));
                 src.setCreatedAt(now);
                 requirementSourceMapper.insertSource(src);
             }
@@ -618,6 +623,14 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .contains(status.toUpperCase());
     }
 
+    /** 采购数量按件取整（BOM 展开含损耗率时可能产生小数） */
+    private static BigDecimal ceilQuantity(BigDecimal quantity) {
+        if (quantity == null) {
+            return BigDecimal.ZERO;
+        }
+        return quantity.setScale(0, RoundingMode.CEILING);
+    }
+
     @Override
     public List<Map<String, String>> getSupplierList() {
         return purchaseOrderMapper.selectDistinctSuppliers();
@@ -767,7 +780,12 @@ public class PurchaseServiceImpl implements PurchaseService {
         }
         PurchaseRequirementDetailVO vo = new PurchaseRequirementDetailVO();
         vo.setRequirement(req);
-        vo.setSources(new ArrayList<>(requirementSourceMapper.listByRequirementId(requirementId)));
+        List<PurchaseRequirementSource> sources = requirementSourceMapper.listByRequirementId(requirementId);
+        for (PurchaseRequirementSource src : sources) {
+            src.setRequiredQuantity(ceilQuantity(src.getRequiredQuantity()));
+            src.setShortageQuantity(ceilQuantity(src.getShortageQuantity()));
+        }
+        vo.setSources(new ArrayList<>(sources));
         return vo;
     }
 
@@ -815,8 +833,8 @@ public class PurchaseServiceImpl implements PurchaseService {
             line.setMaterialId(req.getMaterialId());
             line.setMaterialCode(req.getMaterialCode());
             line.setMaterialName(req.getMaterialName());
-            line.setRequiredQuantity(src.getRequiredQuantity());
-            line.setShortageQuantity(src.getShortageQuantity());
+            line.setRequiredQuantity(ceilQuantity(src.getRequiredQuantity()));
+            line.setShortageQuantity(ceilQuantity(src.getShortageQuantity()));
             vo.getLines().add(line);
         }
         return new ArrayList<>(grouped.values());
@@ -992,6 +1010,12 @@ public class PurchaseServiceImpl implements PurchaseService {
     @Override
     @Transactional
     public void confirmArrival(Long purchaseOrderId) {
+        confirmArrivalWithSlots(purchaseOrderId, List.of());
+    }
+
+    @Override
+    @Transactional
+    public void confirmArrivalWithSlots(Long purchaseOrderId, List<Map<String, Object>> assignments) {
         PurchaseOrder order = purchaseOrderMapper.getPurchaseOrderById(purchaseOrderId);
         if (order == null) {
             throw new BusinessException("采购订单不存在: " + purchaseOrderId);
@@ -1003,44 +1027,84 @@ public class PurchaseServiceImpl implements PurchaseService {
             throw new BusinessException("已取消的采购订单不可到货确认");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        Map<Long, String> slotByMaterial = new HashMap<>();
+        if (assignments != null) {
+            for (Map<String, Object> assignment : assignments) {
+                if (assignment == null) {
+                    continue;
+                }
+                Long materialId = assignment.get("materialId") != null
+                        ? Long.valueOf(String.valueOf(assignment.get("materialId"))) : null;
+                String slotCode = assignment.get("slotCode") != null
+                        ? String.valueOf(assignment.get("slotCode")) : null;
+                if (materialId != null && slotCode != null && !slotCode.isBlank()) {
+                    slotByMaterial.put(materialId, slotCode);
+                }
+            }
+        }
 
-        // 1. 更新采购单状态
+        List<PurchaseOrderItem> items = purchaseOrderItemMapper.listByOrderIdWithMaterial(purchaseOrderId);
+        boolean requireSlots = assignments != null && !assignments.isEmpty();
+        if (requireSlots) {
+            for (PurchaseOrderItem item : items) {
+                if (item.getMaterialId() == null) {
+                    continue;
+                }
+                if (!slotByMaterial.containsKey(item.getMaterialId())) {
+                    throw new BusinessException("请为物料「" + item.getMaterialName() + "」选择存放库位");
+                }
+            }
+        }
+
+        LocalDateTime now = LocalDateTime.now();
         order.setStatus(PO_RECEIVED);
         order.setUpdatedAt(now);
         purchaseOrderMapper.updatePurchaseOrder(order);
 
-        // 2. 更新明细收货数量 + 入库联动
-        for (PurchaseOrderItem item : purchaseOrderItemMapper.listByOrderIdWithMaterial(purchaseOrderId)) {
+        for (PurchaseOrderItem item : items) {
             item.setReceivedQuantity(item.getQuantity());
             item.setItemStatus(ITEM_RECEIVED);
             item.setUpdatedAt(now);
             purchaseOrderItemMapper.updatePurchaseOrderItem(item);
 
-            // 3. 库存入库：找到该物料的第一个库存记录并增加数量；不存在则新建
             if (item.getMaterialId() != null && item.getQuantity() != null
                     && item.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
-                List<Inventory> stocks = inventoryMapper.listByMaterialId(item.getMaterialId());
-                if (!stocks.isEmpty()) {
-                    inventoryMapper.increaseQuantity(stocks.get(0).getInventoryId(), item.getQuantity(), now);
+                String slotCode = slotByMaterial.get(item.getMaterialId());
+                if (slotCode != null && !slotCode.isBlank()) {
+                    String batchNo = "BATCH-PO-" + purchaseOrderId + "-" + item.getMaterialId();
+                    warehouseSlotService.inboundToSlot(
+                            slotCode,
+                            item.getMaterialId(),
+                            item.getQuantity(),
+                            batchNo,
+                            "PURCHASE_IN",
+                            "采购到货 " + order.getPurchaseOrderNo(),
+                            null,
+                            purchaseOrderId,
+                            null
+                    );
                 } else {
-                    Inventory inv = new Inventory();
-                    inv.setMaterialId(item.getMaterialId());
-                    inv.setWarehouseCode("WH01");
-                    inv.setWarehouseName("主仓库");
-                    inv.setQuantityOnHand(item.getQuantity());
-                    inv.setQuantityReserved(BigDecimal.ZERO);
-                    inv.setQuantityAvailable(item.getQuantity());
-                    inv.setInventoryStatus("NORMAL");
-                    inv.setLastTransactionAt(now);
-                    inv.setCreatedAt(now);
-                    inv.setUpdatedAt(now);
-                    inventoryMapper.insertInventory(inv);
+                    List<Inventory> stocks = inventoryMapper.listByMaterialId(item.getMaterialId());
+                    if (!stocks.isEmpty()) {
+                        inventoryMapper.increaseQuantity(stocks.get(0).getInventoryId(), item.getQuantity(), now);
+                    } else {
+                        Inventory inv = new Inventory();
+                        inv.setMaterialId(item.getMaterialId());
+                        inv.setWarehouseCode("WH-01");
+                        inv.setWarehouseName("原材料仓");
+                        inv.setQuantityOnHand(item.getQuantity());
+                        inv.setQuantityReserved(BigDecimal.ZERO);
+                        inv.setQuantityAvailable(item.getQuantity());
+                        inv.setInventoryStatus("NORMAL");
+                        inv.setLastTransactionAt(now);
+                        inv.setCreatedAt(now);
+                        inv.setUpdatedAt(now);
+                        inventoryMapper.insertInventory(inv);
+                    }
                 }
             }
         }
 
-        // 4. 更新关联采购需求状态
         for (PurchaseRequirement req : requirementMapper.listByPurchaseOrderId(purchaseOrderId)) {
             requirementMapper.updateStatus(req.getRequirementId(), REQ_ARRIVED);
         }

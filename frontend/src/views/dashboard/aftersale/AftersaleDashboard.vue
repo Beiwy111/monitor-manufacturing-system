@@ -10,21 +10,24 @@
       </div>
       <div class="command-actions">
         <span v-if="bulkTriaging" class="batch-progress">正在分诊 {{ bulkProgress.done }}/{{ bulkProgress.total }}</span>
-        <button class="text-action" @click="$router.push('/aftersale/case')">登记售后</button>
+        <button class="text-action" @click="$router.push('/aftersale/work-order')">登记售后</button>
         <button class="ai-action" :disabled="bulkTriaging || !cases.length" @click="triageAllCases">
           <i>AI</i>{{ bulkTriaging ? '分诊中' : '一键 AI 分诊' }}
         </button>
       </div>
     </header>
 
-    <section class="data-ribbon">
-      <div><strong>{{ kpi.total || cases.length }}</strong><span>售后工单</span></div>
-      <div><strong>{{ kpi.open || 0 }}</strong><span>待受理</span></div>
-      <div><strong>{{ urgentCount }}</strong><span>紧急</span></div>
-      <div><strong>{{ qualityCount }}</strong><span>质量风险</span></div>
-      <div><strong>{{ triagedCount }}/{{ activeCaseCount }}</strong><span>AI 已分诊</span></div>
-      <p><i />{{ bulkTriaging ? 'AI 正在读取工单并评估优先级' : '● 分析引擎在线' }}</p>
-    </section>
+    <div class="workbench-stats">
+      <span>售后工单：<em>{{ kpi.total || cases.length }}</em></span>
+      <span>待受理：<em>{{ kpi.open || 0 }}</em></span>
+      <span class="workbench-stats--danger">紧急：<em>{{ urgentCount }}</em></span>
+      <span class="workbench-stats--warn">质量风险：<em>{{ qualityCount }}</em></span>
+      <span>AI 已分诊：<em>{{ triagedCount }}/{{ activeCaseCount }}</em></span>
+      <span class="workbench-stats__engine">
+        <i class="engine-dot" />
+        {{ bulkTriaging ? 'AI 正在读取工单并评估优先级' : '分析引擎在线' }}
+      </span>
+    </div>
 
     <main class="workbench-grid">
       <aside class="case-queue">
@@ -140,7 +143,7 @@
                 v-for="(step,index) in traceChain"
                 :key="step.title"
                 class="ecg-event"
-                :class="[eventPositionClass(index),{visible:index<traceRevealCount,current:index===traceRevealCount-1&&traceProgress<1,missing:step.missing}]"
+                :class="[eventPositionClass(index),{visible:index<traceRevealCount,current:index===traceRevealCount-1&&traceProgress<1,missing:step.missing,suspect:isSuspectStep(index)}]"
                 :style="{ left:`${historyPointX(index)}px` }"
                 @pointerdown.stop
                 @pointermove.stop
@@ -158,8 +161,66 @@
           <footer class="trace-footer">
             <span><i />镜头跟随 · 可拖动查看</span>
             <span>{{ Math.round(traceProgress*100) }}%</span>
-            <p>点击节点查看完整记录与责任人</p>
+            <p v-if="!traceReportVisible">点击节点查看完整记录与责任人</p>
+            <p v-else class="trace-footer__done">追溯完成 · 报告已生成</p>
           </footer>
+
+          <transition name="trace-report-slide">
+            <article v-if="traceReportVisible && traceReport" class="trace-report">
+              <header class="trace-report__head">
+                <div>
+                  <span class="trace-report__tag">追溯报告</span>
+                  <time>{{ traceReport.analyzedAt }}</time>
+                </div>
+                <button type="button" class="trace-report__close" @click="traceReportVisible = false">收起</button>
+              </header>
+              <h3 class="trace-report__title">{{ traceReport.headline }}</h3>
+              <p v-if="traceReport.subHeadline" class="trace-report__sub">{{ traceReport.subHeadline }}</p>
+              <p class="trace-report__conclusion">{{ traceReport.conclusion }}</p>
+
+              <div class="trace-report__cause">
+                <div class="trace-report__cause-label">首要嫌疑</div>
+                <b>{{ traceReport.primaryCause.name }}</b>
+                <span>{{ traceReport.primaryCause.departmentLabel }} · 嫌疑分 {{ traceReport.primaryCause.score }}/100
+                  <em v-if="traceReport.primaryCause.riskLevel"> · {{ traceReport.primaryCause.riskLevel }}</em>
+                </span>
+                <p>{{ traceReport.primaryCause.evidence }}</p>
+              </div>
+
+              <div v-if="traceReport.suspectSteps.length" class="trace-report__section">
+                <div class="trace-report__section-title">问题环节定位</div>
+                <ul class="trace-report__steps">
+                  <li
+                    v-for="item in traceReport.suspectSteps"
+                    :key="item.title + item.index"
+                    :class="item.level"
+                    @click="openStep(traceChain[item.index])"
+                  >
+                    <b>{{ item.title }}</b>
+                    <small>{{ item.missing ? '无留痕' : item.no }}</small>
+                    <em>{{ item.reason }}</em>
+                  </li>
+                </ul>
+              </div>
+
+              <div v-if="traceReport.dataGaps.length" class="trace-report__gaps">
+                <b>数据缺口</b>
+                <span>{{ traceReport.dataGaps.join('、') }} — 需补录或人工核查</span>
+              </div>
+
+              <div v-if="traceReport.recommendations.length" class="trace-report__section">
+                <div class="trace-report__section-title">建议协查</div>
+                <p v-for="rec in traceReport.recommendations" :key="rec.title" class="trace-report__rec">
+                  {{ rec.title }} <span>（{{ rec.department }}）</span>
+                </p>
+              </div>
+
+              <div class="trace-report__actions">
+                <button type="button" class="trace-report__btn trace-report__btn--primary" @click="feedbackToPlan">一键反馈到方案</button>
+                <button type="button" class="trace-report__btn" @click="playGraph">重新播放</button>
+              </div>
+            </article>
+          </transition>
         </div>
 
         <div v-else-if="triage" class="triage-focus">
@@ -216,6 +277,7 @@
               <span><b>{{ action.title }}</b><small>{{ departmentName(action.department) }}</small></span>
             </label>
             <button class="rail-primary" :disabled="dispatching" @click="dispatchTasks">派发协查任务</button>
+            <button class="rail-secondary" @click="feedbackToPlan">一键反馈到方案</button>
             <button class="rail-secondary" @click="openConfirmRoot">人工确认根因</button>
           </section>
         </template>
@@ -278,15 +340,19 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import { acceptCase, confirmRcaRootCause, dispatchRcaTasks, fetchAfterSalesKpi, fetchAfterSalesTriage, fetchCaseViews, fetchRcaAnalysis, fetchRcaTaskProgress, fetchTraceDetail } from '@/api/aftersale'
+import { buildRcaTraceSummary, buildTraceReport, stashTraceSummary } from '@/constants/aftersaleWorkflow'
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 const cases=ref([]),keyword=ref(''),selectedCase=ref(null),triage=ref(null),analysis=ref(null)
 const triageMap=ref({}),bulkTriaging=ref(false),bulkProgress=ref({done:0,total:0}),triaging=ref(false),analyzing=ref(false),accepting=ref(false)
 const kpi=ref({total:0,open:0,processing:0}),traceChain=ref([]),traceRevealCount=ref(0),traceProgress=ref(0)
 const tracePathRef=ref(null),traceScrollRef=ref(null),traceCursor=ref({x:0,y:235}),traceViewportWidth=ref(0)
 const traceDragging=ref(false),traceManualUntil=ref(0)
+const traceReportVisible=ref(false),traceReport=ref(null)
 const activeStep=ref(null),stepDrawerVisible=ref(false),activeNode=ref(null),drawerVisible=ref(false)
 const selectedDepartments=ref([]),dispatching=ref(false),confirmVisible=ref(false),confirmForm=ref({cause:'',department:'',remark:''}),taskProgress=ref({total:0})
 let graphAnimationFrame, traceResizeObserver, traceDragStartX = 0, traceDragStartScroll = 0, traceDragMoved = false
@@ -573,6 +639,8 @@ function selectCase(item) {
   selectedCase.value = item
   triage.value = triageMap.value[item.caseNo] || null
   analysis.value = null
+  traceReportVisible.value = false
+  traceReport.value = null
   traceChain.value = []
   traceProgress.value = 0
   traceRevealCount.value = 0
@@ -587,6 +655,8 @@ async function triageAllCases() {
   bulkTriaging.value = true
   bulkProgress.value = { done: 0, total: targets.length }
   analysis.value = null
+  traceReportVisible.value = false
+  traceReport.value = null
 
   for (let i = 0; i < targets.length; i++) {
     const item = targets[i]
@@ -617,6 +687,8 @@ async function runTriage(force = false) {
   const item = selectedCase.value
   triaging.value = true
   analysis.value = null
+  traceReportVisible.value = false
+  traceReport.value = null
   triage.value = null
   try {
     const apiPromise = fetchAfterSalesTriage(item.caseNo, force)
@@ -637,9 +709,14 @@ async function acceptAndOpen(){
   if(!selectedCase.value)return
   accepting.value=true
   try{
-    if(selectedCase.value.caseStatus==='OPEN')await acceptCase({caseNo:selectedCase.value.caseNo})
+    if(selectedCase.value.caseStatus==='OPEN'){
+      await acceptCase({
+        caseNo:selectedCase.value.caseNo,
+        operator:userStore.userInfo?.username
+      })
+    }
     await reloadCases()
-    router.push({path:'/aftersale/case',query:{caseNo:selectedCase.value.caseNo}})
+    router.push({path:'/aftersale/work-order',query:{caseNo:selectedCase.value.caseNo}})
   }catch(e){ElMessage.error(e?.message||'工单受理失败')}
   finally{accepting.value=false}
 }
@@ -648,6 +725,8 @@ async function runAnalysis(force = false) {
   if (!selectedCase.value) return
   analyzing.value = true
   analysis.value = null
+  traceReportVisible.value = false
+  traceReport.value = null
   try {
     const analysisPromise = fetchRcaAnalysis(selectedCase.value.caseNo, force)
     const tracePromise = fetchTraceDetail(selectedCase.value.caseNo).catch(() => null)
@@ -668,8 +747,20 @@ async function runAnalysis(force = false) {
   }
   if (analysis.value) playGraph()
 }
+function revealTraceReport() {
+  traceReport.value = buildTraceReport(analysis.value, traceChain.value)
+  if (traceReport.value) traceReportVisible.value = true
+}
+function isSuspectStep(index) {
+  if (!traceReportVisible.value || !traceReport.value?.allSteps) return false
+  const step = traceReport.value.allSteps[index]
+  return step && (step.level === 'primary' || step.level === 'primary-gap' || step.level === 'secondary')
+}
 async function playGraph(){
-  cancelAnimationFrame(graphAnimationFrame);traceRevealCount.value=0;traceProgress.value=0
+  cancelAnimationFrame(graphAnimationFrame)
+  traceRevealCount.value=0
+  traceProgress.value=0
+  traceReportVisible.value=false
   if(!traceChain.value.length)return
   await nextTick();observeTraceViewport();await nextTick()
   const path=tracePathRef.value;if(!path)return
@@ -681,7 +772,10 @@ async function playGraph(){
     traceProgress.value=eased;traceRevealCount.value=nodeProgress.filter(progress=>progress<=eased+.002).length
     const point=path.getPointAtLength(totalLength*eased);traceCursor.value={x:point.x,y:point.y};followTraceRunner(point.x)
     if(raw<1)graphAnimationFrame=requestAnimationFrame(animate)
-    else traceRevealCount.value=traceChain.value.length
+    else{
+      traceRevealCount.value=traceChain.value.length
+      revealTraceReport()
+    }
   }
   graphAnimationFrame=requestAnimationFrame(animate)
 }
@@ -717,6 +811,20 @@ function focusNode(id){const node=analysis.value?.nodes?.find(item=>item.id===id
 async function dispatchTasks(){if(!selectedDepartments.value.length){ElMessage.warning('请至少选择一个协查部门');return}dispatching.value=true;try{const result=await dispatchRcaTasks({caseNo:analysis.value.caseNo,departments:selectedDepartments.value});ElMessage.success(`已派发 ${result.taskCount} 项协查任务`)}finally{dispatching.value=false}}
 function openConfirmRoot(){const top=analysis.value?.causes?.[0];confirmForm.value={cause:top?.name||'',department:top?.department||'',remark:''};confirmVisible.value=true}
 async function submitConfirmRoot(){if(!confirmForm.value.cause||!confirmForm.value.department){ElMessage.warning('请选择最终根因和部门');return}await confirmRcaRootCause({analysisNo:analysis.value.analysisNo,...confirmForm.value});confirmVisible.value=false;ElMessage.success('最终根因已人工确认')}
+function feedbackToPlan() {
+  if (!selectedCase.value?.caseNo || !analysis.value) {
+    ElMessage.warning('请先完成质量追溯')
+    return
+  }
+  const summary = buildRcaTraceSummary(analysis.value, traceChain.value)
+  if (!summary) {
+    ElMessage.warning('暂无追溯结论可反馈')
+    return
+  }
+  stashTraceSummary(selectedCase.value.caseNo, summary)
+  router.push({ path: '/aftersale/plan', query: { caseNo: selectedCase.value.caseNo } })
+  ElMessage.success('追溯结论已准备填入方案审批')
+}
 
 onMounted(async () => {
   await reloadCases()
@@ -737,7 +845,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.after-workbench{min-height:100%;padding:18px;background:#f3f6f9;color:#142b48}.command-bar{height:78px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;background:#fff;border-top:3px solid #173d62;border-bottom:1px solid #cfd9e3}.command-title{display:flex;align-items:center;gap:13px}.live-mark{width:9px;height:9px;border-radius:50%;background:#29c997;box-shadow:0 0 0 6px #29c99717}.command-title h1{margin:0;font-size:22px}.command-title p{margin:5px 0 0;color:#7a899a;font-size:12px}.command-actions{display:flex;align-items:center;gap:10px}.batch-progress{color:#2679c9;font-size:12px}.text-action,.plain-button{padding:8px 14px;border:1px solid #cad5df;background:#fff;color:#405469;cursor:pointer}.ai-action{display:flex;align-items:center;gap:8px;padding:10px 18px;border:0;background:#163d63;color:#fff;font-weight:700;cursor:pointer}.ai-action i{font-style:normal;color:#6fe2ff}.ai-action:disabled,.plain-button:disabled{opacity:.55;cursor:not-allowed}.data-ribbon{height:62px;display:flex;align-items:center;background:#fff;border-bottom:1px solid #cfd9e3}.data-ribbon>div{min-width:125px;padding:0 22px;border-right:1px solid #dde5ec}.data-ribbon strong,.data-ribbon span{display:block}.data-ribbon strong{font-size:20px}.data-ribbon span{margin-top:2px;color:#8291a1;font-size:10px}.data-ribbon p{margin-left:auto;padding-right:22px;color:#607286;font-size:11px}.data-ribbon p i,.rail-status>i{display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#29c997;box-shadow:0 0 8px #29c997}.workbench-grid{display:grid;grid-template-columns:270px minmax(540px,1fr) 320px;height:670px;margin-top:12px;background:#fff;border-top:1px solid #cbd6e0;border-bottom:1px solid #cbd6e0}.case-queue,.main-stage,.insight-rail{min-width:0}.case-queue{border-right:1px solid #d7e0e8}.main-stage{border-right:1px solid #d7e0e8}.section-head,.stage-head{height:68px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #dce4eb}.section-head b,.section-head span,.stage-head h2,.stage-head p{display:block}.section-head b{font-size:14px}.section-head div span,.stage-head p{margin-top:4px;color:#8b99a8;font-size:10px}.section-head>span{font:700 13px monospace;color:#5481ad}.queue-search{padding:10px 12px;border-bottom:1px solid #e1e7ed}.queue-search input{box-sizing:border-box;width:100%;height:35px;padding:0 10px;border:0;border-bottom:1px solid #aebdca;outline:none;color:#253b53}.queue-list{height:calc(100% - 124px);overflow:auto}.queue-row{position:relative;display:flex;width:100%;padding:12px 12px 12px 17px;border:0;border-bottom:1px solid #e4e9ee;background:#fff;text-align:left;color:#25384d;cursor:pointer}.queue-row:hover,.queue-row.active{background:#eef5fb}.urgency-bar{position:absolute;left:0;top:0;bottom:0;width:4px;background:#bac6d1}.queue-row.urgent .urgency-bar{background:#e5484d}.queue-row.attention .urgency-bar{background:#e7a62b}.queue-row.routine .urgency-bar{background:#38a879}.queue-main{min-width:0;width:100%}.queue-line{display:flex;align-items:center;justify-content:space-between}.queue-line b{font:700 11px monospace}.queue-line em{font-size:9px;font-style:normal;color:#73869a}.queue-row.urgent .queue-line em{color:#d43d43}.queue-main>strong,.queue-main>small,.queue-meta{display:block}.queue-main>strong{margin-top:6px;font-size:12px}.queue-main>small{margin-top:5px;color:#6f8091;font-size:10px;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.queue-meta{margin-top:6px;color:#9aa7b4;font-size:9px}.queue-empty{padding:40px 15px;text-align:center;color:#99a7b5;font-size:11px}.stage-head h2{margin:0;font-size:16px}.stage-actions{display:flex;gap:8px}.scan-state,.ready-state{height:calc(100% - 69px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.after-workbench{min-height:100%;padding:18px;background:#f3f6f9;color:#142b48}.command-bar{height:78px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;background:#fff;border-top:3px solid #173d62;border-bottom:1px solid #cfd9e3}.command-title{display:flex;align-items:center;gap:13px}.live-mark{width:9px;height:9px;border-radius:50%;background:#29c997;box-shadow:0 0 0 6px #29c99717}.command-title h1{margin:0;font-size:22px}.command-title p{margin:5px 0 0;color:#7a899a;font-size:12px}.command-actions{display:flex;align-items:center;gap:10px}.batch-progress{color:#2679c9;font-size:12px}.text-action,.plain-button{padding:8px 14px;border:1px solid #cad5df;background:#fff;color:#405469;cursor:pointer}.ai-action{display:flex;align-items:center;gap:8px;padding:10px 18px;border:0;background:#163d63;color:#fff;font-weight:700;cursor:pointer}.ai-action i{font-style:normal;color:#6fe2ff}.ai-action:disabled,.plain-button:disabled{opacity:.55;cursor:not-allowed}.workbench-stats{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;padding:8px 22px 10px;background:#fff;border-bottom:1px solid #e4ebf2;font-size:13px;color:#6b7c8f}.workbench-stats em{font-style:normal;font-weight:700;margin-left:2px;color:#1a3552}.workbench-stats--danger em{color:#d43d43}.workbench-stats--warn em{color:#b87a12}.workbench-stats__engine{margin-left:auto;display:flex;align-items:center;gap:7px;color:#5f7a92;font-size:12px}.engine-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#29c997;box-shadow:0 0 8px #29c99755}.workbench-grid{display:grid;grid-template-columns:270px minmax(540px,1fr) 320px;height:670px;margin-top:12px;background:#fff;border-top:1px solid #cbd6e0;border-bottom:1px solid #cbd6e0}.case-queue,.main-stage,.insight-rail{min-width:0}.case-queue{border-right:1px solid #d7e0e8}.main-stage{border-right:1px solid #d7e0e8}.section-head,.stage-head{height:68px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #dce4eb}.section-head b,.section-head span,.stage-head h2,.stage-head p{display:block}.section-head b{font-size:14px}.section-head div span,.stage-head p{margin-top:4px;color:#8b99a8;font-size:10px}.section-head>span{font:700 13px monospace;color:#5481ad}.queue-search{padding:10px 12px;border-bottom:1px solid #e1e7ed}.queue-search input{box-sizing:border-box;width:100%;height:35px;padding:0 10px;border:0;border-bottom:1px solid #aebdca;outline:none;color:#253b53}.queue-list{height:calc(100% - 124px);overflow:auto}.queue-row{position:relative;display:flex;width:100%;padding:12px 12px 12px 17px;border:0;border-bottom:1px solid #e4e9ee;background:#fff;text-align:left;color:#25384d;cursor:pointer}.queue-row:hover,.queue-row.active{background:#eef5fb}.urgency-bar{position:absolute;left:0;top:0;bottom:0;width:4px;background:#bac6d1}.queue-row.urgent .urgency-bar{background:#e5484d}.queue-row.attention .urgency-bar{background:#e7a62b}.queue-row.routine .urgency-bar{background:#38a879}.queue-main{min-width:0;width:100%}.queue-line{display:flex;align-items:center;justify-content:space-between}.queue-line b{font:700 11px monospace}.queue-line em{font-size:9px;font-style:normal;color:#73869a}.queue-row.urgent .queue-line em{color:#d43d43}.queue-main>strong,.queue-main>small,.queue-meta{display:block}.queue-main>strong{margin-top:6px;font-size:12px}.queue-main>small{margin-top:5px;color:#6f8091;font-size:10px;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.queue-meta{margin-top:6px;color:#9aa7b4;font-size:9px}.queue-empty{padding:40px 15px;text-align:center;color:#99a7b5;font-size:11px}.stage-head h2{margin:0;font-size:16px}.stage-actions{display:flex;gap:8px}.scan-state,.ready-state{height:calc(100% - 69px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .process-stage{height:calc(100% - 63px);display:flex;flex-direction:column;padding:22px 28px;box-sizing:border-box;background:linear-gradient(180deg,#fbfdff,#f3f8fc)}
 .process-head{border-bottom:1px solid #dce5ee;padding-bottom:14px}
 .process-head__badge{display:inline-block;margin-bottom:8px;padding:2px 8px;background:#e8f2fb;color:#2478c8;font-size:11px;font-weight:700;letter-spacing:.5px}
@@ -763,14 +871,14 @@ onBeforeUnmount(() => {
 .process-log li{padding:5px 0;color:#4f657a;font-size:11px;line-height:1.55}
 .process-log__empty{list-style:none;margin-left:-16px;color:#95a5b5}
 .process-progress{height:4px;margin-top:14px;background:#e2ebf3;border-radius:2px;overflow:hidden}
-.process-progress i{display:block;height:100%;background:linear-gradient(90deg,#3b8fd9,#29c997);transition:width .35s ease}.ready-state>span{font:700 11px monospace;letter-spacing:3px;color:#2783d7}.ready-state h3{margin:15px 0 0;font-size:22px}.ready-state p{margin-top:8px;color:#8392a2;font-size:11px}.ready-flow{display:flex;align-items:center;gap:12px;margin-top:35px}.ready-flow i{font-style:normal;color:#546b82;font-size:11px}.ready-flow b{color:#a7b4c1}.triage-focus{height:calc(100% - 69px);padding:34px 45px;box-sizing:border-box;overflow:auto}.decision-line{display:flex;align-items:center;border-top:2px solid #8295a8;border-bottom:1px solid #dbe3ea;padding:10px 0}.decision-line span{min-width:58px;font-weight:800}.decision-line b{font-size:12px}.decision-line em{margin-left:auto;color:#7b8c9e;font-size:10px;font-style:normal}.decision-line.urgent{border-top-color:#e5484d;color:#c9343a}.decision-line.attention{border-top-color:#e7a62b;color:#a86e00}.decision-line.routine{border-top-color:#38a879;color:#21845c}.triage-focus>h3{margin:32px 0;font-size:21px;line-height:1.75}.phenomena-list{border-top:1px solid #dbe3ea;border-bottom:1px solid #dbe3ea;padding:16px 0}.phenomena-list>span,.next-step-line>div>span{color:#8090a1;font-size:10px}.phenomena-list p{display:inline-block;margin:8px 18px 0 0;font-size:11px}.phenomena-list p:before{content:'·';margin-right:6px;color:#2f83d2}.next-step-line{display:flex;align-items:center;gap:10px;margin-top:28px}.next-step-line>div{min-width:0;flex:1}.next-step-line strong,.next-step-line small{display:block}.next-step-line strong{margin-top:6px;font-size:14px}.next-step-line small{margin-top:4px;color:#7e8e9f;font-size:10px}.accept-button,.trace-button{padding:11px 17px;border:0;color:#fff;font-weight:700;cursor:pointer}.accept-button{background:#16805d}.trace-button{background:#c53b43}.trace-stage{height:calc(100% - 69px);display:flex;flex-direction:column;background:linear-gradient(180deg,#f9fcff,#edf5fb)}.trace-viewport{flex:1;min-height:0;overflow-x:hidden;overflow-y:hidden}.ecg-track{position:relative;height:470px;margin:auto 0}.ecg-svg{position:absolute;inset:0;height:470px;overflow:visible}.ecg-base,.ecg-progress{fill:none;stroke-linecap:round;stroke-linejoin:round}.ecg-base{stroke:#bfd2e4;stroke-width:3}.ecg-progress{stroke:#2589e5;stroke-width:4;stroke-dasharray:1;filter:drop-shadow(0 0 5px #2589e566)}.runner-core{fill:#fff;stroke:#167ad1;stroke-width:4;filter:drop-shadow(0 0 6px #167ad1)}.runner-aura{fill:#3d9df02b;stroke:#3d9df055;animation:runnerPulse 1s ease-in-out infinite}.ecg-event{position:absolute;top:0;width:94px;height:470px;padding:0;border:0;background:transparent;color:#254665;opacity:0;transform:translateX(-50%) scale(.75);filter:blur(3px);cursor:pointer;transition:.55s cubic-bezier(.16,1,.3,1)}.ecg-event.visible{opacity:1;transform:translateX(-50%) scale(1);filter:none}.event-stem{position:absolute;left:50%;width:2px;background:#4f9be0;transform:translateX(-50%) scaleY(0);transition:transform .45s .1s}.ecg-event.visible .event-stem{transform:translateX(-50%) scaleY(1)}.event-dot{position:absolute;left:50%;display:grid;place-items:center;width:38px;height:38px;border:3px solid #fff;border-radius:50%;background:#247fd2;box-shadow:0 0 0 2px #69a8df;color:#fff;font:700 9px monospace;transform:translateX(-50%)}.ecg-event strong,.ecg-event small{position:absolute;left:0;right:0;display:block;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ecg-event strong{font-size:11px}.ecg-event small{color:#72889d;font-size:8px}.ecg-event.peak .event-stem{top:58px;height:115px;transform-origin:top}.ecg-event.peak .event-dot{top:170px}.ecg-event.peak strong{top:218px}.ecg-event.peak small{top:237px}.ecg-event.valley .event-stem{top:297px;height:115px;transform-origin:bottom}.ecg-event.valley .event-dot{top:259px}.ecg-event.valley strong{top:225px}.ecg-event.valley small{top:210px}.ecg-event.current .event-dot{animation:eventPop .85s ease}.ecg-event.missing{filter:grayscale(1);opacity:.5}.trace-footer{height:42px;display:flex;align-items:center;gap:12px;padding:0 15px;border-top:1px solid #d4e0ea;color:#6e8296;font-size:9px}.trace-footer i{display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;background:#2589e5}.trace-footer p{margin-left:auto}.insight-rail{overflow:auto}.rail-status{height:51px;display:flex;align-items:center;padding:0 15px;border-bottom:1px solid #dbe3ea;color:#278562;font-size:10px}.rail-status time{margin-left:auto;color:#91a0af}.insight-rail section{padding:15px;border-bottom:1px solid #dbe3ea}.insight-rail h3{margin:0 0 10px;font-size:14px}.rail-conclusion,.muted-copy{margin:0;color:#627589;font-size:10px;line-height:1.7}.rail-heading{display:flex;justify-content:space-between}.rail-heading span{color:#8c9aaa;font-size:10px}.rail-row{display:flex;width:100%;align-items:center;padding:9px 0;border:0;border-bottom:1px solid #e7ecf0;background:#fff;text-align:left;cursor:pointer}.rail-row>i{width:25px;color:#91a1b1;font:700 9px monospace}.rail-row>span{min-width:0;flex:1}.rail-row b,.rail-row small{display:block}.rail-row b{font-size:11px}.rail-row small{margin-top:3px;color:#8191a1;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rail-row em{font-size:20px;font-style:normal}.rail-check{display:flex;align-items:flex-start;padding:8px 0;border-bottom:1px solid #e7ecf0}.rail-check span{margin-left:5px}.rail-check b,.rail-check small{display:block}.rail-check b{font-size:10px}.rail-check small{margin-top:3px;color:#8998a8;font-size:8px}.rail-primary,.rail-secondary{width:100%;margin-top:10px;padding:9px;border:0;cursor:pointer}.rail-primary{background:#173e63;color:#fff}.rail-secondary{background:#fff;border:1px solid #bdcad5;color:#37526c}.fact-list p{margin:0;padding:9px 0;border-bottom:1px solid #e5ebf0}.fact-list b,.fact-list span{display:block}.fact-list b{font-size:10px}.fact-list span{margin-top:3px;color:#788a9d;font-size:9px;line-height:1.45}.question-list{margin:0;padding-left:20px}.question-list li{padding:5px 0;color:#617589;font-size:10px;line-height:1.45}.route-row{padding:9px 0;border-bottom:1px solid #e5ebf0}.route-row b,.route-row span{display:block}.route-row b{font-size:10px}.route-row span{margin-top:4px;color:#7f90a1;font-size:8px;line-height:1.45}.rail-empty{padding:70px 25px;text-align:center;color:#8897a6}.rail-empty b{font-size:18px}.rail-empty p{font-size:10px;line-height:1.7}.drawer-content dl{display:grid;grid-template-columns:90px 1fr;margin:0}.drawer-content dt,.drawer-content dd{margin:0;padding:10px 0;border-bottom:1px solid #e1e7ec;font-size:11px}.drawer-content dt{color:#8493a3}.drawer-content h4{margin-top:24px}.drawer-content p{padding:9px 10px;background:#f2f6f9;font-size:11px;line-height:1.5}.missing-note{color:#a26c16!important;background:#fff8e8!important}@keyframes scanMove{0%{left:-90px}100%{left:260px}}@keyframes runnerPulse{50%{r:22;opacity:.2}}@keyframes eventPop{45%{transform:translateX(-50%) scale(1.25)}}@media(max-width:1250px){.workbench-grid{grid-template-columns:235px minmax(500px,1fr) 280px}.data-ribbon>div{min-width:100px;padding:0 15px}}@media(max-width:980px){.workbench-grid{grid-template-columns:220px 1fr;height:auto}.insight-rail{grid-column:1/-1;min-height:350px}.main-stage,.case-queue{height:650px}.data-ribbon p{display:none}}
+.process-progress i{display:block;height:100%;background:linear-gradient(90deg,#3b8fd9,#29c997);transition:width .35s ease}.ready-state>span{font:700 11px monospace;letter-spacing:3px;color:#2783d7}.ready-state h3{margin:15px 0 0;font-size:22px}.ready-state p{margin-top:8px;color:#8392a2;font-size:11px}.ready-flow{display:flex;align-items:center;gap:12px;margin-top:35px}.ready-flow i{font-style:normal;color:#546b82;font-size:11px}.ready-flow b{color:#a7b4c1}.triage-focus{height:calc(100% - 69px);padding:34px 45px;box-sizing:border-box;overflow:auto}.decision-line{display:flex;align-items:center;border-top:2px solid #8295a8;border-bottom:1px solid #dbe3ea;padding:10px 0}.decision-line span{min-width:58px;font-weight:800}.decision-line b{font-size:12px}.decision-line em{margin-left:auto;color:#7b8c9e;font-size:10px;font-style:normal}.decision-line.urgent{border-top-color:#e5484d;color:#c9343a}.decision-line.attention{border-top-color:#e7a62b;color:#a86e00}.decision-line.routine{border-top-color:#38a879;color:#21845c}.triage-focus>h3{margin:32px 0;font-size:21px;line-height:1.75}.phenomena-list{border-top:1px solid #dbe3ea;border-bottom:1px solid #dbe3ea;padding:16px 0}.phenomena-list>span,.next-step-line>div>span{color:#8090a1;font-size:10px}.phenomena-list p{display:inline-block;margin:8px 18px 0 0;font-size:11px}.phenomena-list p:before{content:'·';margin-right:6px;color:#2f83d2}.next-step-line{display:flex;align-items:center;gap:10px;margin-top:28px}.next-step-line>div{min-width:0;flex:1}.next-step-line strong,.next-step-line small{display:block}.next-step-line strong{margin-top:6px;font-size:14px}.next-step-line small{margin-top:4px;color:#7e8e9f;font-size:10px}.accept-button,.trace-button{padding:11px 17px;border:0;color:#fff;font-weight:700;cursor:pointer}.accept-button{background:#16805d}.trace-button{background:#c53b43}.trace-stage{height:calc(100% - 69px);display:flex;flex-direction:column;background:linear-gradient(180deg,#f9fcff,#edf5fb)}.trace-viewport{flex:1;min-height:0;overflow-x:hidden;overflow-y:hidden}.ecg-track{position:relative;height:470px;margin:auto 0}.ecg-svg{position:absolute;inset:0;height:470px;overflow:visible}.ecg-base,.ecg-progress{fill:none;stroke-linecap:round;stroke-linejoin:round}.ecg-base{stroke:#bfd2e4;stroke-width:3}.ecg-progress{stroke:#2589e5;stroke-width:4;stroke-dasharray:1;filter:drop-shadow(0 0 5px #2589e566)}.runner-core{fill:#fff;stroke:#167ad1;stroke-width:4;filter:drop-shadow(0 0 6px #167ad1)}.runner-aura{fill:#3d9df02b;stroke:#3d9df055;animation:runnerPulse 1s ease-in-out infinite}.ecg-event{position:absolute;top:0;width:94px;height:470px;padding:0;border:0;background:transparent;color:#254665;opacity:0;transform:translateX(-50%) scale(.75);filter:blur(3px);cursor:pointer;transition:.55s cubic-bezier(.16,1,.3,1)}.ecg-event.visible{opacity:1;transform:translateX(-50%) scale(1);filter:none}.event-stem{position:absolute;left:50%;width:2px;background:#4f9be0;transform:translateX(-50%) scaleY(0);transition:transform .45s .1s}.ecg-event.visible .event-stem{transform:translateX(-50%) scaleY(1)}.event-dot{position:absolute;left:50%;display:grid;place-items:center;width:38px;height:38px;border:3px solid #fff;border-radius:50%;background:#247fd2;box-shadow:0 0 0 2px #69a8df;color:#fff;font:700 9px monospace;transform:translateX(-50%)}.ecg-event strong,.ecg-event small{position:absolute;left:0;right:0;display:block;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ecg-event strong{font-size:11px}.ecg-event small{color:#72889d;font-size:8px}.ecg-event.peak .event-stem{top:58px;height:115px;transform-origin:top}.ecg-event.peak .event-dot{top:170px}.ecg-event.peak strong{top:218px}.ecg-event.peak small{top:237px}.ecg-event.valley .event-stem{top:297px;height:115px;transform-origin:bottom}.ecg-event.valley .event-dot{top:259px}.ecg-event.valley strong{top:225px}.ecg-event.valley small{top:210px}.ecg-event.current .event-dot{animation:eventPop .85s ease}.ecg-event.missing{filter:grayscale(1);opacity:.5}.trace-footer{height:42px;display:flex;align-items:center;gap:12px;padding:0 15px;border-top:1px solid #d4e0ea;color:#6e8296;font-size:9px}.trace-footer i{display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;background:#2589e5}.trace-footer p{margin-left:auto}.insight-rail{overflow:auto}.rail-status{height:51px;display:flex;align-items:center;padding:0 15px;border-bottom:1px solid #dbe3ea;color:#278562;font-size:10px}.rail-status>i{display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#29c997;box-shadow:0 0 8px #29c997}.rail-status time{margin-left:auto;color:#91a0af}.insight-rail section{padding:15px;border-bottom:1px solid #dbe3ea}.insight-rail h3{margin:0 0 10px;font-size:14px}.rail-conclusion,.muted-copy{margin:0;color:#627589;font-size:10px;line-height:1.7}.rail-heading{display:flex;justify-content:space-between}.rail-heading span{color:#8c9aaa;font-size:10px}.rail-row{display:flex;width:100%;align-items:center;padding:9px 0;border:0;border-bottom:1px solid #e7ecf0;background:#fff;text-align:left;cursor:pointer}.rail-row>i{width:25px;color:#91a1b1;font:700 9px monospace}.rail-row>span{min-width:0;flex:1}.rail-row b,.rail-row small{display:block}.rail-row b{font-size:11px}.rail-row small{margin-top:3px;color:#8191a1;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rail-row em{font-size:20px;font-style:normal}.rail-check{display:flex;align-items:flex-start;padding:8px 0;border-bottom:1px solid #e7ecf0}.rail-check span{margin-left:5px}.rail-check b,.rail-check small{display:block}.rail-check b{font-size:10px}.rail-check small{margin-top:3px;color:#8998a8;font-size:8px}.rail-primary,.rail-secondary{width:100%;margin-top:10px;padding:9px;border:0;cursor:pointer}.rail-primary{background:#173e63;color:#fff}.rail-secondary{background:#fff;border:1px solid #bdcad5;color:#37526c}.fact-list p{margin:0;padding:9px 0;border-bottom:1px solid #e5ebf0}.fact-list b,.fact-list span{display:block}.fact-list b{font-size:10px}.fact-list span{margin-top:3px;color:#788a9d;font-size:9px;line-height:1.45}.question-list{margin:0;padding-left:20px}.question-list li{padding:5px 0;color:#617589;font-size:10px;line-height:1.45}.route-row{padding:9px 0;border-bottom:1px solid #e5ebf0}.route-row b,.route-row span{display:block}.route-row b{font-size:10px}.route-row span{margin-top:4px;color:#7f90a1;font-size:8px;line-height:1.45}.rail-empty{padding:70px 25px;text-align:center;color:#8897a6}.rail-empty b{font-size:18px}.rail-empty p{font-size:10px;line-height:1.7}.drawer-content dl{display:grid;grid-template-columns:90px 1fr;margin:0}.drawer-content dt,.drawer-content dd{margin:0;padding:10px 0;border-bottom:1px solid #e1e7ec;font-size:11px}.drawer-content dt{color:#8493a3}.drawer-content h4{margin-top:24px}.drawer-content p{padding:9px 10px;background:#f2f6f9;font-size:11px;line-height:1.5}.missing-note{color:#a26c16!important;background:#fff8e8!important}@keyframes scanMove{0%{left:-90px}100%{left:260px}}@keyframes runnerPulse{50%{r:22;opacity:.2}}@keyframes eventPop{45%{transform:translateX(-50%) scale(1.25)}}@media(max-width:1250px){.workbench-grid{grid-template-columns:235px minmax(500px,1fr) 280px}}@media(max-width:980px){.workbench-grid{grid-template-columns:220px 1fr;height:auto}.insight-rail{grid-column:1/-1;min-height:350px}.main-stage,.case-queue{height:650px}.workbench-stats__engine{width:100%;margin-left:0}}
 </style>
 <style scoped>
 :global(.layout-main:has(.after-workbench)){overflow:hidden}
 .after-workbench{box-sizing:border-box;height:100%;min-height:570px;display:flex;flex-direction:column;overflow:hidden;padding:12px 18px 14px}
 .command-bar{height:68px;flex:0 0 68px}.command-title h1{font-size:21px}.command-title p{font-size:13px}
-.data-ribbon{height:56px;flex:0 0 56px}.data-ribbon strong{font-size:21px}.data-ribbon span{font-size:12px}.data-ribbon p{font-size:12px}
-.workbench-grid{height:auto;min-height:0;flex:1;margin-top:10px}.case-queue,.main-stage,.insight-rail{height:100%;min-height:0;overflow:hidden}.insight-rail{overflow-y:auto}
+.workbench-stats{flex:0 0 auto;padding:6px 22px 8px;font-size:13px}
+.workbench-grid{height:auto;min-height:0;flex:1;margin-top:8px}.case-queue,.main-stage,.insight-rail{height:100%;min-height:0;overflow:hidden}.insight-rail{overflow-y:auto}
 .section-head,.stage-head{height:62px}.section-head div span,.stage-head p{font-size:12px}.section-head b{font-size:16px}.stage-head h2{font-size:18px}
 .queue-search{padding:8px 12px}.queue-search input{height:34px;font-size:13px}.queue-list{height:calc(100% - 113px)}
 .queue-row{padding:10px 12px 10px 17px}.queue-line b{font-size:12px}.queue-line em{font-size:12px;font-weight:600}.queue-row.urgent .queue-line em{color:#d43d43}.queue-row.attention .queue-line em{color:#aa730c}.queue-row.routine .queue-line em{color:#24845f}.queue-main>strong{font-size:14px}.queue-main>small{font-size:12px}.queue-meta{font-size:11px}
@@ -781,9 +889,9 @@ onBeforeUnmount(() => {
 .diagnosis-stack{flex:1;min-height:0;display:grid;grid-template-rows:auto minmax(190px,1fr);gap:16px;padding:20px 0;border-bottom:1px solid #d9e3eb}.customer-brief{padding:17px 20px;border-left:4px solid #8ba9c4;background:#f6f9fc}.brief-title{display:flex;align-items:center;gap:14px}.brief-title span{color:#668096;font-size:12px;font-weight:700}.brief-title b{font-size:14px}.customer-brief>p{margin:12px 0;color:#344d64;font-size:14px;line-height:1.65}.brief-meta{display:flex;gap:10px;flex-wrap:wrap}.brief-meta span{padding:4px 9px;background:#e8f0f6;color:#587188;font-size:11px}.ai-judgement{display:flex;flex-direction:column;justify-content:center;padding:22px 28px;border-top:3px solid #287fc8;background:linear-gradient(135deg,#f8fcff,#edf6fc)}.ai-judgement header{display:flex;align-items:center;justify-content:space-between}.ai-judgement header span{color:#247bc4;font-size:13px;font-weight:800;letter-spacing:1px}.ai-judgement header em{color:#70879b;font-size:11px;font-style:normal}.ai-judgement h3{max-width:920px;margin:18px 0 0;font-size:20px;line-height:1.65;font-weight:650}.ai-judgement p{margin:15px 0 0;padding-top:14px;border-top:1px solid #d5e1ea;color:#61778d;font-size:13px;line-height:1.6}
 .signal-line{display:grid;grid-template-columns:145px 1fr;align-items:start;padding:22px 0;border-bottom:1px solid #d9e3eb}.signal-line>b{font-size:13px}.signal-line>div{display:flex;flex-wrap:wrap;gap:8px 18px}.signal-line span{position:relative;padding-left:12px;color:#405a73;font-size:13px}.signal-line span:before{content:'';position:absolute;left:0;top:7px;width:4px;height:4px;border-radius:50%;background:#2d86d2}
 .verdict-footer{display:flex;align-items:center;gap:18px;padding:24px 0 28px}.verdict-footer.compact{margin-top:22px;border-top:1px solid #dce5ec}.verdict-footer>div:first-child{min-width:0;flex:1}.verdict-footer span,.verdict-footer strong,.verdict-footer small{display:block}.verdict-footer span{color:#8292a3;font-size:12px}.verdict-footer strong{margin-top:7px;font-size:17px}.verdict-footer small{margin-top:5px;color:#667b90;font-size:12px}.verdict-actions{display:flex;gap:10px}.accept-button,.trace-button{min-width:105px;font-size:14px}
-.trace-stage{height:calc(100% - 63px)}.trace-viewport{overflow-x:auto;cursor:grab;touch-action:pan-y;scrollbar-width:thin;scrollbar-color:#8faecb #dfebf4;user-select:none}.trace-viewport.dragging{cursor:grabbing}.ecg-event.endpoint .event-stem{display:none}.ecg-event.endpoint .event-dot{top:216px}.ecg-event.endpoint strong{top:264px}.ecg-event.endpoint small{top:285px}.ecg-event.endpoint:first-of-type strong,.ecg-event.endpoint:first-of-type small{text-align:left;padding-left:27px}.ecg-event.endpoint:last-of-type strong,.ecg-event.endpoint:last-of-type small{text-align:right;padding-right:27px}.ecg-event.peak .event-stem{top:58px;height:224px;transform-origin:top}.ecg-event.peak .event-dot{top:282px}.ecg-event.peak strong{top:334px}.ecg-event.peak small{top:355px}.ecg-event.valley .event-stem{top:189px;height:223px;transform-origin:bottom}.ecg-event.valley .event-dot{top:143px}.ecg-event.valley strong{top:111px}.ecg-event.valley small{top:90px}.ecg-event strong{font-size:13px}.ecg-event small{font-size:11px}.event-dot{width:40px;height:40px;font-size:11px}.trace-footer{height:46px;font-size:12px}.trace-footer p{font-size:12px}
+.trace-stage{height:calc(100% - 63px);position:relative}.trace-viewport{overflow-x:auto;cursor:grab;touch-action:pan-y;scrollbar-width:thin;scrollbar-color:#8faecb #dfebf4;user-select:none}.trace-viewport.dragging{cursor:grabbing}.ecg-event.suspect .event-dot{background:#d94848;box-shadow:0 0 0 2px #f0a0a0,0 0 14px #d9484866;animation:suspectPulse 1.4s ease-in-out infinite}.ecg-event.suspect .event-stem{background:#d94848}.ecg-event.suspect strong{color:#b52f2f}.trace-footer__done{color:#1d7a52;font-weight:600}.trace-report{position:absolute;left:14px;right:14px;bottom:52px;z-index:8;max-height:58%;overflow:auto;padding:16px 18px;border:1px solid #c5d8ea;background:linear-gradient(180deg,#fff 0%,#f5faff 100%);box-shadow:0 12px 36px #173d6240,0 0 0 1px #ffffff80 inset;border-radius:4px}.trace-report__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.trace-report__head time{color:#7a8fa3;font-size:11px}.trace-report__tag{display:inline-block;padding:2px 8px;background:#e8f2fb;color:#2478c8;font-size:11px;font-weight:700;letter-spacing:.5px}.trace-report__close{padding:4px 10px;border:1px solid #c5d4e2;background:#fff;color:#5a7088;font-size:11px;cursor:pointer}.trace-report__title{margin:0;font-size:17px;color:#173d62;line-height:1.45}.trace-report__sub{margin:6px 0 0;color:#7a8fa3;font-size:12px}.trace-report__conclusion{margin:12px 0 0;padding:10px 12px;background:#eef5fb;border-left:3px solid #3b8fd9;color:#4a6278;font-size:12px;line-height:1.65}.trace-report__cause{margin-top:14px;padding:12px;background:#fff8f0;border:1px solid #f0dcc0}.trace-report__cause-label{color:#a86f00;font-size:11px;font-weight:700;margin-bottom:6px}.trace-report__cause b{display:block;font-size:14px;color:#8a3f00}.trace-report__cause>span{display:block;margin-top:4px;color:#7a6550;font-size:11px}.trace-report__cause>span em{font-style:normal;color:#c45a12}.trace-report__cause p{margin:8px 0 0;color:#6b5a48;font-size:11px;line-height:1.55}.trace-report__section{margin-top:14px}.trace-report__section-title{color:#2478c8;font-size:12px;font-weight:700;margin-bottom:8px}.trace-report__steps{margin:0;padding:0;list-style:none}.trace-report__steps li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:9px 10px;margin-bottom:6px;border:1px solid #d8e5f0;background:#fff;cursor:pointer;transition:background .2s}.trace-report__steps li:hover{background:#eef6fc}.trace-report__steps li.primary{border-left:3px solid #d94848;background:#fff5f5}.trace-report__steps li.primary-gap{border-left:3px solid #e7a62b;background:#fffbf0}.trace-report__steps li.secondary{border-left:3px solid #7ba8cf}.trace-report__steps li b{grid-column:1;font-size:13px;color:#2a4560}.trace-report__steps li small{grid-column:2;color:#8a9aae;font-size:10px}.trace-report__steps li em{grid-column:1/-1;font-style:normal;color:#617589;font-size:11px;line-height:1.45}.trace-report__gaps{margin-top:12px;padding:10px 12px;background:#fff8e8;border:1px solid #f0dcc0;font-size:11px;line-height:1.5}.trace-report__gaps b{color:#a86f00;margin-right:6px}.trace-report__rec{margin:6px 0 0;color:#4a6278;font-size:12px}.trace-report__rec span{color:#8a9aae}.trace-report__actions{display:flex;gap:10px;margin-top:16px;padding-top:12px;border-top:1px solid #dce6ef}.trace-report__btn{padding:8px 14px;border:1px solid #bdcad5;background:#fff;color:#37526c;font-size:12px;cursor:pointer}.trace-report__btn--primary{border-color:#173e63;background:#173e63;color:#fff}.trace-report-slide-enter-active,.trace-report-slide-leave-active{transition:transform .45s cubic-bezier(.16,1,.3,1),opacity .35s ease}.trace-report-slide-enter-from,.trace-report-slide-leave-to{transform:translateY(20px);opacity:0}@keyframes suspectPulse{50%{box-shadow:0 0 0 2px #f0a0a0,0 0 22px #d9484899}}.ecg-event.endpoint .event-stem{display:none}.ecg-event.endpoint .event-dot{top:216px}.ecg-event.endpoint strong{top:264px}.ecg-event.endpoint small{top:285px}.ecg-event.endpoint:first-of-type strong,.ecg-event.endpoint:first-of-type small{text-align:left;padding-left:27px}.ecg-event.endpoint:last-of-type strong,.ecg-event.endpoint:last-of-type small{text-align:right;padding-right:27px}.ecg-event.peak .event-stem{top:58px;height:224px;transform-origin:top}.ecg-event.peak .event-dot{top:282px}.ecg-event.peak strong{top:334px}.ecg-event.peak small{top:355px}.ecg-event.valley .event-stem{top:189px;height:223px;transform-origin:bottom}.ecg-event.valley .event-dot{top:143px}.ecg-event.valley strong{top:111px}.ecg-event.valley small{top:90px}.ecg-event strong{font-size:13px}.ecg-event small{font-size:11px}.event-dot{width:40px;height:40px;font-size:11px}.trace-footer{height:46px;font-size:12px}.trace-footer p{font-size:12px}
 .rail-status{height:56px;font-size:12px}.insight-rail section{padding:18px}.insight-rail h3{font-size:16px}.rail-conclusion,.muted-copy{font-size:13px}.rail-heading span{font-size:12px}.rail-row{padding:11px 0}.rail-row>i{width:30px;font-size:11px}.rail-row b{font-size:13px}.rail-row small{font-size:11px}.rail-check b,.fact-list b,.route-row b{font-size:13px}.rail-check small,.fact-list span,.route-row span{font-size:11px}.question-list li{font-size:12px}.rail-empty p{font-size:12px}
-@media(max-height:760px){.after-workbench{padding-top:8px}.command-bar{height:60px;flex-basis:60px}.data-ribbon{height:50px;flex-basis:50px}.verdict-copy h3{font-size:21px}.verdict-copy{min-height:170px}.verdict-footer{padding:18px 0}}
+@media(max-height:760px){.after-workbench{padding-top:8px}.command-bar{height:60px;flex-basis:60px}.verdict-copy h3{font-size:21px}.verdict-copy{min-height:170px}.verdict-footer{padding:18px 0}}
 @media(max-width:1150px){.ai-judgement h3{font-size:18px}}
 @media(max-width:980px){.after-workbench{height:auto;min-height:var(--layout-content-min-h, calc(100vh - 92px));overflow:visible}.workbench-grid{height:680px;flex:none}.insight-rail{height:auto}.triage-focus{padding:0 28px}.diagnosis-stack{grid-template-rows:auto auto}.ai-judgement{min-height:210px}.process-body{grid-template-columns:1fr;overflow:auto}}
 </style>

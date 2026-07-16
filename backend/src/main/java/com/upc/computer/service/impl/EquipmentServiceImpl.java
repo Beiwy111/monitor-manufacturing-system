@@ -160,7 +160,7 @@ public class EquipmentServiceImpl implements EquipmentService {
         Long reporter = resolveUserId(operator);
 
         AndonAlarm alarm = new AndonAlarm();
-        alarm.setAlarmNo(nextNo("AL", andonAlarmMapper.alarmList(), AndonAlarm::getAlarmNo));
+        alarm.setAlarmNo(nextAlarmNo());
         alarm.setEquipmentId(equipmentId);
         alarm.setAlarmType(normalizeAlarmType(alarmType));
         alarm.setAlarmLevel(normalizeAlarmLevel(alarmLevel));
@@ -540,6 +540,22 @@ public class EquipmentServiceImpl implements EquipmentService {
     private Map<Long, User> userMap() {
         return userMapper.userList().stream()
                 .collect(Collectors.toMap(User::getUserId, u -> u, (a, b) -> a));
+    }
+
+    private String nextAlarmNo() {
+        String fp = "AL" + LocalDate.now().format(YM_FMT);
+        int max = 0;
+        try {
+            max = andonAlarmMapper.maxAlarmSeqByPrefix(fp);
+        } catch (Exception ignored) {
+            max = andonAlarmMapper.alarmList().stream()
+                    .map(AndonAlarm::getAlarmNo).filter(Objects::nonNull).filter(n -> n.startsWith(fp))
+                    .mapToInt(n -> {
+                        try { return Integer.parseInt(n.substring(fp.length())); }
+                        catch (Exception e) { return 0; }
+                    }).max().orElse(0);
+        }
+        return fp + String.format("%03d", max + 1);
     }
 
     private <T> String nextNo(String prefix, List<T> list, Function<T, String> fn) {

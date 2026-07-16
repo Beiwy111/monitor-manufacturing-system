@@ -1,6 +1,6 @@
 <template>
   <el-container class="layout-container">
-    <el-aside width="168px" class="layout-aside">
+    <el-aside width="180px" class="layout-aside">
       <div class="logo">
         <router-link :to="homePath" class="logo__link" :title="APP_TITLE">
           <BrandLogo :size="32" variant="sidebar" :text="BRAND_NAME" />
@@ -125,7 +125,8 @@ const breadcrumbModule = computed(() => {
   if (p.startsWith('/warehouse')) return '物料库存'
   if (p.startsWith('/purchase')) return '采购管理'
   if (p.startsWith('/device')) return '设备管理'
-  if (p.startsWith('/aftersale') || p.startsWith('/cost')) return '售后成本'
+  if (p.startsWith('/aftersale') || p.startsWith('/dashboard/aftersale')) return '售后管理'
+  if (p.startsWith('/cost')) return '成本管理'
   if (p.startsWith('/delivery')) return '发货管理'
   if (p.startsWith('/customer')) return '客户门户'
   if (p.startsWith('/chat')) return '智能对话'
@@ -137,6 +138,7 @@ const avatarText = computed(() => userStore.displayName?.slice(0, 1) || 'U')
 const iconMap = {
   system: Setting,
   material: Box,
+  warehouse: Box,
   order: ShoppingCart,
   production: OfficeBuilding,
   purchase: ShoppingCart,
@@ -185,8 +187,8 @@ function toggleFullscreen() {
 }
 
 .layout-aside {
-  background: var(--layout-content-gradient, var(--layout-bg-gradient));
-  background-attachment: fixed;
+  background: var(--sidebar-bg-gradient, #f8f9fb);
+  background-attachment: local;
   background-repeat: no-repeat;
   display: flex;
   flex-direction: column;
@@ -326,9 +328,7 @@ function toggleFullscreen() {
   overflow: auto;
   display: flex;
   flex-direction: column;
-  background: var(--layout-content-gradient, var(--layout-bg-gradient));
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+  background: var(--layout-content-bg, #ffffff);
 }
 
 .layout-main--screen {
@@ -339,64 +339,111 @@ function toggleFullscreen() {
 .layout-menu {
   border-right: none;
   background: transparent !important;
+  --el-menu-base-level-padding: 12px;
+  --el-menu-icon-width: 18px;
+  --el-menu-item-height: 44px;
   --el-menu-active-color: var(--layout-text-title, #25272a);
   --el-menu-hover-bg-color: transparent;
   --el-menu-bg-color: transparent;
   --el-menu-text-color: var(--sidebar-text, #7e838b);
 }
 
-.layout-menu :deep(.el-menu-item),
-.layout-menu :deep(.el-sub-menu__title) {
+.layout-menu :deep(.el-menu-item) {
   position: relative;
   height: 44px;
   line-height: 44px;
   font-size: 14px;
   font-weight: 600;
   color: var(--sidebar-text, #4f5560) !important;
-  margin: 0;
-  padding-left: 20px !important;
-  border-radius: 0;
+  margin: 2px 10px;
+  width: calc(100% - 20px);
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  border-radius: 8px;
   background: transparent !important;
-  transition: color 0.15s, font-weight 0.15s;
+  transition: color 0.15s, background 0.15s, font-weight 0.15s;
+  box-sizing: border-box;
 }
 
-.layout-menu :deep(.el-menu-item .el-icon),
-.layout-menu :deep(.el-sub-menu__title .el-icon) {
+.layout-menu :deep(.el-sub-menu__title) {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  line-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sidebar-text, #4f5560) !important;
+  margin: 2px 10px;
+  width: calc(100% - 20px);
+  padding: 0 12px !important;
+  border-radius: 8px;
+  background: transparent !important;
+  transition: color 0.15s, background 0.15s, font-weight 0.15s;
+  box-sizing: border-box;
+}
+
+.layout-menu :deep(.el-sub-menu__title > span) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 模块图标（排除伸缩箭头） */
+.layout-menu :deep(.el-menu-item > .el-icon),
+.layout-menu :deep(.el-sub-menu__title > .el-icon:not(.el-sub-menu__icon-arrow)) {
   color: var(--sidebar-text, #4f5560) !important;
   font-size: 16px;
+  margin-right: 0;
+  flex-shrink: 0;
+  width: 18px !important;
   transition: color 0.15s;
+}
+
+/* 伸缩箭头：flex 尾部排列，覆盖 EP 默认 absolute */
+.layout-menu :deep(.el-sub-menu__title > .el-sub-menu__icon-arrow) {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  width: 14px !important;
+  height: 14px;
+  margin: 0 0 0 auto !important;
+  padding: 0;
+  flex-shrink: 0;
+  color: #b8bdb5 !important;
+  font-size: 12px;
+  transform: none;
+}
+
+.layout-menu :deep(.el-sub-menu.is-opened > .el-sub-menu__title > .el-sub-menu__icon-arrow) {
+  transform: rotate(180deg) !important;
 }
 
 .layout-menu :deep(.el-menu-item:hover),
 .layout-menu :deep(.el-sub-menu__title:hover) {
   color: var(--sidebar-text-hover, #25272a) !important;
-  background: transparent !important;
+  background: var(--sidebar-hover-bg, rgba(0, 0, 0, 0.03)) !important;
 }
 
-.layout-menu :deep(.el-menu-item:hover .el-icon),
-.layout-menu :deep(.el-sub-menu__title:hover .el-icon) {
+.layout-menu :deep(.el-menu-item:hover > .el-icon),
+.layout-menu :deep(.el-sub-menu__title:hover > .el-icon:not(.el-sub-menu__icon-arrow)) {
   color: var(--sidebar-text-hover, #25272a) !important;
 }
 
 .layout-menu :deep(.el-menu-item.is-active) {
-  background: transparent !important;
+  background: var(--sidebar-active-bg, #e8f2ea) !important;
   color: var(--sidebar-active-text, #25272a) !important;
   font-weight: 700;
 }
 
-.layout-menu :deep(.el-menu-item.is-active .el-icon) {
+.layout-menu :deep(.el-menu-item.is-active > .el-icon) {
   color: var(--sidebar-active-text, #25272a) !important;
 }
 
 .layout-menu :deep(.el-menu-item.is-active)::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 3px;
-  border-radius: 0 2px 2px 0;
-  background: var(--sidebar-accent, #8fad94);
+  display: none;
 }
 
 .layout-menu :deep(.el-menu-item.is-active)::after {
@@ -406,11 +453,15 @@ function toggleFullscreen() {
 .layout-menu :deep(.el-sub-menu .el-menu-item) {
   position: relative;
   min-width: auto;
-  padding-left: 44px !important;
+  margin: 2px 10px;
+  width: calc(100% - 20px);
+  padding: 0 12px 0 20px !important;
+  border-radius: 8px;
   background: transparent !important;
   font-size: 13px;
   font-weight: 600;
   color: var(--sidebar-text, #4f5560) !important;
+  box-sizing: border-box;
 }
 
 .layout-menu :deep(.el-sub-menu .el-menu-item .el-icon) {
@@ -419,28 +470,17 @@ function toggleFullscreen() {
 
 .layout-menu :deep(.el-sub-menu .el-menu-item:hover) {
   color: var(--sidebar-text-hover, #25272a) !important;
-  background: transparent !important;
+  background: var(--sidebar-hover-bg, rgba(0, 0, 0, 0.03)) !important;
 }
 
 .layout-menu :deep(.el-sub-menu .el-menu-item.is-active) {
-  background: transparent !important;
+  background: var(--sidebar-active-bg-sub, #ede9f7) !important;
   color: var(--sidebar-active-text, #25272a) !important;
   font-weight: 700;
 }
 
 .layout-menu :deep(.el-sub-menu .el-menu-item.is-active)::before {
-  content: '';
-  position: absolute;
-  left: 12px;
-  top: 10px;
-  bottom: 10px;
-  width: 3px;
-  border-radius: 0 2px 2px 0;
-  background: var(--sidebar-accent, #8fad94);
-}
-
-.layout-menu :deep(.el-sub-menu__title .el-sub-menu__icon-arrow) {
-  color: #b8bdb5;
+  display: none;
 }
 
 .layout-menu :deep(.el-sub-menu .el-menu) {
@@ -452,7 +492,7 @@ function toggleFullscreen() {
   font-weight: 700;
 }
 
-.layout-menu :deep(.el-sub-menu.is-opened > .el-sub-menu__title .el-icon) {
+.layout-menu :deep(.el-sub-menu.is-opened > .el-sub-menu__title > .el-icon:not(.el-sub-menu__icon-arrow)) {
   color: var(--layout-text-body, #25272a) !important;
 }
 
@@ -461,7 +501,7 @@ function toggleFullscreen() {
   font-weight: 700;
 }
 
-.layout-menu :deep(.el-sub-menu.is-active > .el-sub-menu__title .el-icon) {
+.layout-menu :deep(.el-sub-menu.is-active > .el-sub-menu__title > .el-icon:not(.el-sub-menu__icon-arrow)) {
   color: var(--sidebar-active-text, #25272a) !important;
 }
 

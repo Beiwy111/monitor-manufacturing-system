@@ -5,19 +5,19 @@
       <el-button type="primary" size="small" @click="$router.push('/customer/order/new')">新建订单</el-button>
     </div>
 
-    <el-table :data="orders" border stripe size="small" style="width:100%" highlight-current-row @current-change="onSelect">
-      <el-table-column prop="orderNo" label="订单号" width="130" fixed />
-      <el-table-column prop="orderDate" label="下单日期" width="110" />
-      <el-table-column prop="requiredDeliveryDate" label="要求交期" width="110" />
-      <el-table-column prop="currentStage" label="当前阶段" width="100" />
-      <el-table-column label="生产进度" width="180">
+    <el-table :data="orders" border stripe size="small" class="cp-orders-table" highlight-current-row @current-change="onSelect">
+      <el-table-column prop="orderNo" label="订单号" min-width="180" fixed />
+      <el-table-column prop="orderDate" label="下单日期" min-width="120" />
+      <el-table-column prop="requiredDeliveryDate" label="要求交期" min-width="120" />
+      <el-table-column prop="currentStage" label="当前阶段" min-width="110" />
+      <el-table-column label="生产进度" min-width="220">
         <template #default="{ row }">
           <el-progress :percentage="row.progressPercent || 0" :stroke-width="8" />
         </template>
       </el-table-column>
-      <el-table-column prop="auditStatus" label="审核状态" width="90" />
-      <el-table-column prop="orderAmount" label="金额" width="100" align="right" />
-      <el-table-column label="产品" min-width="160" show-overflow-tooltip>
+      <el-table-column prop="auditStatus" label="审核状态" min-width="120" />
+      <el-table-column prop="orderAmount" label="金额" min-width="120" align="right" />
+      <el-table-column label="产品" min-width="220" show-overflow-tooltip>
         <template #default="{ row }">{{ row.items?.[0]?.productName || '—' }}</template>
       </el-table-column>
     </el-table>
@@ -113,6 +113,8 @@ onMounted(loadOrders)
 
 <style scoped>
 .cp-page { padding: 12px 16px; font-weight: 400; }
+.cp-orders-table { width: 100%; }
+.cp-orders-table :deep(.el-table__body .cell) { white-space: nowrap; }
 .cp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #e8e8e8; padding-bottom: 10px; }
 .cp-title { margin: 0; font-size: 18px; font-weight: 500; }
 .cp-detail { margin-top: 12px; border: 1px solid #e8e8e8; padding: 12px; background: #fff; }

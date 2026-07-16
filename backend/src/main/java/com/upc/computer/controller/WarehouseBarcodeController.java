@@ -4,9 +4,12 @@ import com.upc.computer.common.Result;
 import com.upc.computer.entity.BarcodeRule;
 import com.upc.computer.service.WarehouseBarcodeService;
 import com.upc.computer.service.WarehouseLocationService;
+import com.upc.computer.service.WarehouseSlotService;
+import com.upc.computer.service.PurchaseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /** 仓储条码、批次、扫码接口。 */
@@ -17,6 +20,10 @@ public class WarehouseBarcodeController {
     private WarehouseBarcodeService warehouseBarcodeService;
     @Autowired
     private WarehouseLocationService warehouseLocationService;
+    @Autowired
+    private WarehouseSlotService warehouseSlotService;
+    @Autowired
+    private PurchaseService purchaseService;
 
     @GetMapping("/inventory/list")
     public Result<Object> inventoryList() {
@@ -73,5 +80,27 @@ public class WarehouseBarcodeController {
     @GetMapping("/location-map")
     public Result<Object> locationMap() {
         return Result.success(warehouseLocationService.locationMap());
+    }
+
+    @GetMapping("/slots/available")
+    public Result<Object> availableSlots(@RequestParam(required = false) String category,
+                                         @RequestParam(required = false) String zoneCode) {
+        return Result.success(warehouseSlotService.listAvailableSlots(category, zoneCode));
+    }
+
+    @GetMapping("/purchase/pending-arrivals")
+    public Result<Object> pendingPurchaseArrivals() {
+        return Result.success(warehouseSlotService.listPendingPurchaseArrivals());
+    }
+
+    @PostMapping("/purchase/confirm-arrival")
+    public Result<Void> confirmPurchaseArrival(@RequestBody Map<String, Object> body) {
+        Long purchaseOrderId = body.get("purchaseOrderId") != null
+                ? Long.valueOf(String.valueOf(body.get("purchaseOrderId"))) : null;
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> assignments = body.get("assignments") instanceof List<?> list
+                ? (List<Map<String, Object>>) list : List.of();
+        purchaseService.confirmArrivalWithSlots(purchaseOrderId, assignments);
+        return Result.success();
     }
 }

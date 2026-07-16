@@ -1,16 +1,23 @@
 <template>
-  <MesPageShell toolbar-title="发货管理" :status-options="DELIVERY_STATUS" :detail-rows="rows">
+  <MesPageShell toolbar-title="发货管理" :status-options="DELIVERY_STATUS" :detail-rows="rows" compact-table>
     <template #table>
-      <el-table :data="mes.deliveries" border stripe highlight-current-row @current-change="onRowClick">
-        <el-table-column prop="id" label="发货单" width="130" />
-        <el-table-column prop="orderNo" label="订单" width="130" />
-        <el-table-column prop="customerName" label="客户" min-width="120" />
-        <el-table-column prop="productModel" label="型号" width="130" />
-        <el-table-column prop="quantity" label="数量" width="80" />
-        <el-table-column prop="status" label="状态" width="90">
+      <el-table
+        :data="mes.deliveries"
+        border
+        stripe
+        style="width:100%"
+        highlight-current-row
+        @current-change="onRowClick"
+      >
+        <el-table-column prop="id" label="发货单" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="orderNo" label="订单" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="customerName" label="客户" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="productModel" label="型号" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="quantity" label="数量" min-width="90" align="right" />
+        <el-table-column prop="status" label="状态" min-width="100" align="center">
           <template #default="{ row }"><StatusBadge :status="row.status" /></template>
         </el-table-column>
-        <el-table-column label="操作" width="72" fixed="right">
+        <el-table-column label="操作" width="88" align="center" fixed="right">
           <template #default="{ row }">
             <el-button link type="danger" @click="removeDelivery(row)">删除</el-button>
           </template>

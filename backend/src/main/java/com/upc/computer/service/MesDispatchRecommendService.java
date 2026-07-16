@@ -19,6 +19,8 @@ public class MesDispatchRecommendService {
 
     private static final List<String> ACTIVE_DISPATCH_STATUS = List.of(
             "ASSIGNED", "ACCEPTED", "PRODUCING", "RUNNING");
+    private static final List<String> TERMINAL_WORK_ORDER_STATUS = List.of(
+            "COMPLETED", "CANCELLED", "CLOSED");
 
     @Autowired
     private ProductionPlanMapper productionPlanMapper;
@@ -105,7 +107,7 @@ public class MesDispatchRecommendService {
 
         int planQty = resolvePlanQty(plan, materialId);
         List<User> operators = activeOperators();
-        List<DispatchTask> allDispatches = dispatchTaskMapper.dispatchList();
+        List<DispatchTask> allDispatches = openDispatches(dispatchTaskMapper.dispatchList());
         List<Equipment> allEquipment = equipmentMapper.equipmentList();
 
         String workOrderNo = wo != null ? wo.getWorkOrderNo() : "待生成";
@@ -359,7 +361,12 @@ public class MesDispatchRecommendService {
      * 为单道工序推荐操作员（批量派工时可传入本批次已占用的操作员 ID）。
      */
     public OperatorPick recommendOperator(ProcessStep step, Set<Long> excludeOperatorIds) {
-        return pickOperator(step, activeOperators(), dispatchTaskMapper.dispatchList(), excludeOperatorIds);
+        return pickOperator(step, activeOperators(), openDispatchList(), excludeOperatorIds);
+    }
+
+    /** 仅保留未完结工单上的派工，供派工冲突校验与推荐复用。 */
+    public List<DispatchTask> openDispatchList() {
+        return openDispatches(dispatchTaskMapper.dispatchList());
     }
 
     private OperatorPick pickOperator(ProcessStep step, List<User> operators, List<DispatchTask> dispatches) {
@@ -414,14 +421,40 @@ public class MesDispatchRecommendService {
         scored.sort(Comparator.comparingInt(ScoredOperator::score).reversed());
         ScoredOperator best = scored.isEmpty() ? null : scored.get(0);
         if (best == null) {
+            best = pickLeastLoadedOperator(eligible, reservedOperatorIds, dispatches, primaryUsername, stepDept);
+        }
+        if (best == null) {
             String stageName = stage != null ? stage.stepName() : "该工序";
             return new OperatorPick(null, "", "", "",
-                    "工序「" + stageName + "」暂无空闲操作员（本批次已占用其他工序人员）", 0, 0);
+                    "工序「" + stageName + "」暂无可用操作员", 0, 0);
         }
 
         String reason = buildRecommendReason(best, primaryUsername);
         return new OperatorPick(best.user().getUserId(), best.user().getUsername(), best.user().getRealName(),
                 best.user().getDepartment(), reason, best.activeLoad(), best.historyCount());
+    }
+
+    private ScoredOperator pickLeastLoadedOperator(List<User> eligible, Set<Long> reservedOperatorIds,
+                                                   List<DispatchTask> dispatches, String primaryUsername,
+                                                   String stepDept) {
+        ScoredOperator fallback = null;
+        for (User user : eligible) {
+            if (reservedOperatorIds != null && reservedOperatorIds.contains(user.getUserId())) {
+                continue;
+            }
+            int activeLoad = countInProgressLoad(user.getUserId(), dispatches);
+            int historyCount = countHistory(user.getUserId(), dispatches);
+            boolean deptMatch = departmentMatches(user.getDepartment(), stepDept);
+            boolean primary = primaryUsername != null && primaryUsername.equals(user.getUsername());
+            int score = (primary ? 1000 : 0) + (deptMatch ? 100 : 0) - activeLoad * 30 - Math.min(historyCount, 20) * 2;
+            ScoredOperator candidate = new ScoredOperator(user, score, activeLoad, historyCount, deptMatch, activeLoad == 0);
+            if (fallback == null
+                    || candidate.activeLoad() < fallback.activeLoad()
+                    || (candidate.activeLoad() == fallback.activeLoad() && candidate.score() > fallback.score())) {
+                fallback = candidate;
+            }
+        }
+        return fallback;
     }
 
     private String buildRecommendReason(ScoredOperator best, String primaryUsername) {
@@ -474,6 +507,28 @@ public class MesDispatchRecommendService {
                 .filter(d -> operatorId.equals(d.getOperatorId()))
                 .filter(d -> ACTIVE_DISPATCH_STATUS.contains(d.getStatus()))
                 .count();
+    }
+
+    private int countInProgressLoad(Long operatorId, List<DispatchTask> dispatches) {
+        return (int) dispatches.stream()
+                .filter(d -> operatorId.equals(d.getOperatorId()))
+                .filter(d -> OperatorWorkshopCatalog.IN_PROGRESS_DISPATCH_STATUS.contains(d.getStatus()))
+                .count();
+    }
+
+    /** 忽略已完结/取消工单上的派工，避免历史任务误占人员与设备。 */
+    private List<DispatchTask> openDispatches(List<DispatchTask> dispatches) {
+        if (dispatches == null || dispatches.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, WorkOrder> woById = workOrderMapper.workOrderList().stream()
+                .collect(Collectors.toMap(WorkOrder::getWorkOrderId, w -> w, (a, b) -> a));
+        return dispatches.stream()
+                .filter(d -> {
+                    WorkOrder wo = woById.get(d.getWorkOrderId());
+                    return wo == null || !TERMINAL_WORK_ORDER_STATUS.contains(wo.getStatus());
+                })
+                .toList();
     }
 
     private int countHistory(Long operatorId, List<DispatchTask> dispatches) {
@@ -635,7 +690,7 @@ public class MesDispatchRecommendService {
         if (rows == null || rows.isEmpty()) {
             throw new BusinessException("派工明细为空");
         }
-        List<DispatchTask> allDispatches = dispatchTaskMapper.dispatchList();
+        List<DispatchTask> allDispatches = openDispatches(dispatchTaskMapper.dispatchList());
         List<Equipment> allEquipment = equipmentMapper.equipmentList();
         List<User> operators = activeOperators();
         Map<String, ProcessStep> stepByName = processStepMapper.stepList().stream()
@@ -668,13 +723,22 @@ public class MesDispatchRecommendService {
             } else {
                 User op = operators.stream().filter(u -> operator.equals(u.getUsername())).findFirst().orElse(null);
                 if (op != null) {
-                    long active = allDispatches.stream()
+                    long inProgress = allDispatches.stream()
                             .filter(d -> op.getUserId().equals(d.getOperatorId()))
-                            .filter(d -> ACTIVE_DISPATCH_STATUS.contains(d.getStatus()))
+                            .filter(d -> OperatorWorkshopCatalog.IN_PROGRESS_DISPATCH_STATUS.contains(d.getStatus()))
                             .count();
-                    if (active > 0) {
+                    if (inProgress > 0) {
                         conflicts.add(conflict("danger", "operator_busy", "人员占用",
                                 op.getRealName() + " 已有进行中的派工"));
+                    } else {
+                        long assignedOnly = allDispatches.stream()
+                                .filter(d -> op.getUserId().equals(d.getOperatorId()))
+                                .filter(d -> "ASSIGNED".equals(d.getStatus()))
+                                .count();
+                        if (assignedOnly > 0) {
+                            conflicts.add(conflict("warning", "operator_queued", "人员排队",
+                                    op.getRealName() + " 已有待接收派工，将按队列追加"));
+                        }
                     }
                 }
             }

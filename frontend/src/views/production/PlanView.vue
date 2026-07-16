@@ -47,7 +47,7 @@
 
         <!-- 生产计划 -->
         <el-tab-pane label="生产计划" name="plans">
-          <div class="wb-pane wb-pane--split">
+          <div class="wb-pane">
             <div class="wb-toolbar">
               <el-input v-model="filters.orderNo" clearable placeholder="订单号" class="wb-toolbar__field" />
               <el-input v-model="filters.productModel" clearable placeholder="型号" class="wb-toolbar__field" />
@@ -60,68 +60,52 @@
               <el-button size="small" @click="exportExcel">导出</el-button>
             </div>
 
-            <div class="wb-split">
-              <div class="wb-split__top">
-                <el-table
-                  ref="tableRef"
-                  v-loading="tableLoading"
-                  :data="pagedRows"
-                  border
-                  size="small"
-                  height="100%"
-                  row-key="id"
-                  class="wb-table"
-                  highlight-current-row
-                  :current-row-key="selectedPlan?.id"
-                  :default-sort="{ prop: 'planStart', order: 'descending' }"
-                  @sort-change="onSortChange"
-                  @current-change="onPlanRowSelect"
-                >
-                  <el-table-column prop="id" label="计划编号" min-width="120" sortable="custom" fixed="left" />
-                  <el-table-column prop="orderNo" label="来源订单" min-width="118" sortable="custom" />
-                  <el-table-column prop="productModel" label="产品型号" min-width="130" show-overflow-tooltip sortable="custom" />
-                  <el-table-column prop="quantity" label="数量" min-width="72" align="right" sortable="custom" />
-                  <el-table-column prop="deliveryDate" label="客户交期" min-width="108" sortable="custom" />
-                  <el-table-column prop="priorityLabel" label="优先级" min-width="80" sortable="custom" />
-                  <el-table-column prop="kitRateLabel" label="齐套率" min-width="80" align="center" sortable="custom" />
-                  <el-table-column prop="estimatedHours" label="预计工时" min-width="96" align="right" sortable="custom">
-                    <template #default="{ row }">{{ row.estimatedHours || '—' }}</template>
-                  </el-table-column>
-                  <el-table-column prop="workshop" label="车间" min-width="108" show-overflow-tooltip />
-                  <el-table-column prop="equipmentLoadLabel" label="设备负荷" min-width="96" align="center" />
-                  <el-table-column prop="schedulingRisk" label="排产风险" min-width="96" align="center">
-                    <template #default="{ row }"><span class="wb-tag" :class="schedRiskClass(row.schedulingRisk)">{{ row.schedulingRisk }}</span></template>
-                  </el-table-column>
-                  <el-table-column prop="status" label="状态" min-width="88">
-                    <template #default="{ row }"><span class="wb-tag" :class="statusTagClass(row.status)">{{ row.status }}</span></template>
-                  </el-table-column>
-                  <el-table-column label="操作" width="168" fixed="right">
-                    <template #default="{ row }">
-                      <el-button v-if="row.status === '草稿'" link type="primary" size="small" @click.stop="publish(row)">待提交</el-button>
-                      <el-button v-if="row.status === '待提交'" link type="primary" size="small" @click.stop="submit(row)">提交</el-button>
-                      <el-button link type="primary" size="small" @click.stop="reschedulePlan(row)">重排</el-button>
-                      <el-button link type="primary" size="small" @click.stop="copyPlan(row)">版本</el-button>
-                    </template>
-                  </el-table-column>
-                </el-table>
-                <div class="wb-pagination">
-                  <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :page-sizes="[20, 50, 100]" :total="sortedRows.length" layout="total, sizes, prev, pager, next" background small />
-                </div>
-              </div>
-              <div class="wb-split__bottom">
-                <PlanDetailPanel
-                  :plan="selectedPlan"
-                  :schedules="planSchedules"
-                  :history="planHistory"
-                  :order-context="selectedOrderContext"
-                  :conflicts="selectedConflicts"
-                  :mes="mes"
-                  :loading="planDetailLoading"
-                  :validating="validating"
-                  @validate="validateSelectedPlan"
-                  @reschedule="reschedulePlan(selectedPlan)"
-                  @copy-version="copyPlan(selectedPlan)"
-                />
+            <div class="wb-table-wrap wb-table-wrap--plan">
+              <el-table
+                ref="tableRef"
+                v-loading="tableLoading"
+                :data="pagedRows"
+                border
+                size="small"
+                height="100%"
+                row-key="id"
+                class="wb-table wb-table--clickable"
+                highlight-current-row
+                :current-row-key="selectedPlan?.id"
+                :default-sort="{ prop: 'planStart', order: 'descending' }"
+                @sort-change="onSortChange"
+                @row-click="openPlanDetail"
+                @current-change="onPlanCurrentChange"
+              >
+                <el-table-column prop="id" label="计划编号" min-width="120" sortable="custom" fixed="left" />
+                <el-table-column prop="orderNo" label="来源订单" min-width="118" sortable="custom" />
+                <el-table-column prop="productModel" label="产品型号" min-width="130" show-overflow-tooltip sortable="custom" />
+                <el-table-column prop="quantity" label="数量" min-width="72" align="right" sortable="custom" />
+                <el-table-column prop="deliveryDate" label="客户交期" min-width="108" sortable="custom" />
+                <el-table-column prop="priorityLabel" label="优先级" min-width="80" sortable="custom" />
+                <el-table-column prop="kitRateLabel" label="齐套率" min-width="80" align="center" sortable="custom" />
+                <el-table-column prop="estimatedHours" label="预计工时" min-width="96" align="right" sortable="custom">
+                  <template #default="{ row }">{{ row.estimatedHours || '—' }}</template>
+                </el-table-column>
+                <el-table-column prop="workshop" label="车间" min-width="108" show-overflow-tooltip />
+                <el-table-column prop="equipmentLoadLabel" label="设备负荷" min-width="96" align="center" />
+                <el-table-column prop="schedulingRisk" label="排产风险" min-width="96" align="center">
+                  <template #default="{ row }"><span class="wb-tag" :class="schedRiskClass(row.schedulingRisk)">{{ row.schedulingRisk }}</span></template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态" min-width="88">
+                  <template #default="{ row }"><span class="wb-tag" :class="statusTagClass(row.status)">{{ row.status }}</span></template>
+                </el-table-column>
+                <el-table-column label="操作" width="168" fixed="right">
+                  <template #default="{ row }">
+                    <el-button v-if="row.status === '草稿'" link type="primary" size="small" @click.stop="publish(row)">待提交</el-button>
+                    <el-button v-if="row.status === '待提交'" link type="primary" size="small" @click.stop="submit(row)">提交</el-button>
+                    <el-button link type="primary" size="small" @click.stop="reschedulePlan(row)">重排</el-button>
+                    <el-button link type="primary" size="small" @click.stop="copyPlan(row)">版本</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <div class="wb-pagination">
+                <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :page-sizes="[20, 50, 100]" :total="sortedRows.length" layout="total, sizes, prev, pager, next" background small />
               </div>
             </div>
           </div>
@@ -181,6 +165,35 @@
     </div>
 
     <ManualPlanWizard v-model="manualVisible" :default-order-id="manualOrderId" @success="onPlanSaved" />
+
+    <el-dialog
+      v-model="planDetailVisible"
+      class="plan-detail-dialog"
+      width="960px"
+      top="5vh"
+      destroy-on-close
+      :title="planDetailDialogTitle"
+      @closed="onPlanDetailClosed"
+    >
+      <div v-if="selectedPlan" class="plan-detail-dialog__body">
+        <PlanDetailPanel
+          :plan="selectedPlan"
+          :schedules="planSchedules"
+          :history="planHistory"
+          :order-context="selectedOrderContext"
+          :conflicts="selectedConflicts"
+          :mes="mes"
+          :loading="planDetailLoading"
+          :validating="validating"
+          @validate="validateSelectedPlan"
+          @reschedule="reschedulePlan(selectedPlan)"
+          @copy-version="copyPlan(selectedPlan)"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="planDetailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -219,7 +232,7 @@ const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
 
-const activeTab = ref('plans')
+const activeTab = ref('pending')
 const isFullscreen = ref(false)
 const tableLoading = ref(false)
 const ganttLoading = ref(false)
@@ -249,11 +262,18 @@ const page = reactive({ current: 1, size: 20 })
 const sortState = ref({ prop: 'planStart', order: 'descending' })
 
 const selectedPlan = ref(null)
+const planDetailVisible = ref(false)
 const planSchedules = ref([])
 const planHistory = ref([])
 const selectedOrderContext = ref(null)
 const manualVisible = ref(false)
 const manualOrderId = ref('')
+
+const planDetailDialogTitle = computed(() => {
+  if (!selectedPlan.value) return '生产计划详情'
+  const p = selectedPlan.value
+  return `生产计划详情 · ${p.id} · ${p.productModel || '—'} · ${p.quantity ?? '—'}台`
+})
 
 const operatorName = computed(() => userStore.userInfo?.username || userStore.username || '')
 
@@ -444,7 +464,7 @@ async function refresh() {
     await loadSchedules(mes.plans, true)
     const orderIds = mes.pendingPlanOrders.map((o) => o.id)
     await prefetchOrderContexts(orderIds)
-    if (selectedPlan.value) {
+    if (selectedPlan.value && planDetailVisible.value) {
       const updated = enrichedRows.value.find((r) => r.id === selectedPlan.value.id)
       if (updated) {
         selectedPlan.value = updated
@@ -464,6 +484,32 @@ function exportExcel() {
   exportPlanRows(sortedRows.value, formatPlanExportFilename())
   ElMessage.success('导出成功')
 }
+
+const PLAN_TABS = new Set(['pending', 'plans', 'gantt', 'capacity'])
+
+function applyRouteTab() {
+  const tab = route.query.tab
+  if (typeof tab === 'string' && PLAN_TABS.has(tab)) {
+    activeTab.value = tab
+    return
+  }
+  if (route.query.orderId && route.query.action !== 'schedule') {
+    activeTab.value = 'pending'
+    return
+  }
+  if (!route.query.orderId && !route.query.tab && !route.query.action) {
+    activeTab.value = 'pending'
+  }
+}
+
+watch(
+  () => [route.path, route.query.tab, route.query.orderId, route.query.action],
+  () => {
+    if (route.path !== '/production/plan') return
+    applyRouteTab()
+  },
+  { immediate: true }
+)
 
 async function onTabChange(name) {
   if (name === 'gantt' || name === 'capacity') {
@@ -507,10 +553,21 @@ async function loadPlanDetail(row) {
   }
 }
 
-async function onPlanRowSelect(row) {
+async function openPlanDetail(row) {
   if (!row) return
   selectedPlan.value = row
+  planDetailVisible.value = true
   await loadPlanDetail(row)
+}
+
+function onPlanCurrentChange(row) {
+  selectedPlan.value = row
+}
+
+function onPlanDetailClosed() {
+  planSchedules.value = []
+  planHistory.value = []
+  selectedOrderContext.value = null
 }
 
 function onPendingRowClick(row) {
@@ -586,17 +643,12 @@ onMounted(async () => {
     if (!mes.hydrated) await mes.hydrateForPage()
     await loadSchedules(mes.plans, true)
     await prefetchOrderContexts(mes.pendingPlanOrders.map((o) => o.id))
-    if (pagedRows.value.length) {
-      selectedPlan.value = pagedRows.value[0]
-      await loadPlanDetail(pagedRows.value[0])
-    }
   } catch { /* ignore */ } finally {
     tableLoading.value = false
   }
   if (route.query.orderId) {
     const orderId = String(route.query.orderId)
     if (route.query.action === 'schedule') navigateToSmartScheduling(router, { orderId })
-    else activeTab.value = 'pending'
   }
 })
 
@@ -692,10 +744,6 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 
-.wb-pane--split {
-  overflow: hidden;
-}
-
 .wb-pane--gantt {
   overflow: hidden;
 }
@@ -735,27 +783,18 @@ onBeforeUnmount(() => {
   padding: 0 12px 8px;
 }
 
-.wb-split {
+.wb-table-wrap--plan {
+  display: flex;
+  flex-direction: column;
+}
+
+.wb-table-wrap--plan .wb-table {
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
 }
 
-.wb-split__top {
-  flex: 1 1 58%;
-  min-height: 180px;
-  display: flex;
-  flex-direction: column;
-  padding: 0 12px;
-  overflow: hidden;
-}
-
-.wb-split__bottom {
-  flex: 0 0 38%;
-  min-height: 200px;
-  max-height: 42%;
-  overflow: hidden;
+.wb-table--clickable :deep(.el-table__row) {
+  cursor: pointer;
 }
 
 .wb-pagination {
@@ -824,6 +863,20 @@ onBeforeUnmount(() => {
 .load-bar__pct--ok { color: #15803d; }
 .load-bar__pct--mid { color: #b45309; }
 .load-bar__pct--high { color: #b91c1c; }
+
+.plan-detail-dialog :deep(.el-dialog__body) {
+  padding-top: 8px;
+}
+
+.plan-detail-dialog__body {
+  height: 520px;
+  max-height: calc(84vh - 120px);
+}
+
+.plan-detail-dialog__body :deep(.plan-detail-panel) {
+  height: 100%;
+  border-top: none;
+}
 </style>
 
 <style>

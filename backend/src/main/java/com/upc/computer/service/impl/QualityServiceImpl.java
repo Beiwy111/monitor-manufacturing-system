@@ -55,6 +55,7 @@ public class QualityServiceImpl implements QualityService {
             enrichInspection(row);
             enrichMaterial(row);
             enrichWorkOrder(row);
+            enrichSubmitQty(row);
         });
         return list;
     }
@@ -66,6 +67,7 @@ public class QualityServiceImpl implements QualityService {
         enrichInspection(view);
         enrichMaterial(view);
         enrichWorkOrder(view);
+        enrichSubmitQty(view);
         List<NonconformingProduct> ncList = nonconformingMapper.listByInspectionId(inspectionId);
         List<Map<String, Object>> ncViews = new ArrayList<>();
         for (NonconformingProduct nc : ncList) {
@@ -504,6 +506,16 @@ public class QualityServiceImpl implements QualityService {
         try { return Long.parseLong(v.toString()); } catch (NumberFormatException e) { return null; }
     }
 
+    private static int intVal(Object v) {
+        if (v == null) return 0;
+        if (v instanceof Number n) return n.intValue();
+        try {
+            return (int) Math.round(Double.parseDouble(v.toString()));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     private void enrichInspection(Map<String, Object> row) {
         row.put("inspectionStatusCn",   inspectionStatusCn(str(row, "inspectionStatus")));
         row.put("inspectionCategoryCn", categoryCn(str(row, "inspectionCategory")));
@@ -523,6 +535,16 @@ public class QualityServiceImpl implements QualityService {
         } catch (NumberFormatException ignored) {
             // skip
         }
+    }
+
+    /** 操作员提交质检时的本批数量（Redis submitQty），用于待检列表展示 */
+    private void enrichSubmitQty(Map<String, Object> row) {
+        String inspectionNo = str(row, "inspectionNo");
+        int submitQty = mesWorkflowService.inspectionSubmitQty(inspectionNo);
+        int sample = intVal(row.get("sampleQuantity"));
+        int lot = submitQty > 0 ? submitQty : sample;
+        row.put("submitQty", lot);
+        row.put("lotQuantity", lot);
     }
 
     private void enrichWorkOrder(Map<String, Object> row) {

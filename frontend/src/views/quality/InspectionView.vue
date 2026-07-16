@@ -6,45 +6,34 @@
         <el-step title="选择分类" />
         <el-step title="选择单据" />
         <el-step title="执行质检" />
-        <el-step title="质检报告" />
+        <el-step title="统计与判定" />
       </el-steps>
     </div>
 
     <!-- Step 0：分类选择 -->
-    <section v-if="flowStep === 0" class="qc-flow-page__section">
-      <h2 class="qc-flow-page__heading">请选择本次质检分类</h2>
-      <p class="qc-flow-page__sub">先确定检验对象类型，再选择对应待检单据进入专业检测流程</p>
-      <div class="qc-cat-grid">
-        <button type="button" class="qc-cat-card qc-cat-card--fp" @click="pickCategory('FINISHED_PRODUCT')">
-          <div class="qc-cat-card__icon">📺</div>
-          <h3>成品质检</h3>
-          <p>显示器终检 · 五步专业仿真检测<br>坏点 / 色域 / 漏光 / 均匀性 / 屏闪</p>
-          <el-tag type="primary">待检 {{ pendingKpi.finishedProduct }} 单</el-tag>
-        </button>
-        <button type="button" class="qc-cat-card qc-cat-card--mat" @click="pickCategory('RAW_MATERIAL')">
-          <div class="qc-cat-card__icon">📦</div>
-          <h3>物料质检</h3>
-          <p>来料检验 · 按行业标准检测项<br>外观 / 尺寸 / 电气性能等</p>
-          <el-tag>待检 {{ pendingKpi.rawMaterial }} 单</el-tag>
-        </button>
-      </div>
-
-      <div class="qc-smart-lab" @click="openSmartVision(null)">
-        <div class="qc-smart-lab__glow" />
-        <div class="qc-smart-lab__content">
-          <div class="qc-smart-lab__icon">🔬</div>
-          <div class="qc-smart-lab__text">
+    <section v-if="flowStep === 0" class="qc-flow-page__section qc-flow-page__section--category">
+      <div class="qc-cat-hub">
+        <h2 class="qc-flow-page__heading">请选择本次质检分类</h2>
+        <p class="qc-flow-page__sub">先确定检验对象类型，再选择对应待检单据进入专业检测流程</p>
+        <div class="qc-cat-grid qc-cat-grid--three">
+          <button type="button" class="qc-cat-card qc-cat-card--fp" @click="pickCategory('FINISHED_PRODUCT')">
+            <div class="qc-cat-card__icon">📺</div>
+            <h3>成品质检</h3>
+            <p>显示器终检 · 五步专业仿真检测<br>坏点 / 色域 / 漏光 / 均匀性 / 屏闪</p>
+            <el-tag type="primary">待检 {{ pendingKpi.finishedProduct }} 单</el-tag>
+          </button>
+          <button type="button" class="qc-cat-card qc-cat-card--mat" @click="pickCategory('RAW_MATERIAL')">
+            <div class="qc-cat-card__icon">📦</div>
+            <h3>物料质检</h3>
+            <p>来料检验 · 按行业标准检测项<br>外观 / 尺寸 / 电气性能等</p>
+            <el-tag>待检 {{ pendingKpi.rawMaterial }} 单</el-tag>
+          </button>
+          <button type="button" class="qc-cat-card qc-cat-card--ai" @click="openSmartVision(null)">
+            <div class="qc-cat-card__icon">🔬</div>
             <h3>AI 智能外观检测</h3>
-            <p>上传屏幕照片 · YOLOv8 实时识别划痕与表面缺陷 · 输出类型与置信度</p>
-          </div>
-          <el-button type="primary" size="large" round @click.stop="openSmartVision(null)">
-            打开智能检测窗口
-          </el-button>
-        </div>
-        <div class="qc-smart-lab__stats">
-          <span><b>YOLOv8-Seg</b>分割模型</span>
-          <span><b>实时</b>缺陷标注</span>
-          <span><b>辅助</b>人工判定</span>
+            <p>上传屏幕照片 · YOLOv8 识别划痕与表面缺陷<br>输出类型与置信度，辅助人工判定</p>
+            <el-tag type="success">智能检测</el-tag>
+          </button>
         </div>
       </div>
     </section>
@@ -74,7 +63,7 @@
             <el-tag :type="statusTagType(row.inspectionStatus)" size="small">{{ row.inspectionStatusCn }}</el-tag>
           </div>
           <p>{{ row.materialName || '—' }}</p>
-          <p class="qc-order-card__meta">批次 {{ row.batchNo }} · 送检 {{ row.sampleQuantity }} 件</p>
+          <p class="qc-order-card__meta">批次 {{ row.batchNo }} · 送检 {{ displayLotQty(row) }} 件</p>
           <p v-if="row.workOrderNo" class="qc-order-card__meta">工单 {{ row.workOrderNo }}</p>
         </div>
       </div>
@@ -95,7 +84,7 @@
           <span>批次 {{ selected?.batchNo }}</span>
           <el-tag :type="statusTagType(selected?.inspectionStatus)" size="small">{{ selected?.inspectionStatusCn }}</el-tag>
         </div>
-        <el-button type="primary" :disabled="!canGoReport" @click="finishInspect">查看报告（可选）→</el-button>
+        <el-button type="primary" plain :disabled="!canGoReport" @click="goToReportFromWorkbench">统计与报告 →</el-button>
         <el-button type="warning" plain @click="openSmartVision(selected)">
           🔬 智能外观检测
         </el-button>
@@ -109,10 +98,15 @@
 
       <QcFiveStepWorkbench
         v-if="isFinished"
+        :key="selected?.inspectionId"
         ref="fiveStepRef"
         :inspection="selected"
         :sample-quantity="sampleQuantity"
-        @complete="finishInspect"
+        :initial-items="items"
+        :saving="saving"
+        :proceeding="proceeding"
+        @save="onWorkbenchSave"
+        @proceed="onWorkbenchProceed"
         @open-smart-vision="openSmartVision(selected)"
       />
 
@@ -125,49 +119,41 @@
         @update:sampling="samplingData = $event"
       />
 
-      <div class="qc-flow-page__sync-bar">
-        <el-button v-if="isFinished" type="primary" :loading="saving" @click="syncFinishedToBackend">
-          同步检测结果到质检单
-        </el-button>
-        <el-button v-else type="primary" :loading="saving" @click="syncMaterialToBackend">
+      <div v-if="!isFinished" class="qc-flow-page__sync-bar">
+        <el-button type="primary" :loading="saving" @click="syncMaterialToBackend">
           保存物料检测数据
         </el-button>
-        <el-button type="success" :disabled="!canGoReport" @click="finishInspect">进入报告页（可选）→</el-button>
-        <template v-if="canOperate && canGoReport">
-          <el-button type="success" :loading="acting" @click="doPass">直接质检通过</el-button>
-          <el-button type="danger" @click="openFailDialog">质检不通过</el-button>
-        </template>
+        <el-button type="success" :disabled="!canGoReport" :loading="proceeding" @click="finishInspect">下一步：统计与报告 →</el-button>
       </div>
     </section>
 
-    <!-- Step 3：质检报告 -->
+    <!-- Step 3：统计结果、AI 报告与判定 -->
     <section v-else-if="flowStep === 3" class="qc-flow-page__section">
       <div class="qc-flow-page__bar">
         <el-button link type="primary" @click="flowStep = 2">← 返回检测</el-button>
-        <h2 class="qc-flow-page__heading">质检报告</h2>
-        <div class="qc-flow-page__bar-actions">
-          <el-button v-if="canOperate" type="success" :loading="acting" @click="doPass">质检通过</el-button>
-          <el-button v-if="canOperate" type="danger" @click="openFailDialog">质检不通过</el-button>
-        </div>
+        <h2 class="qc-flow-page__heading">统计结果与质检报告</h2>
       </div>
 
       <QualityReportPanel
+        ref="reportPanelRef"
         :detail="reportDetail"
         :items="reportItemsForPanel"
         :unit-matrix="unitMatrixExport"
-        optional-ai
+        :auto-generate-ai="true"
         :before-generate-ai="syncBeforeAiReport"
       />
 
-      <p v-if="canOperate" class="qc-flow-page__pass-hint">无需生成 AI 报告，确认检测结果后可直接点击「质检通过」。</p>
+      <p v-if="canOperate" class="qc-flow-page__pass-hint">
+        请查阅统计结果与 AI 质检报告后，由质检员判定本批产品是否合格（不会自动提交）。
+      </p>
 
       <div v-if="canOperate" class="qc-flow-page__remark">
-        <el-input v-model="actionRemark" type="textarea" :rows="2" placeholder="质检备注（可选）" />
+        <el-input v-model="actionRemark" type="textarea" :rows="2" placeholder="质检判定备注（可选）" />
       </div>
 
       <div v-if="canOperate" class="qc-flow-page__decide-bar">
-        <el-button type="success" size="large" :loading="acting" @click="doPass">质检通过</el-button>
-        <el-button type="danger" size="large" @click="openFailDialog">质检不通过</el-button>
+        <el-button type="success" size="large" :loading="acting" @click="doPass">本批产品合格</el-button>
+        <el-button type="danger" size="large" @click="openFailDialog">本批产品不合格</el-button>
       </div>
       <p v-else-if="isFinalized" class="qc-flow-page__pass-hint">该质检单已完成判定，如需修改请从质检记录查看。</p>
     </section>
@@ -228,7 +214,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -260,11 +246,13 @@ const keyword = ref('')
 const loading = ref(false)
 const saving = ref(false)
 const acting = ref(false)
+const proceeding = ref(false)
 const sampleQuantity = ref(5)
 const samplingData = ref(null)
 const actionRemark = ref('')
 
 const fiveStepRef = ref(null)
+const reportPanelRef = ref(null)
 const materialRef = ref(null)
 /** 五步检测完成后的报告快照（离开检测页后组件卸载，靠此保持数据一致） */
 const fpReportSnapshot = ref(null)
@@ -407,8 +395,7 @@ function isFpMatrixComplete(matrix) {
 
 const canGoReport = computed(() => {
   if (isFinished.value) {
-    if (fiveStepRef.value?.allDone) return true
-    // 报告页已卸载五步工作台，用快照判断是否完成
+    if (fiveStepRef.value?.matrixRows?.length) return true
     return isFpMatrixComplete(fpReportSnapshot.value?.matrix)
   }
   const sum = materialRef.value?.getInspectionSummary?.()
@@ -474,7 +461,8 @@ async function selectOrder(row) {
   items.value = []
   fpReportSnapshot.value = null
   reportItems.value = []
-  sampleQuantity.value = Math.max(Number(row.sampleQuantity) || 1, 1)
+  sampleQuantity.value = Math.max(Number(row.submitQty || row.lotQuantity || row.sampleQuantity) || 1, 1)
+  applyAqlSample()
   const [d, its] = await Promise.all([
     fetchInspectionDetail(row.inspectionId).catch(() => null),
     fetchInspectionItems(row.inspectionId).catch(() => null)
@@ -491,8 +479,12 @@ function goInspect() {
   flowStep.value = 2
 }
 
+function displayLotQty(row) {
+  return Number(row?.submitQty || row?.lotQuantity || row?.sampleQuantity || 0)
+}
+
 function applyAqlSample() {
-  const lot = Math.max(sampleQuantity.value, Number(selected.value?.sampleQuantity) || 50)
+  const lot = displayLotQty(selected.value) || 50
   let sample = 2
   if (lot <= 50) sample = Math.max(2, Math.ceil(lot * 0.1))
   else if (lot <= 200) sample = Math.ceil(lot * 0.08)
@@ -543,9 +535,90 @@ function buildFpReportItems(sum) {
 }
 
 function formatStationMeasured(recs) {
-  const passed = recs.filter((r) => r.passed).length
-  const failed = recs.length - passed
+  const passed = recs.filter((r) => r.passed !== false).length
+  const failed = recs.filter((r) => r.passed === false).length
   return `${recs.length}台:${passed}合格${failed > 0 ? `/${failed}不合格` : ''}`
+}
+
+async function onWorkbenchSave(sum) {
+  const ok = await syncFinishedToBackend(sum)
+  if (ok) ElMessage.success('检测结果已保存')
+}
+
+async function goToReportPage(sum) {
+  if (isFinished.value) {
+    fpReportSnapshot.value = buildFpReportSnapshot(sum)
+    reportItems.value = buildFpReportItems(sum)
+    if (sum.failUnits > 0 && !actionRemark.value) {
+      actionRemark.value = `抽检 ${sum.sampleQuantity} 台，不合格 ${sum.failUnits} 台`
+    }
+    const synced = await syncFinishedToBackend(sum)
+    if (synced) {
+      ElMessage.success('检测数据已同步，正在生成统计报告')
+    } else {
+      ElMessage.warning('报告将基于本次抽检结果展示')
+    }
+  } else {
+    fpReportSnapshot.value = {
+      sampleQuantity: sum.sampleQuantity,
+      qualifiedQuantity: sum.qualifiedQuantity,
+      unqualifiedQuantity: sum.unqualifiedQuantity
+    }
+    reportItems.value = sum.items || items.value
+    samplingData.value = {
+      sampleQuantity: sum.sampleQuantity,
+      qualifiedQuantity: sum.qualifiedQuantity,
+      unqualifiedQuantity: sum.unqualifiedQuantity
+    }
+    ElMessage.success('检测数据已同步，正在生成统计报告')
+  }
+  if (selected.value?.inspectionId) {
+    const d = await fetchInspectionDetail(selected.value.inspectionId).catch(() => null)
+    if (d) detail.value = d.data ?? d
+  }
+  flowStep.value = 3
+  await nextTick()
+  reportPanelRef.value?.generateAi?.()
+}
+
+async function onWorkbenchProceed(sum) {
+  proceeding.value = true
+  try {
+    await goToReportPage(sum)
+  } finally {
+    proceeding.value = false
+  }
+}
+
+function goToReportFromWorkbench() {
+  const sum = fiveStepRef.value?.getInspectionSummary?.()
+  if (!sum) {
+    ElMessage.warning('请先加载检测数据')
+    return
+  }
+  onWorkbenchProceed(sum)
+}
+
+/** 构建逐台矩阵持久化项（刷新后回显） */
+function buildUnitMatrixItems(sum) {
+  return (sum.matrix || []).map((row, idx) => {
+    const failStation = FP_STATIONS.find((s) => row[s.id] === false)
+    const rec = failStation
+      ? sum.stationRecords?.find((sr) => sr.stationId === failStation.id)?.records?.[idx]
+      : null
+    const bits = FP_STATIONS.map((s) => (row[s.id] === false ? '0' : '1')).join('')
+    return {
+      itemCode: `UNIT-${String(row.unitNo || idx + 1).padStart(3, '0')}`,
+      itemName: `抽检成品 ${row.serialNo}`,
+      standardValue: '五步检测全部合格',
+      measuredValue: bits,
+      unit: '台',
+      result: row.overall === 'PASS' ? 'PASSED' : 'FAILED',
+      resultCn: row.overall === 'PASS' ? '合格' : '不合格',
+      defectLevel: rec?.defectLevel || (row.overall === 'FAIL' ? 'GENERAL' : ''),
+      remark: rec?.remark || ''
+    }
+  })
 }
 
 async function syncFinishedToBackend(sumOverride) {
@@ -557,11 +630,11 @@ async function syncFinishedToBackend(sumOverride) {
       const res = await generateDefaultItems(selected.value.inspectionId)
       items.value = res.data ?? res ?? []
     }
-    let itemList = [...items.value]
+    let itemList = [...items.value.filter((it) => !/^UNIT-\d{3}$/i.test(String(it.itemCode || '')))]
     for (const station of FP_STATIONS) {
-      const recs = sum.stationRecords.find((s) => s.stationId === station.id)?.records?.filter((r) => r.saved) || []
+      const recs = sum.stationRecords.find((s) => s.stationId === station.id)?.records || []
       if (!recs.length) continue
-      const anyFail = recs.some((r) => !r.passed)
+      const anyFail = recs.some((r) => r.passed === false)
       const measured = formatStationMeasured(recs)
       const matched = matchItems(station, itemList)
       if (matched.length) {
@@ -573,7 +646,10 @@ async function syncFinishedToBackend(sumOverride) {
         })
       }
     }
+    itemList = [...itemList, ...buildUnitMatrixItems(sum)]
     await saveInspectionItems(selected.value.inspectionId, itemList)
+    items.value = itemList
+    fiveStepRef.value?.persistToStorage?.()
     try {
       await updateInspectionSampling({
         inspectionId: selected.value.inspectionId,
@@ -632,31 +708,35 @@ async function syncMaterialToBackend() {
 
 async function finishInspect() {
   if (isFinished.value) {
-    if (!fiveStepRef.value?.allDone) {
-      ElMessage.warning('请完成所有产品 × 五道工序的检测')
+    const sum = fiveStepRef.value?.getInspectionSummary?.()
+    if (!sum) {
+      ElMessage.warning('请先加载检测数据')
       return
     }
-    const sum = fiveStepRef.value.getInspectionSummary()
-    fpReportSnapshot.value = buildFpReportSnapshot(sum)
-    reportItems.value = buildFpReportItems(sum)
-    const synced = await syncFinishedToBackend(sum)
-    if (synced) {
-      ElMessage.success('五步检测结果已同步，正在生成报告')
-    } else {
-      ElMessage.warning('报告将基于本次实际抽检结果展示')
+    proceeding.value = true
+    try {
+      await goToReportPage(sum)
+    } finally {
+      proceeding.value = false
     }
-  } else {
-    if (!canGoReport.value) {
-      ElMessage.warning('请完成所有检测项的合格/不合格判定')
-      return
-    }
+    return
+  }
+  if (!canGoReport.value) {
+    ElMessage.warning('请完成所有检测项的合格/不合格判定')
+    return
+  }
+  proceeding.value = true
+  try {
     await syncMaterialToBackend()
+    const sum = materialRef.value?.getInspectionSummary?.()
+    if (!sum) {
+      ElMessage.warning('请先加载检测数据')
+      return
+    }
+    await goToReportPage(sum)
+  } finally {
+    proceeding.value = false
   }
-  if (selected.value?.inspectionId) {
-    const d = await fetchInspectionDetail(selected.value.inspectionId).catch(() => null)
-    if (d) detail.value = d.data ?? d
-  }
-  flowStep.value = 3
 }
 
 function openIncomingDialog() {
@@ -780,7 +860,7 @@ async function ensureReportSynced() {
 
 async function doPass() {
   if (!canGoReport.value) {
-    ElMessage.warning(isFinished.value ? '请完成所有产品 × 五道工序的检测' : '请完成所有检测项判定')
+    ElMessage.warning(isFinished.value ? '请先保存检测结果' : '请完成所有检测项判定')
     return
   }
   await ElMessageBox.confirm('确认该批次质检通过？', '质检通过', { type: 'success' })
@@ -933,109 +1013,59 @@ watch(routeCategory, (val) => {
   font-size: 14px;
 }
 
-.qc-cat-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  max-width: 900px;
-  margin: 0 auto 24px;
-}
-
-.qc-smart-lab {
-  position: relative;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 24px 28px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #f8fbff 0%, #f5f3ff 45%, #f0fdf4 100%);
-  border: 2px solid #dbeafe;
-  color: #1e293b;
-  cursor: pointer;
-  overflow: hidden;
-  transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
-  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.08);
-}
-
-.qc-smart-lab:hover {
-  transform: translateY(-3px);
-  border-color: #93c5fd;
-  box-shadow: 0 12px 32px rgba(64, 158, 255, 0.15);
-}
-
-.qc-smart-lab__glow {
-  position: absolute;
-  top: -40%;
-  right: -10%;
-  width: 280px;
-  height: 280px;
-  background: radial-gradient(circle, rgba(147, 197, 253, 0.25) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.qc-smart-lab__content {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.qc-smart-lab__icon {
-  font-size: 44px;
-  width: 72px;
-  height: 72px;
+.qc-flow-page__section--category {
+  min-height: calc(100vh - 200px);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  border: 1px solid #e0e7ff;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+  padding: 40px 24px;
 }
 
-.qc-smart-lab__text {
-  flex: 1;
-  min-width: 200px;
+.qc-cat-hub {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  text-align: center;
 }
 
-.qc-smart-lab__text h3 {
-  margin: 0 0 6px;
-  font-size: 22px;
-  font-weight: 800;
-  color: #1e293b;
+.qc-cat-hub .qc-flow-page__heading {
+  margin-bottom: 10px;
 }
 
-.qc-smart-lab__text p {
-  margin: 0;
-  font-size: 13px;
-  color: #64748b;
-  line-height: 1.6;
+.qc-cat-hub .qc-flow-page__sub {
+  margin-bottom: 36px;
 }
 
-.qc-smart-lab__stats {
-  position: relative;
-  display: flex;
-  gap: 20px;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid #e2e8f0;
-  font-size: 12px;
-  color: #64748b;
+.qc-cat-grid {
+  display: grid;
+  gap: 24px;
+  width: 100%;
 }
 
-.qc-smart-lab__stats b {
-  margin-right: 4px;
-  color: #2563eb;
+.qc-cat-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 960px) {
+  .qc-cat-grid--three {
+    grid-template-columns: 1fr;
+    max-width: 420px;
+    margin: 0 auto;
+  }
 }
 
 .qc-cat-card {
   text-align: center;
-  padding: 40px 28px;
+  padding: 40px 24px;
   border: 2px solid #e4e7ed;
   border-radius: 16px;
   background: #fafbfc;
   cursor: pointer;
   transition: all .25s;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .qc-cat-card:hover {
@@ -1046,6 +1076,15 @@ watch(routeCategory, (val) => {
 
 .qc-cat-card--fp:hover { border-color: #409eff; }
 .qc-cat-card--mat:hover { border-color: #67c23a; }
+.qc-cat-card--ai {
+  background: linear-gradient(160deg, #f8fbff 0%, #f5f3ff 55%, #f0fdf4 100%);
+  border-color: #dbeafe;
+}
+
+.qc-cat-card--ai:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.15);
+}
 
 .qc-cat-card__icon {
   font-size: 48px;
@@ -1063,6 +1102,7 @@ watch(routeCategory, (val) => {
   font-size: 13px;
   line-height: 1.6;
   color: #909399;
+  flex: 1;
 }
 
 .qc-flow-page__bar {

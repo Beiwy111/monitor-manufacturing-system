@@ -19,7 +19,7 @@
         <el-option label="处理中" value="PROCESSING" />
         <el-option label="已关闭" value="CLOSED" />
       </el-select>
-      <el-button type="danger" @click="showReport = true">上报报警</el-button>
+      <el-button v-if="canReportAlarm" type="danger" @click="showReport = true">上报报警</el-button>
     </div>
 
     <el-table v-loading="loading" :data="filteredAlarms" border stripe size="small" highlight-current-row @current-change="onRowClick">
@@ -42,8 +42,11 @@
       </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button v-if="row.alarmStatus==='OPEN'" link type="primary" size="small" :loading="acting" @click="doReceive(row)">接收</el-button>
-          <el-button v-if="isOpen(row.alarmStatus)" link type="success" size="small" :loading="acting" @click="openResolve(row)">解除</el-button>
+          <template v-if="canHandleAlarm">
+            <el-button v-if="row.alarmStatus==='OPEN'" link type="primary" size="small" :loading="acting" @click="doReceive(row)">接收</el-button>
+            <el-button v-if="isOpen(row.alarmStatus)" link type="success" size="small" :loading="acting" @click="openResolve(row)">解除</el-button>
+          </template>
+          <span v-else class="alarm-readonly">—</span>
         </template>
       </el-table-column>
     </el-table>
@@ -105,6 +108,10 @@ import {
 
 const userStore = useUserStore()
 const operator = computed(() => userStore.userInfo?.username || '')
+const roleKey = computed(() => userStore.roleKey || '')
+/** 操作员可上报；设备维修员仅接收/解除，不上报 */
+const canReportAlarm = computed(() => ['operator', 'admin', 'manager'].includes(roleKey.value))
+const canHandleAlarm = computed(() => ['device', 'admin'].includes(roleKey.value))
 
 const loading = ref(false)
 const acting = ref(false)
@@ -226,4 +233,5 @@ onMounted(loadData)
 .stat--danger em { color: #f56c6c; }
 .stat--warn em { color: #e6a23c; }
 .alarm-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+.alarm-readonly { color: #c0c4cc; font-size: 13px; }
 </style>

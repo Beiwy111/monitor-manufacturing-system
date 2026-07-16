@@ -113,6 +113,7 @@ function syncWorkOrderProgress(store, workOrderId) {
 export const useMesStore = defineStore('mes', {
   state: () => ({
     ...loadMesState(),
+    dispatchPickReady: {},
     selectedId: null,
     hydrated: false,
     loading: false
@@ -796,8 +797,8 @@ export const useMesStore = defineStore('mes', {
     },
 
     // —— 仓储 ——
-    confirmInbound(taskId, operator, roleKey) {
-      if (MES_LIVE_MODE) return this._live('confirmInbound', { taskId }, operator, roleKey)
+    confirmInbound(taskId, operator, roleKey, slotCode) {
+      if (MES_LIVE_MODE) return this._live('confirmInbound', { taskId, slotCode }, operator, roleKey)
       const task = this.inboundTasks.find((t) => t.id === taskId)
       if (!task || task.status !== '待入库') return false
       task.status = '已入库'
@@ -859,16 +860,57 @@ export const useMesStore = defineStore('mes', {
       }
       const dispatch = this.dispatches.find((d) => d.id === dispatchId)
       const woNo = dispatch?.workOrderId || dispatch?.workOrderNo
+      const ready = !!this.dispatchPickReady[dispatchId]
       return this.issueTasks
         .filter((t) => t.workOrderId === woNo)
         .map((t) => ({
           ...t,
+          issuedQty: ready ? (t.issuedQty || 0) : 0,
+          status: ready ? t.status : '待领料',
           stockQty: this.inventory.find((i) => i.materialCode === t.materialCode)?.quantity ?? 0
         }))
     },
     pickMaterial(dispatchId, taskId, qty, operator, roleKey) {
       if (MES_LIVE_MODE) return this._live('pickMaterial', { dispatchId, taskId, qty }, operator, roleKey)
       return this.issueMaterial(taskId, qty, operator, roleKey)
+    },
+    async pickAllMaterials(dispatchId, operator, roleKey) {
+      if (MES_LIVE_MODE) {
+        return postMesAction({
+          action: 'pickAllMaterials',
+          payload: { dispatchId },
+          operator,
+          roleKey
+        })
+      }
+      const dispatch = this.dispatches.find((d) => d.id === dispatchId)
+      const woNo = dispatch?.workOrderId || dispatch?.workOrderNo
+      const pending = this.issueTasks.filter((t) => t.workOrderId === woNo && t.status !== '已完成')
+      const failures = []
+      let picked = 0
+      for (const task of pending) {
+        const remain = Math.max(1, (task.requiredQty || 0) - (task.issuedQty || 0))
+        const inv = this.inventory.find((i) => i.materialCode === task.materialCode)
+        if (!inv || inv.quantity < remain) {
+          failures.push(task.materialName)
+          continue
+        }
+        const ok = this.issueMaterial(task.id, remain, operator, roleKey)
+        if (ok !== false) picked += 1
+        else failures.push(task.materialName)
+      }
+      const woTasks = this.issueTasks.filter((t) => t.workOrderId === woNo)
+      const woIssued = woTasks.length > 0 && woTasks.every((t) => t.status === '已完成')
+      const allDone = woIssued && failures.length === 0
+      if (allDone) this.dispatchPickReady[dispatchId] = true
+      return {
+        pickedCount: picked,
+        failures,
+        allDone,
+        message: failures.length
+          ? `已领取 ${picked} 项，${failures.length} 项失败`
+          : (picked > 0 ? `一键领料完成，共 ${picked} 项物料已领齐` : '物料已领齐')
+      }
     },
     shipDelivery(dlvId, operator, roleKey) {
       if (MES_LIVE_MODE) return this._live('shipDelivery', { dlvId }, operator, roleKey)

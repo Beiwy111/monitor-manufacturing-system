@@ -1,7 +1,7 @@
 <template>
   <div class="warehouse-hub">
     <el-tabs v-model="activeTab" class="warehouse-hub__tabs" @tab-change="syncRoute">
-      <el-tab-pane label="生产领料" name="issue" lazy>
+      <el-tab-pane label="领料记录" name="issue" lazy>
         <IssueView />
       </el-tab-pane>
       <el-tab-pane label="发货出库" name="delivery" lazy>

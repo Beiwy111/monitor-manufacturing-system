@@ -90,6 +90,7 @@ public class RoleWorkbenchDashboardServiceImpl implements RoleWorkbenchDashboard
             case "operator" -> buildOperatorDashboard(userId, rangeDays);
             case "cost" -> buildCostDashboard(rangeDays);
             case "purchase" -> buildPurchaseDashboard(userId, rangeDays);
+            case "warehouse" -> buildWarehouseDashboard(userId, rangeDays);
             default -> throw new BusinessException("不支持的角色大屏: " + roleKey);
         };
     }
@@ -790,6 +791,149 @@ public class RoleWorkbenchDashboardServiceImpl implements RoleWorkbenchDashboard
                         pendingRows, 140)
         ));
         return result;
+    }
+
+    // ── 仓储管理员 ─────────────────────────────────────────────
+
+    private Map<String, Object> buildWarehouseDashboard(Long userId, int days) {
+        Map<String, Object> snap = mesSnapshotService.buildSnapshot();
+        List<Map<String, Object>> inbound = snapshotList(snap, "inboundTasks");
+        List<Map<String, Object>> issues = snapshotList(snap, "issueTasks");
+        List<Map<String, Object>> deliveries = snapshotList(snap, "deliveries");
+        List<Map<String, Object>> inventory = snapshotList(snap, "inventory");
+        List<Map<String, Object>> stockFlows = snapshotList(snap, "stockFlows");
+
+        LocalDate today = LocalDate.now();
+        long pendingInbound = inbound.stream().filter(t -> "待入库".equals(mapStr(t, "status"))).count();
+        long pendingIssue = issues.stream().filter(t -> !"已完成".equals(mapStr(t, "status"))).count();
+        long pendingDelivery = deliveries.stream().filter(d -> "待出库".equals(mapStr(d, "status"))).count();
+        long pendingOutbound = pendingIssue + pendingDelivery;
+        long stockAlert = countLowStockMaterials();
+        long invKinds = inventory.size();
+        long todayFlows = stockFlows.stream()
+                .filter(f -> {
+                    String at = mapStr(f, "createdAt");
+                    return at.length() >= 10 && at.substring(0, 10).equals(today.format(DAY_FMT));
+                })
+                .count();
+
+        AttendanceRecord attendance = userId != null ? attendanceRecordMapper.getByUserAndDate(userId, today) : null;
+
+        List<Map<String, Object>> metrics = List.of(
+                metricEx("pendingInbound", "待入库", pendingInbound, "单", pendingInbound > 0 ? "warn" : "normal", null, "/warehouse/inbound-hub"),
+                metricEx("pendingOutbound", "待出库", pendingOutbound, "单", pendingOutbound > 0 ? "warn" : "normal", "领料+发货", "/warehouse/outbound-hub"),
+                metricEx("stockAlert", "库存预警", stockAlert, "项", stockAlert > 0 ? "danger" : "normal", "低于安全库存", "/warehouse/capacity"),
+                metricEx("invKinds", "库存品种", invKinds, null, "normal", null, "/warehouse/capacity"),
+                metricEx("todayFlows", "今日流水", todayFlows, "笔", "normal", null, "/warehouse/capacity"),
+                metricEx("pendingIssue", "待领料", pendingIssue, "单", pendingIssue > 0 ? "warn" : "normal", null, "/warehouse/outbound-hub?tab=issue")
+        );
+
+        List<Map<String, Object>> taskTypeItems = new ArrayList<>();
+        if (pendingInbound > 0) taskTypeItems.add(chartItem("待入库", (int) pendingInbound, C_BLUE));
+        if (pendingIssue > 0) taskTypeItems.add(chartItem("待领料", (int) pendingIssue, C_ORANGE));
+        if (pendingDelivery > 0) taskTypeItems.add(chartItem("待发货", (int) pendingDelivery, C_CYAN));
+        if (stockAlert > 0) taskTypeItems.add(chartItem("库存预警", (int) stockAlert, C_RED));
+        if (taskTypeItems.isEmpty()) {
+            taskTypeItems.add(chartItem("暂无待办", 1, C_GREEN));
+        }
+
+        List<Map<String, Object>> stockItems = lowStockItems(5);
+        if (stockItems.isEmpty()) {
+            stockItems = List.of(chartItem("库存正常", 1, C_GREEN));
+        }
+
+        List<String> dayLabels = new ArrayList<>();
+        List<Integer> inTrend = new ArrayList<>();
+        List<Integer> outTrend = new ArrayList<>();
+        for (int i = days - 1; i >= 0; i--) {
+            LocalDate d = today.minusDays(i);
+            dayLabels.add(d.getMonthValue() + "/" + d.getDayOfMonth());
+            String dayStr = d.format(DAY_FMT);
+            int inCnt = 0;
+            int outCnt = 0;
+            for (Map<String, Object> f : stockFlows) {
+                String at = mapStr(f, "createdAt");
+                if (at.length() < 10 || !at.substring(0, 10).equals(dayStr)) continue;
+                if ("入库".equals(mapStr(f, "direction"))) inCnt++;
+                else if ("出库".equals(mapStr(f, "direction"))) outCnt++;
+            }
+            inTrend.add(inCnt);
+            outTrend.add(outCnt);
+        }
+
+        List<Map<String, Object>> alertStatus = lowStockEntries().stream().limit(5)
+                .map(e -> statusRow(e.getKey(), "低于安全库存", "danger", String.valueOf(e.getValue())))
+                .toList();
+
+        List<Map<String, Object>> todoRows = new ArrayList<>();
+        issues.stream()
+                .filter(t -> !"已完成".equals(mapStr(t, "status")))
+                .sorted(Comparator.comparing((Map<String, Object> t) -> mapStr(t, "createdAt"), Comparator.reverseOrder()))
+                .limit(6)
+                .forEach(t -> todoRows.add(warehouseTodoRow("领料", mapStr(t, "materialName"), mapStr(t, "id"), mapStr(t, "createdAt"))));
+        inbound.stream()
+                .filter(t -> "待入库".equals(mapStr(t, "status")))
+                .limit(4)
+                .forEach(t -> todoRows.add(warehouseTodoRow("入库", mapStr(t, "productModel") + " " + mapStr(t, "quantity") + "台",
+                        mapStr(t, "id"), mapStr(t, "createdAt"))));
+        deliveries.stream()
+                .filter(d -> "待出库".equals(mapStr(d, "status")))
+                .limit(4)
+                .forEach(d -> todoRows.add(warehouseTodoRow("发货", mapStr(d, "productModel"), mapStr(d, "id"), mapStr(d, "createdAt"))));
+
+        Map<String, Object> result = baseResult("warehouse", "仓储人员首页", metrics);
+        if (attendance != null) {
+            Map<String, Object> att = new LinkedHashMap<>();
+            att.put("checkInTime", fmtDateTime(attendance.getCheckInTime()));
+            att.put("checkOutTime", fmtDateTime(attendance.getCheckOutTime()));
+            att.put("status", attendanceStatusCn(attendance.getStatus()));
+            result.put("attendance", att);
+        }
+        result.put("panels", List.of(
+                panel("taskMix", "待办类型分布", 3, "donut", "/warehouse/workbench", null, taskTypeItems,
+                        (pendingInbound + pendingOutbound + stockAlert) + "项"),
+                panelHBar("stockAlertBar", "库存预警物料", 4, "/warehouse/capacity", stockItems),
+                panelCombo("flowTrend", "出入库流水趋势", 5, "/warehouse/capacity", dayLabels,
+                        List.of(barSeries("入库", inTrend, C_BLUE), barSeries("出库", outTrend, C_ORANGE)), true),
+                panelStatus("stockAlerts", "库存预警", 3, "/warehouse/capacity", alertStatus.isEmpty()
+                        ? List.of(statusRow("库存监控", "暂无预警", "normal", "OK"))
+                        : alertStatus)
+        ));
+        result.put("tables", List.of(
+                table("warehouseTodos", "仓储待办", "/warehouse/workbench", "仓储管理工作台",
+                        List.of(col("type", "类型", 72), col("title", "待办内容", 180), col("refNo", "单号", 100),
+                                col("createdAt", "时间", 130)),
+                        todoRows.stream().limit(12).toList(), 160)
+        ));
+        return result;
+    }
+
+    private Map<String, Object> warehouseTodoRow(String type, String title, String refNo, String createdAt) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("type", type);
+        row.put("title", title != null && !title.isBlank() ? title : "—");
+        row.put("refNo", refNo != null && !refNo.isBlank() ? refNo : "—");
+        row.put("createdAt", createdAt != null && !createdAt.isBlank() ? createdAt : LocalDateTime.now().format(DT_FMT));
+        return row;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> snapshotList(Map<String, Object> snap, String key) {
+        Object v = snap != null ? snap.get(key) : null;
+        if (!(v instanceof List<?> list)) return List.of();
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> m) {
+                out.add((Map<String, Object>) m);
+            }
+        }
+        return out;
+    }
+
+    private String mapStr(Map<String, Object> m, String key) {
+        if (m == null || key == null) return "";
+        Object v = m.get(key);
+        return v == null ? "" : String.valueOf(v);
     }
 
     private Map<String, Object> purchaseReqRow(PurchaseRequirement r) {

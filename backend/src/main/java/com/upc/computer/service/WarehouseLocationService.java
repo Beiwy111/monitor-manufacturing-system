@@ -15,6 +15,8 @@ public class WarehouseLocationService {
 
     @Autowired
     private WarehouseLocationMapper warehouseLocationMapper;
+    @Autowired
+    private WarehouseSlotService warehouseSlotService;
 
     public Map<String, Object> locationMap() {
         List<WarehouseZone> zones = safeListZones();
@@ -64,6 +66,11 @@ public class WarehouseLocationService {
                     bin.put("materialName", sOcc > 0 ? s.getMaterialName() : "");
                     bin.put("materialId", s.getMaterialId());
                     bin.put("inventoryId", s.getInventoryId());
+                    bin.put("rowNo", s.getRowNo());
+                    bin.put("colNo", s.getColNo());
+                    bin.put("zoneName", zone.getZoneName());
+                    bin.put("locationName", loc.getLocationName());
+                    bin.put("slotLabel", warehouseSlotService.formatSlotLabel(s.getSlotCode()));
                     return bin;
                 }).toList();
 

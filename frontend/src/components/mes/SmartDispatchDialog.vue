@@ -87,6 +87,32 @@
 
       <el-alert v-if="preview?.summary" :title="preview.summary" type="success" :closable="false" show-icon class="summary-bar" />
 
+      <el-alert
+        v-if="blockingConflicts.length"
+        type="error"
+        :closable="false"
+        show-icon
+        class="summary-bar"
+        title="以下问题需处理后才能确认"
+      >
+        <ul class="dispatch-conflict-list">
+          <li v-for="(c, i) in blockingConflicts" :key="i">{{ c.detail || c.label }}</li>
+        </ul>
+      </el-alert>
+
+      <el-alert
+        v-else-if="warningConflicts.length"
+        type="warning"
+        :closable="false"
+        show-icon
+        class="summary-bar"
+        title="存在提示项，确认前请留意"
+      >
+        <ul class="dispatch-conflict-list">
+          <li v-for="(c, i) in warningConflicts" :key="i">{{ c.detail || c.label }}</li>
+        </ul>
+      </el-alert>
+
       <el-table :data="editableRows" border class="dispatch-table">
         <el-table-column prop="processStep" label="工序" min-width="120" />
         <el-table-column label="车间" min-width="200">
@@ -115,6 +141,7 @@
             <el-select
               v-model="row.recommendedOperator"
               class="dispatch-table__select"
+              :class="{ 'dispatch-table__select--danger': !row.recommendedOperator }"
               :fit-input-width="false"
               @change="(v) => onOperatorPick(row, v)"
             >
@@ -168,7 +195,7 @@
         <el-button :loading="loading" @click="manual ? loadManualPreview() : loadPreview()">
           {{ manual ? '重新配置' : '重新分析' }}
         </el-button>
-        <el-button type="success" :loading="confirming" :disabled="!canSubmit" @click="confirm">{{ confirmLabel }}</el-button>
+        <el-button type="success" :loading="confirming" :disabled="!canSubmit" :title="submitBlockReason" @click="confirm">{{ confirmLabel }}</el-button>
       </template>
       <template v-else>
         <el-button @click="visible = false">关闭</el-button>
@@ -256,10 +283,29 @@ const idleHint = computed(() => {
 })
 const canSubmit = computed(() => {
   if (!editableRows.value.length) return false
-  if (props.manual) {
-    return editableRows.value.every((row) => row.equipmentCode && row.recommendedOperator)
-  }
+  const rowsReady = editableRows.value.every((row) => row.equipmentCode && row.recommendedOperator)
+  if (!rowsReady) return false
+  if (props.manual) return true
   return validation.value?.canSubmit !== false
+})
+
+const blockingConflicts = computed(() =>
+  (validation.value?.conflicts || []).filter((c) => c.level === 'danger')
+)
+const warningConflicts = computed(() =>
+  (validation.value?.conflicts || []).filter((c) => c.level === 'warning')
+)
+const submitBlockReason = computed(() => {
+  if (!editableRows.value.length) return '暂无派工明细'
+  const missing = editableRows.value.filter((row) => !row.equipmentCode || !row.recommendedOperator)
+  if (missing.length) {
+    const steps = missing.map((row) => row.processStep).filter(Boolean).join('、')
+    return steps ? `请为「${steps}」补全设备与操作员` : '请补全设备与操作员'
+  }
+  if (blockingConflicts.value.length) {
+    return blockingConflicts.value[0]?.detail || blockingConflicts.value[0]?.label || '存在冲突'
+  }
+  return ''
 })
 
 const STEP_EQUIP_TYPE = {
@@ -694,6 +740,12 @@ async function confirm() {
 .summary-bar {
   margin: 0;
 }
+
+.dispatch-conflict-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  line-height: 1.6;
+}
 </style>
 
 <style>
@@ -760,6 +812,10 @@ async function confirm() {
 
 .smart-dispatch-dialog .dispatch-table__select {
   width: 100%;
+}
+
+.smart-dispatch-dialog .dispatch-table__select--danger .el-select__wrapper {
+  box-shadow: 0 0 0 1px #f56c6c inset;
 }
 
 .smart-dispatch-dialog .dispatch-table .el-input__wrapper,

@@ -37,6 +37,8 @@ public interface PurchaseService {
     void cancelRequirement(Long requirementId);
     void confirmArrival(Long purchaseOrderId);
 
+    void confirmArrivalWithSlots(Long purchaseOrderId, List<Map<String, Object>> assignments);
+
     void revokePurchaseOrder(Long purchaseOrderId);
 
     /** 保存草稿采购单（修改数量、单价、供应商等，自动重算金额） */

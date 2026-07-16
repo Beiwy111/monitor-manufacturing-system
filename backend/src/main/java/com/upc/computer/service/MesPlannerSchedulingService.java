@@ -763,27 +763,35 @@ public class MesPlannerSchedulingService {
             return List.of();
         }
         List<Map<String, Object>> rows = new ArrayList<>();
-        long totalDays = Math.max(1, ChronoUnit.DAYS.between(start, end) + 1);
-        long stepDays = Math.max(1, totalDays / suggestions.size());
-        if ("DELIVERY".equals(schemeKey)) {
-            stepDays = Math.max(1, totalDays / (suggestions.size() + 1L));
-        } else if ("COST".equals(schemeKey)) {
-            stepDays = Math.max(1, (totalDays + suggestions.size() - 1) / suggestions.size());
-        }
         LocalDate cursor = start;
         int idx = 0;
         for (Map<String, Object> s : suggestions) {
+            long remainingSteps = suggestions.size() - idx;
+            long remainingDays = ChronoUnit.DAYS.between(cursor, end) + 1;
+            if (remainingDays <= 0) {
+                break;
+            }
+            long stepDays = Math.max(1, remainingDays / remainingSteps);
+            if ("DELIVERY".equals(schemeKey)) {
+                stepDays = Math.max(1, remainingDays / (remainingSteps + 1L));
+            }
+
             int splitQty = qty;
             if ("BALANCE".equals(schemeKey) && suggestions.size() > 1) {
                 splitQty = (int) Math.ceil(qty / (double) suggestions.size());
             } else if ("COST".equals(schemeKey) && idx > 0) {
                 splitQty = Math.max(1, qty / suggestions.size());
             }
+
             LocalDate rowStart = cursor;
             LocalDate rowEnd = rowStart.plusDays(stepDays - 1);
             if (rowEnd.isAfter(end)) {
                 rowEnd = end;
             }
+            if (rowEnd.isBefore(rowStart)) {
+                rowEnd = rowStart;
+            }
+
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("stepName", s.get("processStep"));
             row.put("workshop", s.get("workshop"));
@@ -793,7 +801,9 @@ public class MesPlannerSchedulingService {
             row.put("plannedEnd", rowEnd.atTime(18, 0).format(DT_FMT));
             row.put("standardHours", 1.0);
             rows.add(row);
-            cursor = rowEnd.plusDays("BALANCE".equals(schemeKey) ? 2L : 1L);
+
+            long advance = "BALANCE".equals(schemeKey) ? 2L : 1L;
+            cursor = rowEnd.plusDays(advance);
             idx++;
         }
         return collapseAssemblySchedules(rows, qty);
@@ -838,6 +848,9 @@ public class MesPlannerSchedulingService {
                 merged.put("plannedStart", minStart.format(DT_FMT));
             }
             if (maxEnd != null) {
+                if (minStart != null && maxEnd.isBefore(minStart)) {
+                    maxEnd = minStart;
+                }
                 merged.put("plannedEnd", maxEnd.format(DT_FMT));
             }
             result.add(merged);
@@ -951,22 +964,42 @@ public class MesPlannerSchedulingService {
         if (start == null || end == null) {
             return list;
         }
+        LocalDateTime scheduleStart = start;
+        LocalDateTime scheduleEnd = end;
+        LocalDateTime now = LocalDateTime.now();
+        Set<Long> equipmentIds = equipmentMapper.equipmentList().stream()
+                .filter(e -> equipmentCode.equals(e.getEquipmentCode()))
+                .map(Equipment::getEquipmentId)
+                .collect(Collectors.toSet());
+        if (equipmentIds.isEmpty()) {
+            return list;
+        }
         for (DispatchTask task : dispatchTaskMapper.dispatchList()) {
-            if (task.getEquipmentId() == null) {
+            if (task.getEquipmentId() == null || !equipmentIds.contains(task.getEquipmentId())) {
                 continue;
             }
-            Equipment eq = equipmentMapper.equipmentList().stream()
-                    .filter(e -> equipmentCode.equals(e.getEquipmentCode()))
-                    .findFirst().orElse(null);
-            if (eq == null || !eq.getEquipmentId().equals(task.getEquipmentId())) {
+            if (!List.of("ASSIGNED", "ACCEPTED", "PRODUCING", "RUNNING").contains(task.getStatus())) {
                 continue;
             }
-            if (List.of("ASSIGNED", "ACCEPTED", "PRODUCING", "RUNNING").contains(task.getStatus())) {
-                list.add(conflict("warning", "equipment_busy", "设备占用",
-                        equipmentCode + " 当前有进行中的派工任务 " + task.getDispatchNo()));
+            LocalDateTime taskStart = task.getAcceptedAt() != null ? task.getAcceptedAt() : task.getAssignedAt();
+            if (taskStart == null) {
+                taskStart = task.getCreatedAt();
             }
+            if (taskStart == null) {
+                continue;
+            }
+            LocalDateTime taskEnd = now;
+            if (!rangesOverlap(scheduleStart, scheduleEnd, taskStart, taskEnd)) {
+                continue;
+            }
+            list.add(conflict("warning", "equipment_busy", "设备占用",
+                    equipmentCode + " 当前有进行中的派工任务 " + task.getDispatchNo()));
         }
         return list;
+    }
+
+    private boolean rangesOverlap(LocalDateTime aStart, LocalDateTime aEnd, LocalDateTime bStart, LocalDateTime bEnd) {
+        return !aEnd.isBefore(bStart) && !bEnd.isBefore(aStart);
     }
 
     private void persistSchedules(Long planId, List<Map<String, Object>> schedules, LocalDateTime now) {

@@ -139,10 +139,12 @@
         <el-table :data="group.lines" border size="small" style="margin-top:6px">
           <el-table-column prop="materialCode" label="物料编码" width="120" />
           <el-table-column prop="materialName" label="物料名称" min-width="140" />
-          <el-table-column prop="requiredQuantity" label="需求数量" width="100" align="right" />
+          <el-table-column prop="requiredQuantity" label="需求数量" width="100" align="right">
+            <template #default="{ row }">{{ fmtQty(row.requiredQuantity) }}</template>
+          </el-table-column>
           <el-table-column prop="shortageQuantity" label="缺料数量" width="100" align="right">
             <template #default="{ row }">
-              <span style="color:#e6a23c;font-weight:600">{{ row.shortageQuantity }}</span>
+              <span style="color:#e6a23c;font-weight:600">{{ fmtQty(row.shortageQuantity) }}</span>
             </template>
           </el-table-column>
         </el-table>
@@ -172,9 +174,11 @@
         <el-table-column label="来源单号" min-width="140">
           <template #default="{ row }">{{ row.customerOrderNo||row.workOrderNo||'-' }}</template>
         </el-table-column>
-        <el-table-column prop="requiredQuantity" label="需求数量" width="100" align="right" />
+        <el-table-column prop="requiredQuantity" label="需求数量" width="100" align="right">
+          <template #default="{ row }">{{ fmtQty(row.requiredQuantity) }}</template>
+        </el-table-column>
         <el-table-column prop="shortageQuantity" label="缺料数量" width="100" align="right">
-          <template #default="{ row }"><span style="color:#e6a23c">{{ row.shortageQuantity }}</span></template>
+          <template #default="{ row }"><span style="color:#e6a23c">{{ fmtQty(row.shortageQuantity) }}</span></template>
         </el-table-column>
       </el-table>
     </el-dialog>
@@ -506,6 +510,12 @@ function statusType(status) {
   return moduleStatusType('purchaseRequirement', status, '')
 }
 
+function fmtQty(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return value ?? ''
+  return Number.isInteger(n) ? n : Math.ceil(n)
+}
+
 function canSelect(row) {
   return row.status === 'PENDING'
 }
@@ -651,8 +661,8 @@ function buildOrderReportRows() {
         <td>${esc(groupLabel)}</td>
         <td>${esc(row.materialCode)}</td>
         <td>${esc(row.materialName)}</td>
-        <td class="num">${esc(row.requiredQuantity)}</td>
-        <td class="num strong">${esc(row.shortageQuantity)}</td>
+        <td class="num">${esc(fmtQty(row.requiredQuantity))}</td>
+        <td class="num strong">${esc(fmtQty(row.shortageQuantity))}</td>
       </tr>
     `)
   }).join('')

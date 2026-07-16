@@ -11,16 +11,6 @@
             <span v-if="aiPending > 0" class="hero-badge hero-badge--info">AI单据待确认 {{ aiPending }}</span>
           </div>
         </div>
-        <div class="pdb-toolbar__actions">
-          <button
-            class="hero-btn hero-btn--success"
-            :disabled="purchasableReqs.length === 0"
-            @click="openGenerate"
-          >一键生成采购单</button>
-          <router-link to="/purchase/demand" class="hero-btn">采购需求</router-link>
-          <router-link to="/purchase/order" class="hero-btn">采购订单</router-link>
-          <router-link to="/purchase/supplier" class="hero-btn">供应商管理</router-link>
-        </div>
       </div>
 
       <!-- 订单物料需求总览 -->

@@ -370,6 +370,7 @@ function goToday() {
 .lite-wb--operator { --lite-accent: #6aab7a; }
 .lite-wb--cost { --lite-accent: #c9956a; }
 .lite-wb--purchase { --lite-accent: #6b9fd4; }
+.lite-wb--warehouse { --lite-accent: #7aab8f; }
 
 .lite-topbar {
   display: flex;

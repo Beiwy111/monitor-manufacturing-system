@@ -19,6 +19,7 @@ public class ProductCatalogSeedRunner {
     public void onReady() {
         try {
             ensureColumns();
+            ensureTemplateRouteSteps();
             Integer count = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM material WHERE material_type = 'FINISHED' AND status = 1",
                     Integer.class);
@@ -44,6 +45,21 @@ public class ProductCatalogSeedRunner {
         } catch (Exception ignored) {
             // 表未就绪时不阻断启动
         }
+        repairStaleDispatchStatuses();
+    }
+
+    /** 已完结工单的派工若仍停留在在途状态，会误占操作员导致无法一键派工。 */
+    private void repairStaleDispatchStatuses() {
+        try {
+            jdbcTemplate.update("""
+                UPDATE dispatch_task dt
+                JOIN work_order wo ON wo.work_order_id = dt.work_order_id
+                SET dt.status = 'COMPLETED', dt.updated_at = NOW()
+                WHERE wo.status IN ('COMPLETED', 'CANCELLED', 'CLOSED')
+                  AND dt.status IN ('ASSIGNED', 'ACCEPTED', 'PRODUCING', 'RUNNING')
+                """);
+        } catch (Exception ignored) {
+        }
     }
 
     private void ensureProductChains() {
@@ -52,6 +68,25 @@ public class ProductCatalogSeedRunner {
         seedProductChain("PRD-006", "PRD-002");
         seedProductChain("PRD-007", "PRD-003");
         seedProductChain("PRD-008", "PRD-003");
+    }
+
+    /** PRD-003 作为高端模板，若工序未初始化则从 PRD-001 补齐 */
+    private void ensureTemplateRouteSteps() {
+        backfillProcessSteps("PRD-003", "PRD-001");
+    }
+
+    private void backfillProcessSteps(String targetCode, String templateCode) {
+        jdbcTemplate.update("""
+            INSERT INTO process_step (route_id, step_no, step_code, step_name, standard_work_hours, standard_equipment_type, quality_required, status, created_at, updated_at)
+            SELECT tr.route_id, ps.step_no, CONCAT('S-', tm.material_code, '-', LPAD(CAST(ps.step_no AS CHAR), 3, '0')), ps.step_name,
+                   ps.standard_work_hours, ps.standard_equipment_type, ps.quality_required, ps.status, NOW(), NOW()
+            FROM process_step ps
+            JOIN process_route sr ON sr.route_id = ps.route_id
+            JOIN material sm ON sm.material_id = sr.material_id AND sm.material_code = ?
+            JOIN material tm ON tm.material_code = ?
+            JOIN process_route tr ON tr.material_id = tm.material_id
+            WHERE NOT EXISTS (SELECT 1 FROM process_step xs WHERE xs.route_id = tr.route_id AND xs.step_no = ps.step_no)
+            """, templateCode, targetCode);
     }
 
     private void seedProductChain(String code, String templateCode) {
@@ -68,17 +103,7 @@ public class ProductCatalogSeedRunner {
             FROM material m WHERE m.material_code = ?
               AND NOT EXISTS (SELECT 1 FROM process_route pr WHERE pr.material_id = m.material_id)
             """, code);
-        jdbcTemplate.update("""
-            INSERT INTO process_step (route_id, step_no, step_code, step_name, standard_work_hours, standard_equipment_type, quality_required, status, created_at, updated_at)
-            SELECT tr.route_id, ps.step_no, CONCAT('S-', tm.material_code, '-', LPAD(ps.step_no, 2, '0')), ps.step_name,
-                   ps.standard_work_hours, ps.standard_equipment_type, ps.quality_required, ps.status, NOW(), NOW()
-            FROM process_step ps
-            JOIN process_route sr ON sr.route_id = ps.route_id
-            JOIN material sm ON sm.material_id = sr.material_id AND sm.material_code = ?
-            JOIN material tm ON tm.material_code = ?
-            JOIN process_route tr ON tr.material_id = tm.material_id
-            WHERE NOT EXISTS (SELECT 1 FROM process_step xs WHERE xs.route_id = tr.route_id AND xs.step_no = ps.step_no)
-            """, templateCode, code);
+        backfillProcessSteps(code, templateCode);
         jdbcTemplate.update("""
             INSERT INTO inventory (material_id, warehouse_code, warehouse_name, location_code, batch_no, quantity_on_hand, quantity_available, quantity_locked, inventory_status, last_transaction_at, created_at, updated_at)
             SELECT m.material_id, 'WH-02', '成品仓', CONCAT('B-', LPAD(m.sort_order, 2, '0'), '-01'), CONCAT('BATCH-', m.material_code), 0, 0, 0, 'NORMAL', NOW(), NOW(), NOW()
@@ -125,17 +150,7 @@ public class ProductCatalogSeedRunner {
               AND NOT EXISTS (SELECT 1 FROM process_route pr WHERE pr.material_id = m.material_id)
             """, code);
 
-        jdbcTemplate.update("""
-            INSERT INTO process_step (route_id, step_no, step_code, step_name, standard_work_hours, standard_equipment_type, quality_required, status, created_at, updated_at)
-            SELECT tr.route_id, ps.step_no, CONCAT('S-', tm.material_code, '-', LPAD(ps.step_no, 2, '0')), ps.step_name,
-                   ps.standard_work_hours, ps.standard_equipment_type, ps.quality_required, ps.status, NOW(), NOW()
-            FROM process_step ps
-            JOIN process_route sr ON sr.route_id = ps.route_id
-            JOIN material sm ON sm.material_id = sr.material_id AND sm.material_code = ?
-            JOIN material tm ON tm.material_code = ?
-            JOIN process_route tr ON tr.material_id = tm.material_id
-            WHERE NOT EXISTS (SELECT 1 FROM process_step xs WHERE xs.route_id = tr.route_id AND xs.step_no = ps.step_no)
-            """, templateCode, code);
+        backfillProcessSteps(code, templateCode);
 
         jdbcTemplate.update("""
             INSERT INTO inventory (material_id, warehouse_code, warehouse_name, location_code, batch_no, quantity_on_hand, quantity_available, quantity_locked, inventory_status, last_transaction_at, created_at, updated_at)

@@ -29,6 +29,11 @@ export const ROLE_QUICK_LINKS = {
     { label: '采购工作台', path: '/purchase/workbench' },
     { label: '采购需求', path: '/purchase/demand' },
     { label: '采购订单', path: '/purchase/order' }
+  ],
+  warehouse: [
+    { label: '仓储管理工作台', path: '/warehouse/workbench' },
+    { label: '入库', path: '/warehouse/inbound-hub' },
+    { label: '出库', path: '/warehouse/outbound-hub' }
   ]
 }
 
@@ -51,6 +56,7 @@ export const LITE_THEME = {
     planner: '#5ba8a8',
     operator: '#6aab7a',
     cost: '#c9956a',
-    purchase: '#6b9fd4'
+    purchase: '#6b9fd4',
+    warehouse: '#7aab8f'
   }
 }
