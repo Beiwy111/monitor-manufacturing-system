@@ -8,14 +8,14 @@ deepseek:
 # 财务与管理员全局 AI 分析（与现有 DeepSeek 功能使用独立 Key）
 deepseek-finance:
   enabled: true
-  api-key: ${DEEPSEEK_FINANCE_API_KEY}
+  api-key: ${DEEPSEEK_FINANCE_API_KEY:}
   api-url: ${DEEPSEEK_FINANCE_API_URL:https://api.deepseek.com/v1/chat/completions}
   model: ${DEEPSEEK_FINANCE_MODEL:deepseek-v4-flash}
   temperature: 0.2
   max-tokens: 4096
 
 ai:
-  api-key: 
+  api-key: ${AI_API_KEY:}
   base-url: https://ws-bcavmxl50shu238w.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
   model: qwen-vl-max
   timeout-seconds: 60
@@ -49,6 +49,16 @@ qwen:
 spring:
   config:
     import: optional:classpath:application-local.yaml
+  # MES Agent 仅在 ai Profile 中启用，默认启动保持现有 AI 调用链不变。
+  ai:
+    model:
+      chat: none
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
   mvc:
     async:
       request-timeout: 0

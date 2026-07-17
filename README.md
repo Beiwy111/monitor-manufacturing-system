@@ -42,6 +42,85 @@ cd backend
 
 接口根地址：`http://localhost:8088`
 
+### MES Agent / Spring AI 本地配置
+
+后端使用 Spring AI 1.1.8 的 OpenAI 兼容模型适配器连接 DeepSeek V4 Pro。配置位于
+`backend/src/main/resources/application-ai.yml`，该配置仅在启用 `ai` Profile 时生效，
+并复用 `application.yaml` 中现有的 `deepseek.api-key`。
+
+启动 Agent：
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=ai"
+```
+
+启动后访问 `GET http://localhost:8088/ai/health`。该接口只验证 `ChatClient` Bean
+已成功初始化，不会向模型发送消息，也不会产生模型调用费用。
+
+Agent 聊天接口为 `POST /agent/chat`，必须携带登录返回的 Bearer Token：
+
+```json
+{
+  "message": "新建一个订单，客户是答辩演示客户，型号是23.8寸电竞显示器",
+  "sessionId": "demo-001",
+  "conversation": []
+}
+```
+
+信息不完整时 Agent 会提示补充数量、交期等字段。后续请求继续使用同一个 `sessionId`，
+并携带前端保存的 `conversation`，已填写参数会在 Redis 草稿中保留 15 分钟。信息完整后
+返回 `type=confirm` 和 `proposalId=AIP-...`，此时还没有修改业务数据。
+
+确认方案可继续使用现有前端接口：
+
+```http
+POST /assistant/execute
+Authorization: Bearer <登录 token>
+Content-Type: application/json
+
+{
+  "proposalId": "AIP-示例编号",
+  "decision": "APPROVE"
+}
+```
+
+也可使用 Agent 专用确认接口：
+
+```http
+POST /agent/plans/AIP-示例编号/confirm
+Authorization: Bearer <登录 token>
+Content-Type: application/json
+
+{
+  "decision": "APPROVE",
+  "finalParams": null
+}
+```
+
+`decision` 支持 `APPROVE`、`MODIFY` 和 `SKIP`。确认时后端会重新读取 JWT/Redis 登录会话，
+再次校验角色、方案所有人、方案有效期和业务快照；重复确认同一方案只返回首次结果。
+
+管理员可使用全部后台查询、分析和非客户自助业务动作；其他角色只会获得其前后端职责范围内的
+Tool。查询 Tool 可直接执行；写 Tool 只生成待确认方案，确认后由事务服务调用现有业务 Service。
+Agent 不直接访问 Mapper，也不暴露 SQL、Shell、代码执行或通用数据库工具。
+
+常用答辩测试语句：
+
+- 订单人员：`新建一个订单，客户是答辩演示客户，型号是23.8寸电竞显示器`
+- 计划员：`为订单 CO202607001 智能排产，7月20日开始，7月25日结束`
+- 生产主管：`为计划 PP202607001 生成智能派工方案`
+- 操作员：`接收派工 DT202607001`
+- 质检员：`把质检单 QC202607001 判定为合格，抽检100台，合格100台，不合格0台`
+- 设备人员：`给设备ID 1触发报警，描述为贴片机温度异常`
+
+标准测试不会调用付费模型，可执行：
+
+```powershell
+cd backend
+.\mvnw.cmd "-Dspring.main.lazy-initialization=true" "-Dspring.task.scheduling.enabled=false" test
+```
+
 ### 前端（端口 5173）
 
 ```bash

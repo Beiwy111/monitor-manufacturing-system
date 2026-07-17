@@ -1,0 +1,28 @@
+# MES Agent / Spring AI 本地示例配置。
+# 使用 ai Profile 时生效；不要在此文件中填写或提交真实 API Key。
+spring:
+  config:
+    activate:
+      on-profile: ai
+  ai:
+    model:
+      chat: openai
+    openai:
+      api-key: ${mes.ai.api-key}
+      base-url: ${mes.ai.base-url}
+      chat:
+        options:
+          model: ${mes.ai.model}
+          temperature: ${mes.ai.temperature}
+          max-tokens: ${mes.ai.max-tokens}
+
+mes:
+  ai:
+    enabled: true
+    provider: deepseek
+    # 课程演示统一复用 application.yaml 中已有的 DeepSeek API Key。
+    api-key: ${deepseek.api-key}
+    base-url: https://api.deepseek.com
+    model: deepseek-v4-pro
+    temperature: ${MES_AI_TEMPERATURE:0.2}
+    max-tokens: ${MES_AI_MAX_TOKENS:4096}

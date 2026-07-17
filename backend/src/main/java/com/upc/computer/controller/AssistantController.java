@@ -1,11 +1,20 @@
 package com.upc.computer.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.upc.computer.ai.dto.AgentChatRequest;
+import com.upc.computer.ai.dto.AgentChatResponse;
+import com.upc.computer.ai.dto.AgentConversationMessage;
+import com.upc.computer.ai.service.AgentService;
+import com.upc.computer.ai.action.AgentActionPlanService;
 import com.upc.computer.assistant.AsrClient;
 import com.upc.computer.assistant.AssistantService;
 import com.upc.computer.common.BusinessException;
+import com.upc.computer.common.JwtUtil;
 import com.upc.computer.common.Result;
+import com.upc.computer.dto.LoginResponse;
+import com.upc.computer.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +46,10 @@ public class AssistantController {
     @Autowired private AsrClient asrClient;
     @Autowired private AssistantService assistant;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private ObjectProvider<AgentService> agentServiceProvider;
+    @Autowired private ObjectProvider<AgentActionPlanService> actionPlanServiceProvider;
+    @Autowired private AuthService authService;
+    @Autowired private JwtUtil jwtUtil;
 
     @PostMapping("/asr")
     public Result<Map<String, Object>> asr(@RequestParam("file") MultipartFile file) throws Exception {
@@ -46,20 +59,33 @@ public class AssistantController {
     }
 
     @PostMapping("/interpret")
-    public Result<Map<String, Object>> interpret(@RequestBody Map<String, Object> body) {
+    public Result<Map<String, Object>> interpret(
+            @RequestBody Map<String, Object> body,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
         String sessionId = str(body, "sessionId");
         String module = str(body, "module");            // 当前页面模块（device/production/...），意图偏置用
         String text = str(body, "text");
+        AgentService agentService = agentServiceProvider.getIfAvailable();
+        if (agentService != null) {
+            AgentChatResponse response = agentService.chat(
+                    new AgentChatRequest(text, sessionId, agentConversation(body.get("conversation"))),
+                    requireLoginSession(authorization));
+            return Result.success(agentResult(response, false));
+        }
         return Result.success(assistant.interpret(sessionId, module, text, conversation(body.get("conversation"))));
     }
 
     /** POST NDJSON 流：delta 事件逐段输出纯文本，result 事件承载确认卡或最终元数据。 */
     @PostMapping(value = "/interpret/stream", produces = "application/x-ndjson")
-    public ResponseEntity<StreamingResponseBody> interpretStream(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<StreamingResponseBody> interpretStream(
+            @RequestBody Map<String, Object> body,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
         String sessionId = str(body, "sessionId");
         String module = str(body, "module");
         String text = str(body, "text");
         List<Map<String, String>> history = conversation(body.get("conversation"));
+        AgentService springAgent = agentServiceProvider.getIfAvailable();
+        LoginResponse loginSession = springAgent != null ? requireLoginSession(authorization) : null;
 
         StreamingResponseBody responseBody = output -> {
             Consumer<String> deltaConsumer = delta -> {
@@ -71,8 +97,15 @@ public class AssistantController {
             };
 
             try {
-                Map<String, Object> result = assistant.interpretStreaming(
-                        sessionId, module, text, history, deltaConsumer);
+                Map<String, Object> result;
+                if (springAgent != null) {
+                    AgentChatResponse response = springAgent.chat(
+                            new AgentChatRequest(text, sessionId, toAgentConversation(history)), loginSession);
+                    deltaConsumer.accept(response.reply());
+                    result = agentResult(response, true);
+                } else {
+                    result = assistant.interpretStreaming(sessionId, module, text, history, deltaConsumer);
+                }
                 writeStreamEvent(output, Map.of("type", "result", "data", result));
                 writeStreamEvent(output, Map.of("type", "done"));
             } catch (UncheckedIOException disconnected) {
@@ -91,12 +124,20 @@ public class AssistantController {
     }
 
     @PostMapping("/execute")
-    public Result<Map<String, Object>> execute(@RequestBody Map<String, Object> body) {
+    public Result<Map<String, Object>> execute(
+            @RequestBody Map<String, Object> body,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
         String proposalId = str(body, "proposalId");
         String decision = str(body, "decision");        // APPROVE / MODIFY / SKIP
         String operator = str(body, "operator");        // 前端带当前登录用户名
         String roleKey = str(body, "roleKey");          // 前端带当前角色，MES 通用动作执行时透传
         if (proposalId.isBlank()) throw new BusinessException("proposalId 不能为空");
+        if (proposalId.startsWith("AIP-")) {
+            AgentActionPlanService actionPlanService = actionPlanServiceProvider.getIfAvailable();
+            if (actionPlanService == null) throw new BusinessException(503, "Agent 写操作服务未启用");
+            return Result.success(actionPlanService.confirm(proposalId, decision, body.get("finalParams"),
+                    requireLoginSession(authorization)));
+        }
         return Result.success(assistant.execute(proposalId, decision, body.get("finalParams"), operator, roleKey));
     }
 
@@ -123,6 +164,30 @@ public class AssistantController {
         return message.length() > 160 ? message.substring(0, 160) : message;
     }
 
+    private Map<String, Object> agentResult(AgentChatResponse response, boolean streamed) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (response.action() != null) result.putAll(response.action());
+        result.putIfAbsent("type", "answer");
+        result.put("reply", response.reply());
+        result.put("sessionId", response.sessionId());
+        result.put("roleCode", response.roleCode());
+        result.put("model", response.model());
+        result.put("streamed", streamed);
+        return result;
+    }
+
+    private LoginResponse requireLoginSession(String authorization) {
+        String token = jwtUtil.extractTokenFromHeader(authorization);
+        if (token == null || token.isBlank() || !jwtUtil.validateToken(token)) {
+            throw new BusinessException(401, "未登录或令牌无效");
+        }
+        LoginResponse session = authService.getLoginSession(token);
+        if (session == null) {
+            throw new BusinessException(401, "登录已失效，请重新登录");
+        }
+        return session;
+    }
+
     /** 只接受 user/assistant 历史，防止客户端伪造 system 消息覆盖助手规则。 */
     private List<Map<String, String>> conversation(Object value) {
         if (!(value instanceof List<?> list)) return List.of();
@@ -140,5 +205,15 @@ public class AssistantController {
             messages.add(message);
         }
         return messages;
+    }
+
+    private List<AgentConversationMessage> agentConversation(Object value) {
+        return toAgentConversation(conversation(value));
+    }
+
+    private List<AgentConversationMessage> toAgentConversation(List<Map<String, String>> messages) {
+        return messages.stream()
+                .map(message -> new AgentConversationMessage(message.get("role"), message.get("content")))
+                .toList();
     }
 }
