@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 /**
  * 全 MES 语音助手编排：NLU → 实体消歧 → 状态机校验 → 槽位追问 → 生成提议(写)/直接应答(读)。
@@ -77,6 +78,11 @@ public class AssistantService {
 
     // ════════════════════════ 解析 ════════════════════════
     public Map<String, Object> interpret(String sessionId, String module, String text) {
+        return interpret(sessionId, module, text, List.of());
+    }
+
+    public Map<String, Object> interpret(String sessionId, String module, String text,
+                                         List<Map<String, String>> conversation) {
         if (text == null || text.isBlank()) return ask("没听清，请再说一遍（可含单号、客户名或设备名）。");
         module = normalizeModule(module);
         if (!blank(module)) sessions.put(sessionId, "currentModule", module);
@@ -86,7 +92,59 @@ public class AssistantService {
         Map<String, Object> pending = resumePending(sessionId, text);
         if (pending != null) return pending;
 
-        NluResult r = nlu.interpret(text, contextJson(sessionId));
+        // 普通只读问题直接交给模型：全厂快照 + 完整对话 + 本次问题，模型自然语言回答。
+        // 只有明确写操作继续走 NLU、权限边界、提议卡和人工确认闸门。
+        if (!isExplicitWriteRequest(text)) {
+            String aiReply = nlu.answerQuestion(text, contextJson(sessionId), conversation);
+            if (isSubstantiveAnswer(aiReply)) {
+                return answer(aiReply, Map.of("source", "assistant-ai", "detail", wantsDetailedAnswer(text)));
+            }
+
+            // 模型服务不可用时只运行一次本地规则，避免再次等待模型；已知查询仍可读数据库兜底。
+            NluResult fallback = nlu.interpretByRule(text, contextJson(sessionId));
+            String fallbackAction = AssistantNluClient.normalizeAction(fallback.action());
+            if ("unknown".equals(fallbackAction)) {
+                return ask("智能分析模型当前未返回有效结果，请稍后重试。本次没有使用固定模板冒充 AI 回答。");
+            }
+            return dispatchAction(sessionId, fallbackAction, fallback, text);
+        }
+
+        return interpretCommand(sessionId, module, text, conversation);
+    }
+
+    /**
+     * 流式入口：只读 AI 问答逐段输出；写操作、候选追问和离线兜底仍返回原有结构化结果。
+     */
+    public Map<String, Object> interpretStreaming(String sessionId, String module, String text,
+                                                  List<Map<String, String>> conversation,
+                                                  Consumer<String> onDelta) {
+        if (text == null || text.isBlank()) return ask("没听清，请再说一遍（可含单号、客户名或设备名）。");
+        module = normalizeModule(module);
+        if (!blank(module)) sessions.put(sessionId, "currentModule", module);
+        else module = nz(sessions.get(sessionId, "currentModule"));
+
+        Map<String, Object> pending = resumePending(sessionId, text);
+        if (pending != null) return pending;
+        if (isExplicitWriteRequest(text)) return interpretCommand(sessionId, module, text, conversation);
+
+        String aiReply = nlu.streamQuestion(text, contextJson(sessionId), conversation, onDelta);
+        if (!blank(aiReply)) {
+            return streamedAnswer(aiReply, Map.of(
+                    "source", "assistant-ai-stream",
+                    "detail", wantsDetailedAnswer(text)));
+        }
+
+        NluResult fallback = nlu.interpretByRule(text, contextJson(sessionId));
+        String fallbackAction = AssistantNluClient.normalizeAction(fallback.action());
+        if ("unknown".equals(fallbackAction)) {
+            return ask("智能分析模型当前未返回有效结果，请稍后重试。本次没有使用固定模板冒充 AI 回答。");
+        }
+        return dispatchAction(sessionId, fallbackAction, fallback, text);
+    }
+
+    private Map<String, Object> interpretCommand(String sessionId, String module, String text,
+                                                 List<Map<String, String>> conversation) {
+        NluResult r = nlu.interpret(text, contextJson(sessionId), conversation);
         String action = AssistantNluClient.normalizeAction(r.action());
 
         if ("unknown".equals(action)) return ask(blankOr(r.reply(), capabilityLine()));
@@ -103,6 +161,9 @@ public class AssistantService {
 
     /** 单动作分发（边界校验已在调用方完成；Flow 引擎逐步复用本方法）。 */
     private Map<String, Object> dispatchAction(String sessionId, String action, NluResult r, String text) {
+        // 无专用动作的全局只读提问，由模型依据本轮携带的工厂全量上下文直接回答。
+        if ("factory.query".equals(action)) return answer(blankOr(r.reply(), "当前工厂数据不足，暂时无法回答。"), Map.of());
+
         // 售后模块：专用流程（客户名消歧/追溯链/KPI/研判）
         if (action.startsWith("aftersale.")) {
             String sub = action.substring("aftersale.".length());
@@ -121,7 +182,7 @@ public class AssistantService {
         if ("device.diagnose".equals(action)) return answerDiagnose(r);
 
         // 库存明细查询：读数据库快照中的 inventory 列表
-        if ("warehouse.query_inventory".equals(action)) return answerInventoryQuery(r);
+        if ("warehouse.query_inventory".equals(action)) return answerInventoryQuery(r, wantsDetailedAnswer(text));
 
         // 对话下单：槽位齐全 → 提议卡；缺槽位 → 追问
         if ("order.create".equals(action)) return startOrderCreate(sessionId, r, text);
@@ -129,8 +190,57 @@ public class AssistantService {
         // 其余模块：注册表驱动的通用流程
         ActionSpec spec = catalog.get(action);
         if (spec == null) return ask(capabilityLine());
-        if (!spec.write) return answerOverview(spec);
+        if (!spec.write) {
+            // 概况动作通常使用后端确定性统计；用户明确要求展开时，不能丢弃模型
+            // 已依据 currentFactory + currentConversation 生成的详细回答。
+            if (wantsDetailedAnswer(text) && isSubstantiveAnswer(r.reply())) {
+                return answer(r.reply(), Map.of("source", "currentFactory", "detail", true));
+            }
+            if (wantsDetailedAnswer(text)) return answerOverviewDetailed(spec);
+            return answerOverview(spec);
+        }
         return startMesWrite(sessionId, spec, r, text);
+    }
+
+    static boolean wantsDetailedAnswer(String text) {
+        // 默认详细；仅在用户明确要求简短时退回确定性概况摘要。
+        if (blank(text)) return true;
+        for (String marker : List.of("简要", "简单说", "简单概括", "简短", "概括一下",
+                "只说结论", "只要结论", "不用展开", "不必展开")) {
+            if (text.contains(marker)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 安全优先的写操作识别：明确命令才进入可执行动作链；带“哪些/谁/多少/分析”等问法的一律视为只读。
+     */
+    static boolean isExplicitWriteRequest(String text) {
+        if (blank(text)) return false;
+        for (String question : List.of("哪些", "谁", "多少", "几个", "几条", "为什么", "怎么回事", "怎么样",
+                "如何", "情况", "现状", "查询", "查一下", "列出", "统计", "分析", "概况", "是否", "能否",
+                "可不可以", "吗", "？", "?")) {
+            if (text.contains(question)) return false;
+        }
+        if (text.contains("确认") && (text.contains("到货") || text.contains("收货") || text.contains("入库"))) {
+            return true;
+        }
+        for (String command : List.of("受理", "标记解决", "结案", "接收报警", "接收派工", "解除报警",
+                "关闭报警", "关闭案例", "关闭售后", "开工", "开始生产", "确认到货", "确认收货", "确认入库",
+                "下单", "下订单", "新建订单", "创建订单", "订购", "通知", "转告", "派协同", "启动协查",
+                "删除", "新增", "修改", "保存", "提交", "审核通过", "驳回", "撤销", "上报")) {
+            if (text.contains(command)) return true;
+        }
+        return false;
+    }
+
+    /** 过滤规则兜底产生的“收到”等占位语，避免将其误当作详细模型正文。 */
+    static boolean isSubstantiveAnswer(String reply) {
+        if (blank(reply)) return false;
+        String normalized = reply.replaceAll("[\\s，。！？,.!?]", "");
+        return normalized.length() >= 20
+                && !normalized.startsWith("收到")
+                && !normalized.startsWith("我能处理");
     }
 
     private String capabilityLine() {
@@ -525,7 +635,7 @@ public class AssistantService {
 
     // ════════════════════════ 库存明细查询（读库） ════════════════════════
     /** 从 MesSnapshotService 快照（inventory 表）查物料现存、库位与预警。 */
-    private Map<String, Object> answerInventoryQuery(NluResult r) {
+    private Map<String, Object> answerInventoryQuery(NluResult r, boolean detailed) {
         Map<String, Object> snapshot = mesSnapshot.buildSnapshot();
         List<Map<String, Object>> all = rows(snapshot, "inventory");
         if (all.isEmpty()) {
@@ -551,11 +661,11 @@ public class AssistantService {
             }
             if (hits.size() == 1) return inventoryDetailReply(hits.get(0));
             if (hits.size() > 1) {
-                return inventoryListReply(hits, "匹配到 " + hits.size() + " 条库存，请说更具体的物料编码或名称：");
+                return inventoryListReply(hits, "匹配到 " + hits.size() + " 条库存，请说更具体的物料编码或名称：", detailed);
             }
             return ask("没找到「" + clue + "」的库存记录。可以说「查库存」看全部，或换物料编码/名称再试。");
         }
-        return inventoryListReply(all, "当前库存一览（数据库共 " + all.size() + " 条）：");
+        return inventoryListReply(all, "当前库存一览（数据库共 " + all.size() + " 条）：", detailed);
     }
 
     private String resolveInventoryClue(NluResult r) {
@@ -576,9 +686,9 @@ public class AssistantService {
         return answer(sb.toString(), row);
     }
 
-    private Map<String, Object> inventoryListReply(List<Map<String, Object>> hits, String header) {
+    private Map<String, Object> inventoryListReply(List<Map<String, Object>> hits, String header, boolean detailed) {
         StringBuilder sb = new StringBuilder(header);
-        int limit = Math.min(hits.size(), 12);
+        int limit = detailed ? hits.size() : Math.min(hits.size(), 12);
         for (int i = 0; i < limit; i++) {
             Map<String, Object> row = hits.get(i);
             sb.append('\n').append(i + 1).append(". ")
@@ -704,6 +814,94 @@ public class AssistantService {
             data.put(key, groups);
         }
         return answer(reply.toString(), data);
+    }
+
+    /**
+     * 模型不可用时的详细只读兜底：仍从实时 MES 快照生成分组统计和逐条关键字段，
+     * 保证“默认详细”不会退化成能力说明或一句“收到”。
+     */
+    private Map<String, Object> answerOverviewDetailed(ActionSpec spec) {
+        Map<String, Object> snapshot = mesSnapshot.buildSnapshot();
+        StringBuilder reply = new StringBuilder();
+        Map<String, Object> data = new LinkedHashMap<>();
+        for (String[] s : spec.summaries) {
+            String label = s[0], key = s[1], statusKey = s[2];
+            List<Map<String, Object>> list = rows(snapshot, key);
+            Map<String, Integer> groups = new LinkedHashMap<>();
+            for (Map<String, Object> row : list) {
+                groups.merge(blankOr(str(row, statusKey), "未知"), 1, Integer::sum);
+            }
+
+            if (reply.length() > 0) reply.append("\n\n");
+            reply.append("【").append(label).append("】共 ").append(list.size()).append(" 条");
+            if (!groups.isEmpty()) {
+                List<String> parts = new ArrayList<>();
+                groups.forEach((k, v) -> parts.add(k + " " + v));
+                reply.append("；").append(String.join("，", parts));
+            }
+            reply.append("。\n明细：");
+
+            int limit = Math.min(list.size(), "inventory".equals(key) ? list.size() : 20);
+            for (int i = 0; i < limit; i++) {
+                reply.append('\n').append(i + 1).append(". ").append(formatOverviewDetail(key, list.get(i)));
+            }
+            if (list.isEmpty()) reply.append("暂无记录");
+            if (list.size() > limit) reply.append("\n…其余 ").append(list.size() - limit).append(" 条可继续指定条件查询。");
+            data.put(key, list.subList(0, limit));
+        }
+        return answer(reply.toString(), data);
+    }
+
+    private String formatOverviewDetail(String key, Map<String, Object> row) {
+        List<String> fields = switch (key) {
+            case "inventory" -> List.of("materialName", "materialCode", "quantity", "unit", "safeQty", "status", "location");
+            case "inboundTasks" -> List.of("id", "workOrderId", "productModel", "quantity", "status");
+            case "orders" -> List.of("id", "customerName", "productModel", "quantity", "deliveryDate", "status", "amount");
+            case "workOrders" -> List.of("id", "orderId", "productModel", "planQty", "completedQty", "status");
+            case "dispatches" -> List.of("id", "workOrderId", "processStep", "operatorName", "equipment", "status");
+            case "purchaseDemands" -> List.of("materialCode", "materialName", "requiredQty", "stockQty", "shortageQty", "status");
+            case "purchaseOrders" -> List.of("id", "supplier", "materialName", "quantity", "arrivedQty", "status");
+            case "equipment" -> List.of("id", "equipmentName", "workshop", "status", "healthScore");
+            case "alarms" -> List.of("id", "source", "type", "level", "status", "description");
+            case "inspections" -> List.of("id", "workOrderId", "productModel", "result", "status", "inspectorName");
+            case "defects" -> List.of("id", "inspectionId", "defectType", "quantity", "status");
+            case "costSettlements" -> List.of("id", "workOrderId", "totalCost", "status", "settledAt");
+            case "sysUsers" -> List.of("username", "realName", "roleName", "department", "status");
+            case "operationLogs" -> List.of("id", "username", "module", "operation", "createdAt");
+            default -> List.of("id", "name", "status", "createdAt");
+        };
+        List<String> parts = new ArrayList<>();
+        for (String field : fields) {
+            String value = str(row, field);
+            if (!value.isBlank()) parts.add(detailLabel(field) + "=" + value);
+        }
+        if (!parts.isEmpty()) return String.join(" · ", parts);
+        return row.entrySet().stream()
+                .filter(e -> e.getValue() != null && !(e.getValue() instanceof Map<?, ?>) && !(e.getValue() instanceof List<?>))
+                .limit(6)
+                .map(e -> e.getKey() + "=" + e.getValue())
+                .reduce((a, b) -> a + " · " + b)
+                .orElse("无可展示字段");
+    }
+
+    private String detailLabel(String field) {
+        return switch (field) {
+            case "id" -> "编号"; case "username" -> "账号"; case "realName" -> "姓名";
+            case "roleName" -> "角色"; case "department" -> "部门"; case "materialName" -> "物料";
+            case "materialCode" -> "物料编码"; case "quantity" -> "数量"; case "unit" -> "单位";
+            case "safeQty" -> "安全库存"; case "location" -> "库位"; case "status" -> "状态";
+            case "customerName" -> "客户"; case "productModel" -> "产品型号"; case "deliveryDate" -> "交期";
+            case "amount" -> "金额"; case "workOrderId" -> "工单"; case "orderId" -> "订单";
+            case "planQty" -> "计划数"; case "completedQty" -> "完成数"; case "processStep" -> "工序";
+            case "operatorName" -> "操作员"; case "equipment", "equipmentName" -> "设备";
+            case "requiredQty" -> "需求量"; case "stockQty" -> "库存量"; case "shortageQty" -> "缺口";
+            case "supplier" -> "供应商"; case "arrivedQty" -> "到货量"; case "workshop" -> "车间";
+            case "healthScore" -> "健康分"; case "source" -> "来源"; case "type" -> "类型";
+            case "level" -> "等级"; case "description" -> "描述"; case "result" -> "结论";
+            case "inspectorName" -> "检验员"; case "inspectionId" -> "检验单"; case "defectType" -> "缺陷";
+            case "totalCost" -> "总成本"; case "settledAt" -> "结算时间"; case "module" -> "模块";
+            case "operation" -> "操作"; case "createdAt" -> "时间"; default -> field;
+        };
     }
 
     @SuppressWarnings("unchecked")
@@ -1456,8 +1654,14 @@ public class AssistantService {
     private Map<String, Object> answer(String reply, Object data) {
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("type", "answer");
-        resp.put("reply", reply);
+        resp.put("reply", AssistantTextFormatter.toPlainText(reply));
         resp.put("data", data);
+        return resp;
+    }
+
+    private Map<String, Object> streamedAnswer(String reply, Object data) {
+        Map<String, Object> resp = answer(reply, data);
+        resp.put("streamed", true);
         return resp;
     }
 
@@ -1526,7 +1730,7 @@ public class AssistantService {
     private Map<String, Object> ask(String reply) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("type", "ask");
-        m.put("reply", reply);
+        m.put("reply", AssistantTextFormatter.toPlainText(reply));
         return m;
     }
 

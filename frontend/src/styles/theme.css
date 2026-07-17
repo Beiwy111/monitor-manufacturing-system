@@ -5,23 +5,24 @@
 :root {
   --layout-font: Inter, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 
-  /* 页面外框 — 极浅灰，避免黄/蓝突兀跳变 */
-  --layout-bg-gradient: linear-gradient(180deg, #f7f8fa 0%, #f5f6f8 100%);
-  --layout-surface: #ffffff;
-  --layout-content-bg: #ffffff;
-  /* 主内容区纯白底；侧栏单独用更柔和的浅色渐变 */
-  --layout-content-gradient: #ffffff;
-  --sidebar-bg-gradient: linear-gradient(
-    180deg,
-    #f6faf7 0%,
-    #faf9fc 48%,
-    #f7f8fb 100%
+  /* 页面主背景 — 低饱和奶白/浅绿/浅粉/浅紫渐变 */
+  --layout-bg-gradient: linear-gradient(
+    120deg,
+    #f3faef 0%,
+    #fff7ee 35%,
+    #f6efff 70%,
+    #edf4ff 100%
   );
+  --layout-surface: #fffdf9;
+  --layout-content-bg: #ffffff;
+  /* 主内容区与页面外框同款渐变（表格/卡片仍用 layout-content-bg 纯白） */
+  --layout-content-gradient: var(--layout-bg-gradient);
   --layout-card-radius: 10px;
   --layout-shadow: 0 1px 2px rgba(37, 39, 42, 0.04), 0 4px 12px rgba(37, 39, 42, 0.03);
   --layout-divider: #e8e8e3;
   --layout-border: #e8e8e3;
   --sidebar-panel-bg: transparent;
+  --layout-panel-bg: transparent;
 
   /* 文字色 — 深灰黑 / 次要灰 */
   --layout-text-body: #25272a;
@@ -34,16 +35,16 @@
   --layout-text: var(--layout-text-body);
   --layout-text-secondary: var(--layout-text-caption);
   --layout-text-muted: var(--layout-text-caption);
-  --layout-table-head: #ffffff;
-  --layout-table-row-hover: #f5f7fa;
-  --layout-panel-bg: #ffffff;
-  --layout-input-bg: #ffffff;
+  --layout-table-head: rgba(250, 250, 248, 0.42);
+  --layout-table-row-hover: rgba(243, 245, 240, 0.55);
+  --layout-panel-bg: transparent;
+  --layout-input-bg: rgba(255, 253, 249, 0.58);
 
-  /* 侧栏 — 独立浅色渐变，选中项胶囊底 */
+  /* 侧栏 */
+  /* 侧栏与主内容区同款渐变（菜单项本身仍透明） */
   --sidebar-bg: transparent;
-  --sidebar-hover-bg: rgba(0, 0, 0, 0.03);
-  --sidebar-active-bg: #e8f2ea;
-  --sidebar-active-bg-sub: #ede9f7;
+  --sidebar-hover-bg: #eef1ea;
+  --sidebar-active-bg: #e8efe4;
   --sidebar-active-text: #25272a;
   --sidebar-text: #4f5560;
   --sidebar-text-hover: #25272a;
@@ -122,6 +123,701 @@
   --lh-base: 1.5;
 }
 
+/* ========================================================================== 
+   Morandi Glass Theme v2
+   A single-file, layout-safe visual layer for the MES application.
+   This block intentionally uses high-specificity global overrides so the
+   theme remains portable as a single replacement file.
+   ========================================================================== */
+
+:root {
+  --layout-font: Inter, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --layout-bg-gradient:
+    radial-gradient(circle at 8% 0%, rgba(253, 243, 210, 0.65) 0%, transparent 25%),
+    radial-gradient(circle at 94% 5%, rgba(235, 224, 251, 0.69) 0%, transparent 29%),
+    radial-gradient(circle at 55% 100%, rgba(223, 245, 241, 0.68) 0%, transparent 35%),
+    linear-gradient(135deg, #e5f5f4 0%, #f9fbff 52%, #fbf5ff 100%);
+  --layout-content-gradient:
+    radial-gradient(circle at 18% 6%, rgba(255, 244, 202, 0.42), transparent 28%),
+    radial-gradient(circle at 88% 2%, rgba(231, 218, 250, 0.43), transparent 31%),
+    radial-gradient(circle at 52% 98%, rgba(214, 242, 238, 0.4), transparent 38%),
+    linear-gradient(135deg, rgba(238, 249, 247, 0.92), rgba(250, 251, 255, 0.9) 50%, rgba(250, 245, 255, 0.92));
+
+  --layout-surface: rgba(255, 255, 255, 0.68);
+  --layout-content-bg: rgba(255, 255, 255, 0.58);
+  --layout-panel-bg: rgba(255, 255, 255, 0.54);
+  --sidebar-panel-bg: rgba(250, 255, 253, 0.62);
+  --layout-input-bg: rgba(255, 255, 255, 0.66);
+  --layout-table-head: rgba(255, 255, 255, 0.48);
+  --layout-table-row-hover: rgba(255, 255, 255, 0.7);
+
+  --layout-text-title: #26354a;
+  --layout-text-body: #526579;
+  --layout-text-table: #526579;
+  --layout-text-caption: #8795a4;
+  --layout-text-placeholder: #9aaab8;
+  --layout-text: var(--layout-text-body);
+  --layout-text-secondary: var(--layout-text-caption);
+  --layout-text-muted: var(--layout-text-caption);
+
+  --layout-divider: rgba(229, 239, 237, 0.88);
+  --layout-border: rgba(232, 239, 240, 0.92);
+  --layout-card-radius: 18px;
+  --layout-shadow: 0 12px 28px rgba(96, 113, 141, 0.07);
+  --layout-shadow-hover: 0 19px 32px rgba(103, 113, 143, 0.14);
+  --glass-border: rgba(255, 255, 255, 0.84);
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.51));
+  --glass-bg-light: linear-gradient(100deg, rgba(255, 255, 255, 0.86), rgba(251, 248, 255, 0.74));
+
+  --morandi-gold: #c4a46d;
+  --morandi-mint: #6fa99b;
+  --morandi-blue: #789fc2;
+  --morandi-purple: #9a80b6;
+  --morandi-rose: #c98d9d;
+  --morandi-track: #dce5eb;
+
+  --sidebar-bg: rgba(250, 255, 253, 0.54);
+  --sidebar-hover-bg: linear-gradient(90deg, rgba(218, 244, 239, 0.76), rgba(237, 228, 250, 0.72));
+  --sidebar-active-bg: linear-gradient(90deg, rgba(215, 243, 239, 0.9), rgba(234, 224, 250, 0.88));
+  --sidebar-active-text: #315b67;
+  --sidebar-text: #66798a;
+  --sidebar-text-hover: #365d68;
+  --sidebar-accent: #62b8b2;
+  --sidebar-avatar-bg: linear-gradient(135deg, #7566bd, #39a8ad);
+
+  --btn-primary-bg: #58a9b2;
+  --btn-primary-hover: #4a99a7;
+  --btn-secondary-border: rgba(219, 232, 232, 0.9);
+  --btn-secondary-text: #63788a;
+  --btn-secondary-hover-bg: rgba(255, 255, 255, 0.86);
+  --btn-danger-text: #b76f83;
+  --btn-danger-hover-text: #9f596f;
+  --btn-danger-hover-bg: rgba(252, 236, 242, 0.88);
+  --btn-link-text: #7891aa;
+  --btn-link-hover-text: #5f7f9e;
+  --btn-switch-on: #55aaa4;
+  --btn-switch-off: #d7e1e7;
+
+  --color-success: #6fa99b;
+  --color-warning: #c4a46d;
+  --color-danger: #c98d9d;
+  --color-info: #789fc2;
+
+  --el-color-primary: #58a9b2;
+  --el-color-primary-light-3: #79bbc1;
+  --el-color-primary-light-5: #9acdd0;
+  --el-color-primary-light-7: #c0e0e1;
+  --el-color-primary-light-8: #d8ecec;
+  --el-color-primary-light-9: #edf7f6;
+  --el-color-primary-dark-2: #468f9d;
+  --el-color-success: #6fa99b;
+  --el-color-warning: #c4a46d;
+  --el-color-danger: #c98d9d;
+  --el-color-info: #789fc2;
+  --el-text-color-primary: #26354a;
+  --el-text-color-regular: #526579;
+  --el-text-color-secondary: #8795a4;
+  --el-text-color-placeholder: #9aaab8;
+  --el-border-color: rgba(229, 239, 237, 0.94);
+  --el-border-color-light: rgba(232, 239, 240, 0.84);
+  --el-border-color-lighter: rgba(255, 255, 255, 0.68);
+  --el-fill-color-blank: rgba(255, 255, 255, 0.62);
+  --el-fill-color-light: rgba(246, 250, 251, 0.62);
+  --el-fill-color-lighter: rgba(255, 255, 255, 0.4);
+  --el-fill-color-extra-light: rgba(255, 255, 255, 0.28);
+  --el-bg-color: rgba(255, 255, 255, 0.78);
+  --el-bg-color-overlay: rgba(255, 255, 255, 0.88);
+  --el-mask-color: rgba(49, 63, 82, 0.2);
+  --el-border-radius-base: 9px;
+  --el-border-radius-small: 7px;
+
+  --fs-body: 14px;
+  --fs-page-title: 28px;
+  --fs-module-title: 17px;
+  --fs-table: 13px;
+  --fs-menu: 14px;
+  --fs-caption: 13px;
+  --fs-kpi: 20px;
+  --fs-kpi-hero: 30px;
+  --lh-base: 1.5;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+  font-family: var(--layout-font) !important;
+  color: var(--layout-text-body) !important;
+  background: var(--layout-bg-gradient) fixed !important;
+}
+
+body {
+  overflow: auto;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% 20%, rgba(255, 255, 255, 0.52), transparent 25%),
+    radial-gradient(circle at 78% 66%, rgba(255, 255, 255, 0.36), transparent 32%);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(116, 135, 150, 0.56) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(116, 135, 150, 0.5);
+  background-clip: padding-box;
+}
+
+#app .layout-container {
+  width: calc(100% - 28px) !important;
+  min-height: calc(100vh - 28px) !important;
+  height: calc(100vh - 28px) !important;
+  margin: 14px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.86) !important;
+  border-radius: 24px !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 22px 54px rgba(83, 104, 132, 0.12) !important;
+  backdrop-filter: blur(18px) saturate(112%);
+  -webkit-backdrop-filter: blur(18px) saturate(112%);
+}
+
+#app .layout-aside {
+  margin: 0 !important;
+  border: 0 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.75) !important;
+  background:
+    radial-gradient(circle at 14% 4%, rgba(211, 244, 238, 0.66), transparent 32%),
+    linear-gradient(160deg, rgba(252, 255, 254, 0.76), rgba(247, 250, 255, 0.54) 58%, rgba(245, 238, 253, 0.52)) !important;
+  box-shadow: 10px 0 30px rgba(86, 112, 130, 0.05) !important;
+  backdrop-filter: blur(16px) saturate(110%);
+  -webkit-backdrop-filter: blur(16px) saturate(110%);
+}
+
+#app .layout-aside .logo {
+  min-height: 68px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.72) !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: var(--layout-text-title) !important;
+}
+
+#app .layout-menu,
+#app .layout-menu .el-menu,
+#app .layout-menu-scroll {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+#app .layout-menu .el-menu-item,
+#app .layout-menu .el-sub-menu__title {
+  min-height: 46px !important;
+  margin: 4px 12px !important;
+  border-radius: 13px !important;
+  color: var(--sidebar-text) !important;
+  background: transparent !important;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease !important;
+}
+
+#app .layout-menu .el-menu-item:hover,
+#app .layout-menu .el-sub-menu__title:hover {
+  color: var(--sidebar-text-hover) !important;
+  background: var(--sidebar-hover-bg) !important;
+}
+
+#app .layout-menu .el-menu-item.is-active {
+  color: var(--sidebar-active-text) !important;
+  background: var(--sidebar-active-bg) !important;
+  box-shadow: 0 7px 18px rgba(91, 139, 148, 0.08) !important;
+}
+
+#app .layout-menu .el-menu-item.is-active::before {
+  left: 0 !important;
+  top: 9px !important;
+  bottom: 9px !important;
+  width: 3px !important;
+  border-radius: 0 4px 4px 0 !important;
+  background: linear-gradient(180deg, #55bcb5, #789fc2) !important;
+}
+
+#app .layout-menu .el-menu-item .el-icon,
+#app .layout-menu .el-sub-menu__title .el-icon {
+  color: inherit !important;
+}
+
+#app .layout-right,
+#app .layout-main:not(.layout-main--screen),
+#app .layout-main.ruoyi-app-main:not(.layout-main--screen) {
+  background: var(--layout-content-gradient) fixed !important;
+}
+
+#app .layout-header {
+  min-height: 68px !important;
+  padding: 0 26px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.72) !important;
+  background: rgba(255, 255, 255, 0.44) !important;
+  box-shadow: 0 8px 22px rgba(96, 113, 141, 0.04) !important;
+  backdrop-filter: blur(14px) saturate(112%);
+  -webkit-backdrop-filter: blur(14px) saturate(112%);
+}
+
+#app .layout-breadcrumb,
+#app .layout-breadcrumb a,
+#app .layout-breadcrumb span {
+  color: var(--layout-text-caption) !important;
+}
+
+#app .layout-breadcrumb .ruoyi-breadcrumb__current,
+#app .layout-breadcrumb span:last-child {
+  color: var(--layout-text-title) !important;
+  font-weight: 700 !important;
+}
+
+#app .header-user__avatar {
+  color: #fff !important;
+  background: var(--sidebar-avatar-bg) !important;
+  box-shadow: 0 5px 14px rgba(69, 146, 159, 0.22) !important;
+}
+
+#app .layout-main:not(.layout-main--screen) {
+  padding: 16px !important;
+}
+
+#app .ruoyi-page,
+#app .mes-page,
+#app .mes-workbench,
+#app .role-dashboard {
+  color: var(--layout-text-body) !important;
+}
+
+#app h1,
+#app h2,
+#app h3,
+#app h4,
+#app .page-title,
+#app .module-title,
+#app .ruoyi-title,
+#app .workbench-title {
+  color: var(--layout-text-title) !important;
+  letter-spacing: -0.025em;
+}
+
+#app .page-title,
+#app .ruoyi-page__title,
+#app .workbench-title {
+  font-size: clamp(24px, 2vw, 30px) !important;
+  font-weight: 780 !important;
+  line-height: 1.2 !important;
+}
+
+#app .page-hint,
+#app .page-subtitle,
+#app .module-hint,
+#app .el-form-item__label,
+#app .el-descriptions__label {
+  color: var(--layout-text-caption) !important;
+}
+
+#app .page-card,
+#app .el-card,
+#app .module-panel,
+#app .dashboard-card,
+#app .workbench-card,
+#app .kpi-card,
+#app .stat-card,
+#app .ruoyi-split,
+#app .ruoyi-table-wrap {
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 18px !important;
+  background: var(--glass-bg) !important;
+  box-shadow: var(--layout-shadow) !important;
+  backdrop-filter: blur(12px) saturate(108%);
+  -webkit-backdrop-filter: blur(12px) saturate(108%);
+}
+
+#app .el-card__header {
+  border-bottom-color: rgba(255, 255, 255, 0.66) !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+#app .ruoyi-query,
+#app .search-toolbar,
+#app .search-form,
+#app .filter-bar,
+#app .toolbar,
+#app .mes-toolbar {
+  padding: 10px 14px !important;
+  border: 1px solid rgba(255, 255, 255, 0.84) !important;
+  border-radius: 14px !important;
+  background: var(--glass-bg-light) !important;
+  box-shadow: 0 6px 18px rgba(102, 112, 138, 0.04) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+#app .el-input__wrapper,
+#app .el-select__wrapper,
+#app .el-textarea__inner,
+#app .el-date-editor.el-input__wrapper,
+#app .el-cascader .el-input__wrapper,
+#app .el-input-number .el-input__wrapper {
+  border-radius: 9px !important;
+  background: rgba(255, 255, 255, 0.66) !important;
+  box-shadow: 0 0 0 1px rgba(219, 232, 232, 0.96) inset !important;
+  transition: box-shadow 0.2s ease, background 0.2s ease !important;
+}
+
+#app .el-input__wrapper:hover,
+#app .el-select__wrapper:hover,
+#app .el-textarea__inner:hover,
+#app .el-input__wrapper.is-focus,
+#app .el-select__wrapper.is-focused,
+#app .el-date-editor.el-input__wrapper:hover {
+  background: rgba(255, 255, 255, 0.84) !important;
+  box-shadow: 0 0 0 1px rgba(146, 200, 196, 0.94) inset !important;
+}
+
+#app .el-button {
+  min-height: 34px;
+  border-radius: 9px !important;
+  font-weight: 650 !important;
+  box-shadow: 0 4px 12px rgba(78, 137, 157, 0.08) !important;
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+#app .el-button:not(.is-disabled):hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+  box-shadow: 0 7px 15px rgba(78, 137, 157, 0.13) !important;
+}
+
+#app .el-button.is-disabled {
+  opacity: 0.45 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+#app .el-button--primary:not(.is-plain):not(.is-link) {
+  border-color: transparent !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, #4eada8, #5990cc) !important;
+}
+
+#app .el-button--success:not(.is-plain):not(.is-link) {
+  border-color: transparent !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, #6ab89a, #5e9ecf) !important;
+}
+
+#app .el-button--danger:not(.is-plain):not(.is-link) {
+  border-color: transparent !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, #cc8c9e, #a870a4) !important;
+}
+
+#app .el-button--warning:not(.is-plain):not(.is-link) {
+  border-color: transparent !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, #cca96a, #a088be) !important;
+}
+
+#app .el-button--default:not(.is-link),
+#app .el-button.is-plain:not(.is-link) {
+  border-color: rgba(219, 232, 232, 0.92) !important;
+  color: var(--layout-text-body) !important;
+  background: rgba(255, 255, 255, 0.68) !important;
+}
+
+#app .el-button.is-link {
+  min-height: auto;
+  padding: 2px 4px !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+#app .el-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: rgba(255, 255, 255, 0.25);
+  --el-table-header-bg-color: rgba(255, 255, 255, 0.48);
+  --el-table-row-hover-bg-color: rgba(255, 255, 255, 0.74);
+  --el-table-current-row-bg-color: rgba(229, 246, 244, 0.58);
+  --el-table-border-color: rgba(255, 255, 255, 0.55);
+  --el-table-header-text-color: #526a7b;
+  --el-table-text-color: #526579;
+  border-radius: 16px !important;
+  background: linear-gradient(118deg, rgba(242, 250, 248, 0.76), rgba(245, 250, 251, 0.68) 34%, rgba(250, 247, 252, 0.72) 68%, rgba(243, 248, 252, 0.76)) !important;
+  overflow: hidden;
+}
+
+#app .el-table::before,
+#app .el-table--border::after,
+#app .el-table--border .el-table__inner-wrapper::after {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+#app .el-table th.el-table__cell {
+  padding: 11px 10px !important;
+  color: #526a7b !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  background: rgba(255, 255, 255, 0.48) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.62) !important;
+}
+
+#app .el-table td.el-table__cell {
+  padding: 11px 10px !important;
+  color: #526579 !important;
+  background: rgba(255, 255, 255, 0.24) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.48) !important;
+}
+
+#app .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: rgba(255, 255, 255, 0.34) !important;
+}
+
+#app .el-table__body tr:hover > td.el-table__cell {
+  background: rgba(255, 255, 255, 0.72) !important;
+}
+
+#app .el-table__body tr.current-row > td:first-child {
+  box-shadow: inset 3px 0 0 #55b2ad;
+}
+
+#app .el-tag {
+  border: 0 !important;
+  border-radius: 7px !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  background: rgba(230, 240, 243, 0.72) !important;
+  color: #61788d !important;
+}
+
+#app .el-tag--success {
+  background: rgba(220, 241, 233, 0.84) !important;
+  color: #528f7d !important;
+}
+
+#app .el-tag--warning {
+  background: rgba(255, 240, 219, 0.88) !important;
+  color: #b77a32 !important;
+}
+
+#app .el-tag--danger {
+  background: rgba(249, 225, 233, 0.82) !important;
+  color: #ad687d !important;
+}
+
+#app .el-tag--info {
+  background: rgba(225, 235, 245, 0.84) !important;
+  color: #6687a8 !important;
+}
+
+#app .el-switch {
+  --el-switch-on-color: #55aaa4;
+  --el-switch-off-color: #d7e1e7;
+}
+
+#app .el-pagination {
+  --el-pagination-bg-color: rgba(255, 255, 255, 0.62);
+  --el-pagination-button-bg-color: rgba(255, 255, 255, 0.62);
+  --el-pagination-hover-color: #4e9ca5;
+  color: var(--layout-text-caption) !important;
+}
+
+#app .el-pagination.is-background .el-pager li,
+#app .el-pagination.is-background button {
+  border: 1px solid rgba(255, 255, 255, 0.78) !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.58) !important;
+}
+
+#app .el-pagination.is-background .el-pager li.is-active {
+  color: #fff !important;
+  background: linear-gradient(135deg, #58aaa8, #6997c4) !important;
+}
+
+#app .el-tabs__item {
+  color: var(--layout-text-caption) !important;
+  font-weight: 650 !important;
+}
+
+#app .el-tabs__item.is-active,
+#app .el-tabs__item:hover {
+  color: #477f8b !important;
+}
+
+#app .el-tabs__active-bar {
+  border-radius: 999px;
+  background: linear-gradient(90deg, #57afa9, #789fc2) !important;
+}
+
+#app .el-tabs__nav-wrap::after {
+  background-color: rgba(229, 239, 237, 0.72) !important;
+}
+
+#app .el-tree {
+  --el-tree-node-hover-bg-color: rgba(229, 245, 242, 0.68);
+  color: var(--layout-text-body) !important;
+  background: transparent !important;
+}
+
+#app .el-tree-node__content {
+  min-height: 36px;
+  border-radius: 9px;
+}
+
+#app .el-tree--highlight-current .el-tree-node.is-current > .el-tree-node__content {
+  color: #3d7d82 !important;
+  background: linear-gradient(90deg, rgba(216, 242, 238, 0.86), rgba(237, 229, 250, 0.74)) !important;
+}
+
+#app .el-progress-bar__outer {
+  background: var(--morandi-track) !important;
+}
+
+#app .el-progress-bar__inner {
+  background: linear-gradient(90deg, #66aca1, #789fc2) !important;
+}
+
+#app .el-alert,
+#app .el-descriptions,
+#app .el-collapse,
+#app .el-empty,
+#app .el-result {
+  border-color: rgba(255, 255, 255, 0.75) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+}
+
+body .el-overlay {
+  background: rgba(43, 56, 75, 0.18) !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+body .el-dialog,
+body .el-drawer,
+body .el-message-box,
+body .el-popover.el-popper,
+body .el-picker-panel,
+body .el-select-dropdown,
+body .el-dropdown-menu {
+  border: 1px solid rgba(255, 255, 255, 0.88) !important;
+  border-radius: 18px !important;
+  color: #526579 !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(249, 248, 255, 0.82)) !important;
+  box-shadow: 0 16px 38px rgba(88, 111, 144, 0.12) !important;
+  backdrop-filter: blur(18px) saturate(112%);
+  -webkit-backdrop-filter: blur(18px) saturate(112%);
+}
+
+body .el-dialog__title,
+body .el-message-box__title,
+body .el-drawer__title {
+  color: #26354a !important;
+  font-weight: 750 !important;
+}
+
+body .el-popper.is-light,
+body .el-select__popper.el-popper,
+body .el-dropdown__popper.el-popper {
+  border-color: rgba(255, 255, 255, 0.88) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 14px 34px rgba(88, 111, 144, 0.12) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+body .el-select-dropdown__item.hover,
+body .el-select-dropdown__item:hover,
+body .el-dropdown-menu__item:hover {
+  color: #427f88 !important;
+  background: rgba(224, 244, 241, 0.78) !important;
+}
+
+body .el-message,
+body .el-notification {
+  border: 1px solid rgba(255, 255, 255, 0.88) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  box-shadow: 0 12px 30px rgba(88, 111, 144, 0.12) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+@media (max-width: 1100px) {
+  #app .layout-container {
+    width: calc(100% - 16px) !important;
+    min-height: calc(100vh - 16px) !important;
+    height: calc(100vh - 16px) !important;
+    margin: 8px !important;
+    border-radius: 18px !important;
+  }
+
+  #app .layout-main:not(.layout-main--screen) {
+    padding: 12px !important;
+  }
+
+  #app .layout-header {
+    padding: 0 16px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  #app .layout-container {
+    width: 100% !important;
+    min-height: 100vh !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  #app .ruoyi-query,
+  #app .search-toolbar,
+  #app .search-form,
+  #app .filter-bar,
+  #app .toolbar,
+  #app .mes-toolbar {
+    padding: 9px !important;
+  }
+
+  #app .page-title,
+  #app .ruoyi-page__title,
+  #app .workbench-title {
+    font-size: 23px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app *,
+  #app *::before,
+  #app *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
 html,
 body,
 #app {
@@ -145,8 +841,8 @@ body,
 }
 
 .layout-aside {
-  background: var(--sidebar-bg-gradient, #f8f9fb) !important;
-  background-attachment: local;
+  background: var(--layout-content-gradient, var(--layout-bg-gradient)) !important;
+  background-attachment: fixed;
   background-repeat: no-repeat;
   border-right-color: var(--layout-border, #e8e8e3) !important;
 }
@@ -167,7 +863,9 @@ body,
 
 .layout-main:not(.layout-main--screen),
 .layout-main.ruoyi-app-main:not(.layout-main--screen) {
-  background: var(--layout-content-bg, #ffffff) !important;
+  background: var(--layout-content-gradient) !important;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 /* ========== 管理后台内容区 ========== */
@@ -438,11 +1136,11 @@ body,
   background: var(--layout-table-row-hover) !important;
 }
 
-/* 表格 — 全局白底 */
+/* 表格主体透出渐变 */
 .layout-main.ruoyi-app-main .el-table {
-  --el-table-bg-color: #ffffff;
-  --el-table-tr-bg-color: #ffffff;
-  --el-table-header-bg-color: #ffffff;
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: var(--layout-table-head);
 }
 
 .layout-main.ruoyi-app-main .el-table,
@@ -450,15 +1148,15 @@ body,
 .layout-main.ruoyi-app-main .el-table__body-wrapper,
 .layout-main.ruoyi-app-main .el-table tr,
 .layout-main.ruoyi-app-main .el-table td.el-table__cell {
-  background-color: #ffffff !important;
+  background-color: transparent !important;
 }
 
 .layout-main.ruoyi-app-main .el-table th.el-table__cell {
-  background-color: #ffffff !important;
+  background-color: var(--layout-table-head) !important;
 }
 
 .layout-main.ruoyi-app-main .el-table__empty-block {
-  background: #ffffff !important;
+  background: transparent !important;
 }
 
 /* 各业务页内常见白底容器 */
@@ -472,11 +1170,11 @@ body,
   .cp-form-panel,
   .cp-detail
 ) {
-  background: #ffffff !important;
+  background: var(--layout-panel-bg) !important;
   box-shadow: none !important;
 }
 
-/* 卡片/面板白底 */
+/* 卡片/面板去白底，透出页面渐变 */
 .layout-main.ruoyi-app-main :is(
   .ruoyi-stats,
   .ruoyi-detail,
@@ -495,12 +1193,12 @@ body,
   .pdb,
   .pdb-panel
 ) {
-  background: #ffffff !important;
+  background: var(--layout-panel-bg) !important;
   box-shadow: none !important;
 }
 
 .layout-main.ruoyi-app-main .el-card {
-  background: #ffffff !important;
+  background: var(--layout-panel-bg) !important;
   box-shadow: none !important;
 }
 
@@ -642,7 +1340,7 @@ body,
   border-radius: var(--layout-card-radius);
   border-color: var(--layout-border);
   box-shadow: none;
-  background: #ffffff;
+  background: transparent;
 }
 
 .page-title {
@@ -721,4 +1419,1578 @@ body,
   --el-button-hover-bg-color: var(--btn-danger-hover-bg);
   --el-button-hover-border-color: #fecaca;
   --el-button-hover-text-color: var(--btn-danger-hover-text);
+}
+
+/* ========================================================================== 
+   Morandi Glass Theme v2.1 - navigation and table legibility refinements
+   ========================================================================== */
+
+/* Keep the selected menu item airy without letting the gradient dominate. */
+#app .layout-menu .el-menu-item.is-active {
+  color: #3b6571 !important;
+  background: linear-gradient(
+    90deg,
+    rgba(210, 243, 239, 0.48),
+    rgba(237, 228, 250, 0.5)
+  ) !important;
+  box-shadow: 0 5px 14px rgba(91, 139, 148, 0.045) !important;
+}
+
+#app .layout-menu .el-menu-item.is-active::before {
+  opacity: 0.72;
+}
+
+/*
+ * Submenu icons are hidden in the current layout, so the old 44px indent left
+ * too much empty space. Balance both sides and reserve the full row for text.
+ */
+#app .layout-menu .el-sub-menu .el-menu-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  min-width: 0 !important;
+  padding-left: 24px !important;
+  padding-right: 16px !important;
+  text-align: left !important;
+}
+
+#app .layout-menu .el-sub-menu .el-menu-item > span,
+#app .layout-menu .el-menu-item > span {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#app .layout-menu .el-sub-menu .el-menu-item.is-active::before {
+  left: 0 !important;
+}
+
+/* Make the whole hovered row readable, not merely a slightly brighter cell. */
+#app .el-table__body tr:hover > td.el-table__cell,
+#app .ruoyi-table-wrap .el-table__body tr:hover > td.el-table__cell,
+#app .mes-page .el-table__body tr:hover > td.el-table__cell {
+  color: #344c60 !important;
+  font-weight: 600 !important;
+  background: rgba(231, 244, 244, 0.72) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.52), inset 0 -1px rgba(255, 255, 255, 0.46);
+}
+
+/* Element Plus selection rows do not receive a current-row class. */
+#app .el-table__body tr:has(.el-checkbox.is-checked) > td.el-table__cell {
+  color: #2f485c !important;
+  font-weight: 650 !important;
+  background: linear-gradient(
+    90deg,
+    rgba(218, 241, 239, 0.76),
+    rgba(233, 239, 249, 0.7),
+    rgba(241, 233, 248, 0.68)
+  ) !important;
+}
+
+#app .el-table__body tr:has(.el-checkbox.is-checked) > td:first-child {
+  box-shadow: inset 3px 0 0 rgba(79, 170, 166, 0.9) !important;
+}
+
+/* Increase selection control contrast in both table header and body. */
+#app .el-table .el-checkbox__inner,
+#app .ruoyi-table-wrap .el-checkbox__inner {
+  width: 18px !important;
+  height: 18px !important;
+  border: 1.5px solid #9fb7c0 !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.76) !important;
+  box-shadow: 0 2px 7px rgba(75, 105, 123, 0.08) !important;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+#app .el-table .el-checkbox:hover .el-checkbox__inner,
+#app .ruoyi-table-wrap .el-checkbox:hover .el-checkbox__inner {
+  border-color: #62aaa8 !important;
+  background: rgba(240, 251, 249, 0.96) !important;
+  box-shadow: 0 0 0 3px rgba(98, 170, 168, 0.11) !important;
+}
+
+#app .el-table .el-checkbox.is-checked .el-checkbox__inner,
+#app .el-table .el-checkbox.is-indeterminate .el-checkbox__inner,
+#app .ruoyi-table-wrap .el-checkbox.is-checked .el-checkbox__inner,
+#app .ruoyi-table-wrap .el-checkbox.is-indeterminate .el-checkbox__inner {
+  border-color: #559fa4 !important;
+  background: linear-gradient(135deg, #63b3aa, #6f96c0) !important;
+  box-shadow: 0 3px 9px rgba(76, 143, 151, 0.2) !important;
+}
+
+#app .el-table .el-checkbox__inner::after {
+  top: 2px !important;
+  left: 6px !important;
+  width: 4px !important;
+  height: 8px !important;
+  border-width: 0 2px 2px 0 !important;
+}
+
+#app .el-table .el-checkbox.is-indeterminate .el-checkbox__inner::before {
+  top: 7px !important;
+  left: 4px !important;
+  right: 4px !important;
+}
+
+/* ========================================================================== 
+   Morandi Glass Theme v2.2 - restrained table selection and chat entry
+   ========================================================================== */
+
+/* A single neutral surface avoids the repeated rainbow banding per cell. */
+#app .el-table__body tr:has(.el-checkbox.is-checked) > td.el-table__cell {
+  color: #344b5d !important;
+  font-weight: 600 !important;
+  background: rgba(224, 239, 239, 0.72) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.46), inset 0 -1px rgba(199, 220, 221, 0.22) !important;
+}
+
+#app .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell {
+  color: #2d4557 !important;
+  background: rgba(215, 234, 234, 0.82) !important;
+}
+
+#app .el-table__body tr:has(.el-checkbox.is-checked) > td:first-child {
+  box-shadow: inset 3px 0 0 rgba(83, 161, 158, 0.7), inset 0 1px rgba(255, 255, 255, 0.46), inset 0 -1px rgba(199, 220, 221, 0.22) !important;
+}
+
+/* Give the persistent AI entry a clear but quiet visual identity. */
+#app .layout-aside__chat {
+  padding: 11px 12px 14px !important;
+  border-top: 1px solid rgba(222, 235, 235, 0.82) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(232, 244, 243, 0.34)) !important;
+}
+
+#app .layout-aside__chat-link {
+  min-height: 44px !important;
+  padding: 8px 10px !important;
+  border: 1px solid rgba(142, 185, 183, 0.34) !important;
+  border-radius: 12px !important;
+  color: #456a75 !important;
+  font-weight: 700 !important;
+  background: linear-gradient(110deg, rgba(229, 245, 242, 0.82), rgba(238, 239, 249, 0.72)) !important;
+  box-shadow: 0 6px 15px rgba(77, 113, 126, 0.07) !important;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
+}
+
+#app .layout-aside__chat-link .el-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 27px !important;
+  height: 27px !important;
+  flex: 0 0 27px !important;
+  border-radius: 9px !important;
+  color: #4f8f93 !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+  box-shadow: 0 2px 7px rgba(66, 121, 130, 0.08) !important;
+}
+
+#app .layout-aside__chat-link::after {
+  content: "AI";
+  margin-left: auto;
+  padding: 2px 6px;
+  border: 1px solid rgba(129, 161, 184, 0.25);
+  border-radius: 6px;
+  color: #73899d;
+  background: rgba(255, 255, 255, 0.52);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: 0.5px;
+}
+
+#app .layout-aside__chat-link:hover {
+  color: #345e69 !important;
+  border-color: rgba(107, 169, 165, 0.5) !important;
+  background: linear-gradient(110deg, rgba(222, 242, 238, 0.92), rgba(233, 236, 248, 0.84)) !important;
+  box-shadow: 0 8px 18px rgba(77, 113, 126, 0.1) !important;
+  transform: translateY(-1px);
+}
+
+#app .layout-aside__chat-link.is-active {
+  color: #315d67 !important;
+  border-color: rgba(94, 161, 157, 0.56) !important;
+  background: rgba(222, 241, 238, 0.92) !important;
+  box-shadow: inset 3px 0 0 rgba(77, 158, 154, 0.74), 0 7px 17px rgba(77, 113, 126, 0.08) !important;
+}
+
+/* ========================================================================== 
+   Morandi Glass Theme v2.3 - overlay, brand and compact AI entry fixes
+   ========================================================================== */
+
+/* Backdrop filters create a stacking context; keep header overlays above main. */
+#app .layout-header {
+  position: relative !important;
+  z-index: 2000 !important;
+  overflow: visible !important;
+}
+
+#app .layout-main {
+  position: relative;
+  z-index: 1;
+}
+
+#app .header-user,
+#app .nc-wrap {
+  position: relative;
+  z-index: 2100 !important;
+  overflow: visible !important;
+}
+
+#app .nc-panel {
+  z-index: 2200 !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(211, 224, 229, 0.92) !important;
+  box-shadow: 0 16px 38px rgba(67, 88, 115, 0.16) !important;
+}
+
+#app .nc-head,
+#app .nc-tabs,
+#app .nc-list,
+#app .nc-foot {
+  position: relative;
+  z-index: 1;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Enlarge the sidebar brand without changing BrandLogo.vue. */
+#app .layout-aside .logo__link {
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0;
+}
+
+#app .layout-aside .brand-logo {
+  gap: 9px !important;
+}
+
+#app .layout-aside .brand-logo__img {
+  width: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
+  filter: saturate(0.92) contrast(1.04) drop-shadow(0 4px 8px rgba(62, 119, 137, 0.13));
+}
+
+#app .layout-aside .brand-logo--sidebar .brand-logo__text strong {
+  font-family: "STKaiti", "KaiTi", "FZKai-Z03", "Microsoft YaHei", serif !important;
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  letter-spacing: 1.5px !important;
+  color: #315a69 !important;
+  background: linear-gradient(115deg, #315a69, #4a7d8b 58%, #6d6e9e);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 3px 10px rgba(63, 104, 124, 0.08);
+}
+
+/* Keep the AI entry on one line at the existing 168px sidebar width. */
+#app .layout-aside__chat-link {
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  padding: 8px 8px !important;
+  font-size: 13px !important;
+  white-space: nowrap !important;
+}
+
+#app .layout-aside__chat-link > span {
+  display: inline-block !important;
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+}
+
+#app .layout-aside__chat-link .el-icon {
+  width: 24px !important;
+  height: 24px !important;
+  flex-basis: 24px !important;
+  border-radius: 8px !important;
+}
+
+#app .layout-aside__chat-link::after {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 2px 5px;
+  font-size: 9px;
+}
+
+/* Selected rows stay calm; hover remains a clearly stronger second state. */
+#app .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell,
+#app .ruoyi-table-wrap .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell,
+#app .mes-page .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell {
+  color: #263f52 !important;
+  font-weight: 650 !important;
+  background: rgba(207, 229, 230, 0.9) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.62), inset 0 -1px rgba(160, 195, 198, 0.28) !important;
+}
+
+#app .el-table__body tr:has(.el-checkbox.is-checked):hover > td:first-child {
+  box-shadow: inset 3px 0 0 rgba(66, 151, 148, 0.9), inset 0 1px rgba(255, 255, 255, 0.62), inset 0 -1px rgba(160, 195, 198, 0.28) !important;
+}
+
+/* ========================================================================== 
+   Morandi Glass Theme v2.4 - pale cyan visual system
+   ========================================================================== */
+
+:root {
+  --cyan-50: #f0fbfa;
+  --cyan-100: #e1f6f4;
+  --cyan-150: #d5f1ef;
+  --cyan-200: #c8ebe8;
+  --cyan-300: #a9dcd8;
+  --cyan-400: #82c9c4;
+  --cyan-500: #68b5b1;
+  --cyan-600: #559d9c;
+  --cyan-700: #427d80;
+  --cyan-800: #365f67;
+
+  --sidebar-hover-bg: rgba(229, 247, 245, 0.74);
+  --sidebar-active-bg: rgba(215, 243, 240, 0.9);
+  --sidebar-active-text: var(--cyan-800);
+  --sidebar-accent: #78c5c1;
+
+  --btn-primary-bg: var(--cyan-500);
+  --btn-primary-hover: var(--cyan-600);
+  --btn-secondary-border: rgba(186, 222, 220, 0.88);
+  --btn-secondary-text: var(--cyan-800);
+  --btn-secondary-hover-bg: rgba(226, 246, 244, 0.9);
+  --btn-link-text: #5c999b;
+  --btn-link-hover-text: #427d80;
+  --btn-switch-on: #67b6b1;
+
+  --el-color-primary: #68b5b1;
+  --el-color-primary-light-3: #82c9c4;
+  --el-color-primary-light-5: #a9dcd8;
+  --el-color-primary-light-7: #c8ebe8;
+  --el-color-primary-light-8: #d9f2ef;
+  --el-color-primary-light-9: #effaf9;
+  --el-color-primary-dark-2: #559d9c;
+  --el-color-success: #70b8ae;
+  --el-color-info: #78aaa9;
+}
+
+/* Selected navigation uses one quiet cyan surface, without rainbow tint. */
+#app .layout-menu .el-menu-item.is-active,
+#app .layout-menu .el-sub-menu .el-menu-item.is-active {
+  color: var(--cyan-800) !important;
+  background: rgba(215, 243, 240, 0.9) !important;
+  box-shadow: 0 5px 14px rgba(75, 143, 142, 0.055) !important;
+}
+
+#app .layout-menu .el-menu-item.is-active::before,
+#app .layout-menu .el-sub-menu .el-menu-item.is-active::before {
+  opacity: 0.82 !important;
+  background: #78c5c1 !important;
+}
+
+#app .layout-menu .el-menu-item:hover,
+#app .layout-menu .el-sub-menu__title:hover {
+  color: var(--cyan-800) !important;
+  background: rgba(230, 247, 245, 0.72) !important;
+}
+
+/* Primary actions share the same restrained pale-cyan identity. */
+#app .el-button--primary:not(.is-plain):not(.is-link),
+#app .el-button--success:not(.is-plain):not(.is-link),
+#app .el-button--warning:not(.is-plain):not(.is-link) {
+  color: #ffffff !important;
+  border-color: rgba(101, 178, 174, 0.78) !important;
+  background: linear-gradient(135deg, #79c4bf, #68afb2) !important;
+  box-shadow: 0 4px 12px rgba(83, 157, 156, 0.13) !important;
+}
+
+#app .el-button--primary:not(.is-disabled):hover,
+#app .el-button--success:not(.is-disabled):hover,
+#app .el-button--warning:not(.is-disabled):hover {
+  border-color: #5ca5a5 !important;
+  background: linear-gradient(135deg, #70bbb6, #5fa4a8) !important;
+  box-shadow: 0 7px 16px rgba(83, 157, 156, 0.17) !important;
+}
+
+#app .el-button--default:not(.is-link),
+#app .el-button.is-plain:not(.is-link) {
+  color: #477b7d !important;
+  border-color: rgba(180, 218, 216, 0.86) !important;
+  background: rgba(232, 248, 246, 0.76) !important;
+}
+
+#app .el-button--default:not(.is-disabled):hover,
+#app .el-button.is-plain:not(.is-disabled):hover {
+  color: #356d70 !important;
+  border-color: rgba(130, 195, 191, 0.88) !important;
+  background: rgba(220, 244, 241, 0.94) !important;
+}
+
+/* Preserve a subtle safety cue for destructive actions. */
+#app .el-button--danger:not(.is-plain):not(.is-link) {
+  color: #fff !important;
+  border-color: rgba(187, 126, 143, 0.62) !important;
+  background: linear-gradient(135deg, #c993a2, #b88496) !important;
+}
+
+#app .el-button--danger.is-plain,
+#app .el-button--danger.is-link {
+  color: #aa6d80 !important;
+}
+
+#app .el-switch {
+  --el-switch-on-color: #67b6b1 !important;
+  --el-switch-off-color: #d5e5e6 !important;
+}
+
+#app .el-pagination.is-background .el-pager li.is-active {
+  color: #fff !important;
+  background: #72bcb8 !important;
+  box-shadow: 0 3px 8px rgba(83, 157, 156, 0.12) !important;
+}
+
+#app .el-tabs__item.is-active,
+#app .el-tabs__item:hover {
+  color: #4e8f90 !important;
+}
+
+#app .el-tabs__active-bar {
+  background: #75bfbb !important;
+}
+
+#app .el-tree--highlight-current .el-tree-node.is-current > .el-tree-node__content {
+  color: #427d80 !important;
+  background: rgba(218, 243, 240, 0.88) !important;
+}
+
+#app .el-progress-bar__inner {
+  background: linear-gradient(90deg, #86cac4, #68adae) !important;
+}
+
+#app .el-table .el-checkbox.is-checked .el-checkbox__inner,
+#app .el-table .el-checkbox.is-indeterminate .el-checkbox__inner,
+#app .ruoyi-table-wrap .el-checkbox.is-checked .el-checkbox__inner,
+#app .ruoyi-table-wrap .el-checkbox.is-indeterminate .el-checkbox__inner {
+  border-color: #63aaa7 !important;
+  background: #72bbb7 !important;
+  box-shadow: 0 3px 9px rgba(76, 143, 145, 0.16) !important;
+}
+
+#app .el-table__body tr:has(.el-checkbox.is-checked) > td.el-table__cell {
+  color: #344e5b !important;
+  background: rgba(218, 241, 239, 0.76) !important;
+}
+
+#app .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell {
+  color: #294550 !important;
+  background: rgba(202, 233, 230, 0.92) !important;
+}
+
+/* Refine the brand as a cyan ink-brush wordmark. */
+#app .layout-aside .brand-logo--sidebar .brand-logo__text strong {
+  position: relative;
+  display: inline-block;
+  padding: 1px 1px 5px 0;
+  font-family: "STXingkai", "FZShuTi", "STKaiti", "KaiTi", serif !important;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  letter-spacing: 2.5px !important;
+  color: #315f69 !important;
+  background: linear-gradient(112deg, #284f5d 5%, #3f7d82 48%, #69aaa5 92%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 4px 12px rgba(53, 114, 119, 0.1);
+  transform: skewX(-3deg);
+}
+
+#app .layout-aside .brand-logo--sidebar .brand-logo__text strong::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  right: 4px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 100% 8px 100% 6px;
+  background: linear-gradient(90deg, rgba(82, 169, 164, 0.15), rgba(82, 169, 164, 0.78) 45%, rgba(82, 169, 164, 0));
+  transform: rotate(-1.5deg) scaleX(1.08);
+  transform-origin: left center;
+}
+
+/* AI entry follows the cyan system while remaining distinct. */
+#app .layout-aside__chat-link {
+  color: #426f77 !important;
+  border-color: rgba(142, 201, 197, 0.46) !important;
+  background: rgba(224, 245, 242, 0.82) !important;
+}
+
+#app .layout-aside__chat-link:hover,
+#app .layout-aside__chat-link.is-active {
+  color: #315f67 !important;
+  border-color: rgba(109, 182, 177, 0.62) !important;
+  background: rgba(211, 240, 237, 0.94) !important;
+}
+
+/* ========================================================================== 
+   Morandi Glass Theme v2.5 - quieter cyan and clearer forms
+   ========================================================================== */
+
+:root {
+  --cyan-50: #f6fbfa;
+  --cyan-100: #eef8f7;
+  --cyan-150: #e6f3f2;
+  --cyan-200: #dcefed;
+  --cyan-300: #c4dfdd;
+  --cyan-400: #9fc9c6;
+  --cyan-500: #7fb6b3;
+  --cyan-600: #699e9d;
+  --cyan-700: #527f82;
+  --cyan-800: #405f68;
+
+  --sidebar-hover-bg: rgba(241, 248, 247, 0.88);
+  --sidebar-active-bg: rgba(229, 243, 241, 0.88);
+  --sidebar-active-text: #405f68;
+  --sidebar-accent: #91c4c1;
+
+  --btn-primary-bg: #7fb6b3;
+  --btn-primary-hover: #6da4a2;
+  --btn-secondary-border: rgba(205, 225, 224, 0.94);
+  --btn-secondary-text: #506b74;
+  --btn-secondary-hover-bg: rgba(239, 248, 247, 0.94);
+
+  --el-color-primary: #7fb6b3;
+  --el-color-primary-light-3: #9fc9c6;
+  --el-color-primary-light-5: #c4dfdd;
+  --el-color-primary-light-7: #dcefed;
+  --el-color-primary-light-8: #e7f4f2;
+  --el-color-primary-light-9: #f4faf9;
+  --el-color-primary-dark-2: #699e9d;
+}
+
+/* Navigation: mostly neutral white with a faint cyan selected state. */
+#app .layout-menu .el-menu-item.is-active,
+#app .layout-menu .el-sub-menu .el-menu-item.is-active {
+  color: #405f68 !important;
+  background: #eaf5f4 !important;
+  box-shadow: 0 4px 12px rgba(79, 124, 127, 0.035) !important;
+}
+
+#app .layout-menu .el-menu-item.is-active::before,
+#app .layout-menu .el-sub-menu .el-menu-item.is-active::before {
+  opacity: 0.66 !important;
+  background: #91c4c1 !important;
+}
+
+#app .layout-menu .el-menu-item:hover,
+#app .layout-menu .el-sub-menu__title:hover {
+  color: #405f68 !important;
+  background: #f3f9f8 !important;
+}
+
+/* Buttons keep a cyan identity but with less saturation and contrast. */
+#app .el-button--primary:not(.is-plain):not(.is-link),
+#app .el-button--success:not(.is-plain):not(.is-link),
+#app .el-button--warning:not(.is-plain):not(.is-link) {
+  border-color: rgba(121, 173, 170, 0.7) !important;
+  background: linear-gradient(135deg, #8bc0bd, #7aadae) !important;
+  box-shadow: 0 4px 11px rgba(82, 133, 135, 0.1) !important;
+}
+
+#app .el-button--primary:not(.is-disabled):hover,
+#app .el-button--success:not(.is-disabled):hover,
+#app .el-button--warning:not(.is-disabled):hover {
+  border-color: #6fa6a4 !important;
+  background: linear-gradient(135deg, #80b7b4, #70a2a3) !important;
+}
+
+#app .el-button--default:not(.is-link),
+#app .el-button.is-plain:not(.is-link) {
+  color: #506b74 !important;
+  border-color: rgba(205, 225, 224, 0.94) !important;
+  background: rgba(248, 251, 251, 0.9) !important;
+}
+
+#app .el-button--default:not(.is-disabled):hover,
+#app .el-button.is-plain:not(.is-disabled):hover {
+  color: #405f68 !important;
+  border-color: rgba(164, 201, 198, 0.9) !important;
+  background: rgba(235, 247, 245, 0.96) !important;
+}
+
+/* Dialogs and menu forms need stronger hierarchy than background cards. */
+body .el-overlay {
+  background: rgba(48, 62, 76, 0.12) !important;
+  backdrop-filter: blur(2px) !important;
+  -webkit-backdrop-filter: blur(2px) !important;
+}
+
+body .el-dialog,
+body .el-message-box,
+body .el-drawer {
+  color: #4e6474 !important;
+  border: 1px solid rgba(255, 255, 255, 0.98) !important;
+  background: rgba(252, 253, 253, 0.97) !important;
+  box-shadow: 0 20px 48px rgba(55, 75, 96, 0.16) !important;
+  backdrop-filter: blur(18px) saturate(104%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(104%) !important;
+}
+
+body .el-dialog__header,
+body .el-message-box__header,
+body .el-drawer__header {
+  border-bottom: 1px solid rgba(230, 237, 238, 0.72);
+}
+
+body .el-dialog__title,
+body .el-message-box__title,
+body .el-drawer__title {
+  color: #263b51 !important;
+  font-size: 20px !important;
+  font-weight: 760 !important;
+  letter-spacing: -0.35px;
+}
+
+body .el-dialog .el-form-item__label,
+body .el-message-box .el-form-item__label,
+body .el-drawer .el-form-item__label {
+  color: #5a6f7f !important;
+  font-weight: 650 !important;
+}
+
+body .el-dialog .el-input__wrapper,
+body .el-dialog .el-select__wrapper,
+body .el-dialog .el-textarea__inner,
+body .el-dialog .el-input-number,
+body .el-message-box .el-input__wrapper,
+body .el-drawer .el-input__wrapper,
+body .el-drawer .el-select__wrapper {
+  color: #40586b !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  box-shadow: 0 0 0 1px rgba(205, 223, 224, 0.96) inset !important;
+}
+
+body .el-dialog .el-input__wrapper:hover,
+body .el-dialog .el-select__wrapper:hover,
+body .el-dialog .el-input__wrapper.is-focus,
+body .el-dialog .el-select__wrapper.is-focused,
+body .el-message-box .el-input__wrapper:hover,
+body .el-drawer .el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px rgba(133, 185, 182, 0.96) inset !important;
+}
+
+body .el-dialog .el-radio__label,
+body .el-dialog .el-checkbox__label {
+  color: #526879 !important;
+  font-weight: 550;
+}
+
+body .el-dialog .el-radio__inner,
+body .el-dialog .el-checkbox__inner {
+  border-color: #b7cbcd !important;
+  background: #fff !important;
+}
+
+body .el-dialog .el-radio__input.is-checked .el-radio__inner,
+body .el-dialog .el-checkbox__input.is-checked .el-checkbox__inner {
+  border-color: #87bbb7 !important;
+  background: #87bbb7 !important;
+}
+
+body .el-dialog .el-radio__input.is-checked + .el-radio__label,
+body .el-dialog .el-checkbox__input.is-checked + .el-checkbox__label {
+  color: #527f82 !important;
+}
+
+/* Larger sidebar signature while staying inside the existing 168px layout. */
+#app .layout-aside .logo {
+  min-height: 76px !important;
+}
+
+#app .layout-aside .brand-logo__img {
+  width: 46px !important;
+  max-width: 46px !important;
+  max-height: 46px !important;
+}
+
+#app .layout-aside .brand-logo {
+  gap: 8px !important;
+}
+
+#app .layout-aside .brand-logo--sidebar .brand-logo__text strong {
+  font-size: 24px !important;
+  letter-spacing: 2px !important;
+}
+
+/* Quiet down table selection in step with the lighter theme. */
+#app .el-table__body tr:has(.el-checkbox.is-checked) > td.el-table__cell {
+  background: rgba(230, 242, 241, 0.76) !important;
+}
+
+#app .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell {
+  background: rgba(214, 234, 233, 0.9) !important;
+}
+
+/* ========================================================================== 
+   Morandi Glass Theme v2.6 - fuller black brand and selected-row contrast
+   ========================================================================== */
+
+#app .layout-aside .logo {
+  min-height: 88px !important;
+  padding: 10px 6px !important;
+}
+
+#app .layout-aside .brand-logo {
+  gap: 8px !important;
+}
+
+#app .layout-aside .brand-logo__img {
+  width: 52px !important;
+  max-width: 52px !important;
+  max-height: 52px !important;
+  filter: saturate(1.02) contrast(1.08) drop-shadow(0 4px 9px rgba(35, 62, 75, 0.13)) !important;
+}
+
+#app .layout-aside .brand-logo--sidebar .brand-logo__text strong {
+  padding-bottom: 6px;
+  font-family: "STXingkai", "FZShuTi", "STKaiti", "KaiTi", serif !important;
+  font-size: 29px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  letter-spacing: 2px !important;
+  color: #172027 !important;
+  background: none !important;
+  background-clip: border-box !important;
+  -webkit-background-clip: border-box !important;
+  -webkit-text-fill-color: #172027 !important;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.12), 0 4px 10px rgba(34, 54, 65, 0.08) !important;
+  transform: skewX(-2deg) scaleX(1.04) !important;
+}
+
+#app .layout-aside .brand-logo--sidebar .brand-logo__text strong::after {
+  left: 0;
+  right: 2px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(82, 169, 164, 0.18), rgba(82, 169, 164, 0.76) 48%, rgba(82, 169, 164, 0.06));
+}
+
+#app .el-table__body tr:has(.el-checkbox.is-checked) > td.el-table__cell {
+  color: #20313f !important;
+  font-weight: 700 !important;
+}
+
+#app .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell,
+#app .ruoyi-table-wrap .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell,
+#app .mes-page .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell {
+  color: #172a38 !important;
+  font-weight: 720 !important;
+}
+
+/* ========================================================================== 
+   Morandi Glass Theme v2.7 - stable row selection and fuller brand mark
+   ========================================================================== */
+
+/* A selected row keeps exactly the same treatment while hovered. */
+#app .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell,
+#app .ruoyi-table-wrap .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell,
+#app .mes-page .el-table__body tr:has(.el-checkbox.is-checked):hover > td.el-table__cell {
+  color: #20313f !important;
+  font-weight: 700 !important;
+  background: rgba(230, 242, 241, 0.76) !important;
+}
+
+/* Use more of the available brand header without changing sidebar width. */
+#app .layout-aside .logo {
+  min-height: 96px !important;
+  padding: 10px 4px !important;
+}
+
+#app .layout-aside .brand-logo {
+  gap: 5px !important;
+  transform: scale(1.03) !important;
+  transform-origin: center !important;
+}
+
+#app .layout-aside .brand-logo__img {
+  width: 60px !important;
+  max-width: 60px !important;
+  max-height: 60px !important;
+}
+
+#app .layout-aside .brand-logo--sidebar .brand-logo__text strong {
+  font-size: 32px !important;
+  font-weight: 900 !important;
+  letter-spacing: 1px !important;
+  transform: skewX(-2deg) scaleX(1.08) !important;
+}
+
+/* ========================================================================== 
+   Morandi Glass Theme v2.8 - logo-led brand balance
+   ========================================================================== */
+
+#app .layout-aside .brand-logo {
+  gap: 4px !important;
+}
+
+#app .layout-aside .brand-logo__img {
+  width: 68px !important;
+  max-width: 68px !important;
+  max-height: 68px !important;
+}
+
+#app .layout-aside .brand-logo--sidebar .brand-logo__text strong {
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  letter-spacing: 1px !important;
+  color: #46565b !important;
+  -webkit-text-fill-color: #46565b !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72), 0 3px 8px rgba(47, 68, 75, 0.06) !important;
+  transform: skewX(-2deg) scaleX(1.04) !important;
+}
+
+/* ========================================================================== 
+   Morandi Glass Theme v2.9 - lighter AI entry
+   ========================================================================== */
+
+#app .layout-aside__chat {
+  border-top-color: rgba(222, 235, 235, 0.58) !important;
+  background: rgba(248, 252, 251, 0.34) !important;
+}
+
+#app .layout-aside__chat-link {
+  color: #58747a !important;
+  border-color: rgba(183, 214, 211, 0.46) !important;
+  background: rgba(242, 249, 248, 0.8) !important;
+  box-shadow: 0 4px 12px rgba(77, 113, 126, 0.035) !important;
+}
+
+#app .layout-aside__chat-link .el-icon {
+  color: #6f9ea0 !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  box-shadow: 0 2px 6px rgba(66, 121, 130, 0.045) !important;
+}
+
+#app .layout-aside__chat-link::after {
+  color: #82969f !important;
+  border-color: rgba(165, 190, 198, 0.22) !important;
+  background: rgba(255, 255, 255, 0.58) !important;
+}
+
+#app .layout-aside__chat-link:hover,
+#app .layout-aside__chat-link.is-active {
+  color: #496a70 !important;
+  border-color: rgba(161, 203, 199, 0.54) !important;
+  background: rgba(235, 247, 245, 0.9) !important;
+  box-shadow: 0 5px 13px rgba(77, 113, 126, 0.045) !important;
+}
+
+/* Keep the approved pale-cyan treatment visible in the normal state. */
+#app .layout-aside__chat-link {
+  color: #496a70 !important;
+  border-color: rgba(161, 203, 199, 0.42) !important;
+  background: rgba(235, 247, 245, 0.9) !important;
+  box-shadow: 0 4px 12px rgba(77, 113, 126, 0.04) !important;
+}
+
+#app .layout-aside__chat-link:hover,
+#app .layout-aside__chat-link.is-active {
+  color: #496a70 !important;
+  border-color: rgba(151, 196, 192, 0.52) !important;
+  background: rgba(235, 247, 245, 0.9) !important;
+  box-shadow: 0 4px 12px rgba(77, 113, 126, 0.04) !important;
+  transform: none !important;
+}
+
+/* ========================================================================== 
+   White Theme v3.0 - replace the Morandi page canvas with pure white
+   ========================================================================== */
+
+html,
+body,
+#app {
+  background: #ffffff !important;
+}
+
+body::before {
+  display: none !important;
+  background: none !important;
+}
+
+#app .layout-container,
+#app .layout-right,
+#app .layout-main:not(.layout-main--screen),
+#app .layout-main.ruoyi-app-main:not(.layout-main--screen) {
+  background: #ffffff !important;
+}
+
+#app .layout-aside {
+  background: #ffffff !important;
+  border-right-color: #edf1f2 !important;
+}
+
+#app .layout-aside .logo,
+#app .layout-header {
+  background: #ffffff !important;
+  border-color: #edf1f2 !important;
+}
+
+/* ========================================================================== 
+   White Theme v3.1 - continuous data surface, safe overlays and assistant dock
+   ========================================================================== */
+
+/* Remove the outer frame that caused the bright side seam and halo. */
+#app .layout-container {
+  width: 100% !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Query, actions, table and pagination read as one continuous glass panel. */
+#app .ruoyi-page {
+  background: #ffffff !important;
+}
+
+#app .ruoyi-query,
+#app .ruoyi-toolbar,
+#app .ruoyi-table-wrap,
+#app .ruoyi-pagination {
+  width: calc(100% - 28px) !important;
+  margin-right: 14px !important;
+  margin-left: 14px !important;
+  box-sizing: border-box !important;
+  border: 0 !important;
+  background: linear-gradient(
+    108deg,
+    rgba(247, 250, 244, 0.96) 0%,
+    rgba(246, 250, 249, 0.96) 45%,
+    rgba(247, 244, 252, 0.96) 100%
+  ) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(10px) saturate(104%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(104%) !important;
+}
+
+#app .ruoyi-query {
+  margin-top: 14px !important;
+  padding: 14px 20px 4px !important;
+  border-radius: 18px 18px 0 0 !important;
+}
+
+#app .ruoyi-toolbar {
+  padding: 12px 20px !important;
+  border-radius: 18px 18px 0 0 !important;
+}
+
+#app .ruoyi-query + .ruoyi-toolbar {
+  border-radius: 0 !important;
+}
+
+#app .ruoyi-table-wrap {
+  padding: 0 20px 12px !important;
+  border-radius: 0 0 18px 18px !important;
+  overflow-x: auto !important;
+}
+
+#app .ruoyi-pagination {
+  padding: 10px 20px 16px !important;
+  border-radius: 0 0 18px 18px !important;
+}
+
+#app .ruoyi-page:has(> .ruoyi-pagination) > .ruoyi-table-wrap {
+  padding-bottom: 0 !important;
+  border-radius: 0 !important;
+}
+
+#app .ruoyi-table-wrap .el-table,
+#app .ruoyi-table-wrap .el-table__inner-wrapper,
+#app .ruoyi-table-wrap .el-table__header-wrapper,
+#app .ruoyi-table-wrap .el-table__body-wrapper {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#app .ruoyi-table-wrap .el-table::before,
+#app .ruoyi-table-wrap .el-table::after,
+#app .ruoyi-table-wrap .el-table__inner-wrapper::before,
+#app .ruoyi-table-wrap .el-table__inner-wrapper::after {
+  display: none !important;
+  box-shadow: none !important;
+}
+
+/* Header stays above the page but below dialogs, drawers and message boxes. */
+#app .layout-header {
+  position: relative !important;
+  z-index: 20 !important;
+  overflow: visible !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#app .layout-main {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+body .el-overlay,
+body .el-overlay.is-message-box {
+  z-index: 5000 !important;
+}
+
+/* Dock the assistant in the upper-right blank area as a compact glass pill. */
+#app .assistant-fab {
+  left: auto !important;
+  right: 28px !important;
+  top: 82px !important;
+  bottom: auto !important;
+  z-index: 80 !important;
+}
+
+#app .assistant-fab__btn {
+  width: 126px !important;
+  height: 46px !important;
+  padding: 0 16px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 9px !important;
+  border: 1px solid rgba(164, 207, 202, 0.56) !important;
+  border-radius: 15px !important;
+  color: #527980 !important;
+  background: rgba(238, 248, 246, 0.94) !important;
+  box-shadow: 0 7px 18px rgba(71, 112, 119, 0.08) !important;
+  backdrop-filter: blur(12px) saturate(105%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(105%) !important;
+}
+
+#app .assistant-fab__btn::after {
+  content: "语音助手";
+  color: #486b72;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+#app .assistant-fab__btn:hover,
+#app .assistant-fab__btn:focus {
+  color: #456f75 !important;
+  border-color: rgba(137, 192, 187, 0.66) !important;
+  background: rgba(232, 246, 243, 0.98) !important;
+  box-shadow: 0 8px 20px rgba(71, 112, 119, 0.1) !important;
+  transform: translateY(-1px);
+}
+
+#app .assistant-fab.is-open {
+  right: 24px !important;
+  top: 82px !important;
+}
+
+#app .assistant-panel {
+  border: 1px solid rgba(211, 226, 226, 0.92) !important;
+  box-shadow: 0 18px 42px rgba(53, 77, 91, 0.14) !important;
+}
+
+/* ========================================================================== 
+   White Theme v3.2 - assistant aligned with the notification control
+   ========================================================================== */
+
+#app .assistant-fab:not(.is-open) {
+  left: auto !important;
+  right: 220px !important;
+  top: 18px !important;
+  bottom: auto !important;
+  z-index: 80 !important;
+}
+
+#app .assistant-fab__btn {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  color: var(--layout-text-caption, #7e838b) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+}
+
+#app .assistant-fab__btn .el-icon {
+  margin: 0 !important;
+  font-size: 18px !important;
+}
+
+#app .assistant-fab__btn::after {
+  display: none !important;
+  content: none !important;
+}
+
+#app .assistant-fab__btn:hover,
+#app .assistant-fab__btn:focus {
+  color: var(--layout-text-title, #26354a) !important;
+  background: var(--btn-secondary-hover-bg, #f3f5f0) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+#app .assistant-fab.is-open {
+  left: auto !important;
+  right: 180px !important;
+  top: 58px !important;
+  bottom: auto !important;
+  z-index: 90 !important;
+}
+
+/* ========================================================================== 
+   Production Canvas v3.3 - exact shared background and clearer selection
+   ========================================================================== */
+
+/* Reuse the production dashboard canvas without changing its scale or crop. */
+#app .layout-right,
+#app .layout-main:not(.layout-main--screen),
+#app .layout-main.ruoyi-app-main:not(.layout-main--screen) {
+  background-image:
+    radial-gradient(circle at 18% 6%, rgba(255, 244, 202, 0.42), transparent 28%),
+    radial-gradient(circle at 88% 2%, rgba(231, 218, 250, 0.43), transparent 31%),
+    radial-gradient(circle at 52% 98%, rgba(214, 242, 238, 0.4), transparent 38%),
+    linear-gradient(135deg, rgba(238, 249, 247, 0.92), rgba(250, 251, 255, 0.9) 50%, rgba(250, 245, 255, 0.92)) !important;
+  background-position: center top !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+  background-attachment: local !important;
+}
+
+/* Route roots stay transparent so every page sees the exact same canvas. */
+#app .layout-main:not(.layout-main--screen) > *,
+#app .ruoyi-page,
+#app .mes-page,
+#app .mes-workbench,
+#app .role-dashboard {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* Element Plus current-row selection needs its own rule, separate from checkboxes. */
+#app .el-table__body tr.current-row > td.el-table__cell,
+#app .el-table__body tr.current-row:hover > td.el-table__cell,
+#app .ruoyi-table-wrap .el-table__body tr.current-row > td.el-table__cell,
+#app .ruoyi-table-wrap .el-table__body tr.current-row:hover > td.el-table__cell {
+  color: #172027 !important;
+  font-weight: 700 !important;
+  background: rgba(230, 242, 241, 0.82) !important;
+}
+
+#app .el-table__body tr.current-row > td.el-table__cell .cell,
+#app .el-table__body tr.current-row:hover > td.el-table__cell .cell {
+  color: #172027 !important;
+  font-weight: 700 !important;
+}
+
+#app .el-table__body tr.current-row > td.el-table__cell:first-child,
+#app .el-table__body tr.current-row:hover > td.el-table__cell:first-child {
+  box-shadow: inset 3px 0 0 #70bcb6 !important;
+}
+
+/* Assistant matches the white notification control instead of using cyan fill. */
+#app .assistant-fab__btn {
+  color: var(--layout-text-caption, #7e838b) !important;
+  border: 1px solid #e8edef !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+#app .assistant-fab__btn:hover,
+#app .assistant-fab__btn:focus {
+  color: var(--layout-text-title, #26354a) !important;
+  border-color: #dde6e7 !important;
+  background: #f7faf9 !important;
+  box-shadow: none !important;
+}
+
+/* ========================================================================== 
+   Production Glass v3.4 - low-chroma glass surfaces and unified header tools
+   ========================================================================== */
+
+/* Header and sidebar become neutral glass, allowing only a trace of canvas color. */
+#app .layout-aside,
+#app .layout-aside .logo,
+#app .layout-header {
+  background-color: rgba(255, 255, 255, 0.72) !important;
+  background-image: none !important;
+  border-color: rgba(228, 235, 236, 0.72) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(16px) saturate(82%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(82%) !important;
+}
+
+/* Keep the data-page sections fused while replacing their opaque fill with glass. */
+#app .ruoyi-query,
+#app .ruoyi-toolbar,
+#app .ruoyi-table-wrap,
+#app .ruoyi-pagination {
+  background-color: rgba(255, 255, 255, 0.54) !important;
+  background-image: linear-gradient(108deg, rgba(255, 255, 255, 0.22), rgba(248, 250, 251, 0.12)) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(16px) saturate(78%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(78%) !important;
+}
+
+/* Cards across dashboards and workbenches share one restrained glass recipe. */
+#app .page-card,
+#app .el-card,
+#app .module-panel,
+#app .dashboard-card,
+#app .workbench-card,
+#app .kpi-card,
+#app .stat-card,
+#app .ruoyi-split,
+#app .mes-panel,
+#app .panel-card,
+#app .equipment-card,
+#app .kanban__chip,
+#app .scene-panel {
+  background-color: rgba(255, 255, 255, 0.58) !important;
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(248, 250, 251, 0.1)) !important;
+  border-color: rgba(255, 255, 255, 0.68) !important;
+  box-shadow: 0 8px 24px rgba(63, 82, 98, 0.045) !important;
+  backdrop-filter: blur(15px) saturate(80%) !important;
+  -webkit-backdrop-filter: blur(15px) saturate(80%) !important;
+}
+
+/* Tables no longer lay opaque white bands over the shared production canvas. */
+#app .el-table,
+#app .el-table__inner-wrapper,
+#app .el-table__header-wrapper,
+#app .el-table__body-wrapper,
+#app .el-table tr,
+#app .el-table th.el-table__cell,
+#app .el-table td.el-table__cell {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+#app .el-table th.el-table__cell {
+  background-color: rgba(255, 255, 255, 0.38) !important;
+}
+
+#app .el-table__body tr:not(.current-row) > td.el-table__cell {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+#app .el-table--striped .el-table__body tr.el-table__row--striped:not(.current-row) > td.el-table__cell {
+  background-color: rgba(247, 250, 250, 0.27) !important;
+}
+
+/* Force the primary Element Plus assistant button to use the same white control as notification. */
+body #app .assistant-fab .assistant-fab__btn.el-button,
+body #app .assistant-fab .assistant-fab__btn.el-button--primary {
+  --el-button-bg-color: #ffffff !important;
+  --el-button-border-color: #e6ecee !important;
+  --el-button-text-color: #718493 !important;
+  --el-button-hover-bg-color: #f7faf9 !important;
+  --el-button-hover-border-color: #dde6e7 !important;
+  --el-button-hover-text-color: #405466 !important;
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  color: #718493 !important;
+  border: 1px solid #e6ecee !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+body #app .assistant-fab .assistant-fab__btn.el-button:hover,
+body #app .assistant-fab .assistant-fab__btn.el-button:focus {
+  color: #405466 !important;
+  border-color: #dde6e7 !important;
+  background-color: #f7faf9 !important;
+  background-image: none !important;
+}
+
+/* Use the existing local Chinese manufacturing avatar; hide the fallback initial. */
+#app .header-user__avatar {
+  width: 32px !important;
+  height: 32px !important;
+  flex: 0 0 32px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  border: 1px solid rgba(211, 222, 225, 0.92) !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  background-color: #ffffff !important;
+  background-image: url("../assets/images/avatar/operator.png") !important;
+  background-position: center 30% !important;
+  background-repeat: no-repeat !important;
+  background-size: 116% auto !important;
+  box-shadow: 0 3px 10px rgba(54, 78, 92, 0.1) !important;
+}
+
+/* ========================================================================== 
+   Production Frost v3.5 - fully covered frosted-glass application surfaces
+   ========================================================================== */
+
+/* Every routed page receives one continuous frost layer over the canvas. */
+#app .layout-main:not(.layout-main--screen) > * {
+  position: relative !important;
+  isolation: isolate !important;
+  background-color: rgba(249, 251, 252, 0.64) !important;
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.34), rgba(247, 249, 251, 0.2)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+  backdrop-filter: blur(26px) saturate(68%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(68%) !important;
+}
+
+/* Full-page shells must cover their complete scrollable area without color gaps. */
+#app .ruoyi-page,
+#app .mes-page,
+#app .mes-workbench,
+#app .role-dashboard,
+#app .kanban {
+  background-color: rgba(249, 251, 252, 0.64) !important;
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.34), rgba(247, 249, 251, 0.2)) !important;
+  backdrop-filter: blur(26px) saturate(68%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(68%) !important;
+}
+
+/* Data regions use the same frost instead of exposing raw canvas stripes. */
+#app .ruoyi-query,
+#app .ruoyi-toolbar,
+#app .ruoyi-table-wrap,
+#app .ruoyi-pagination,
+#app .search-toolbar,
+#app .search-form,
+#app .filter-bar,
+#app .toolbar,
+#app .mes-toolbar {
+  background-color: rgba(252, 253, 253, 0.7) !important;
+  background-image: linear-gradient(112deg, rgba(255, 255, 255, 0.38), rgba(248, 250, 251, 0.18)) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(22px) saturate(66%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(66%) !important;
+}
+
+/* Cards are visibly glass, but opaque enough to mask the colors underneath. */
+#app .page-card,
+#app .el-card,
+#app .module-panel,
+#app .dashboard-card,
+#app .workbench-card,
+#app .kpi-card,
+#app .stat-card,
+#app .ruoyi-split,
+#app .mes-panel,
+#app .panel-card,
+#app .equipment-card,
+#app .kanban__chip,
+#app .scene-panel {
+  background-color: rgba(252, 253, 253, 0.72) !important;
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(246, 249, 250, 0.18)) !important;
+  border-color: rgba(255, 255, 255, 0.82) !important;
+  box-shadow: 0 7px 20px rgba(61, 78, 91, 0.035), inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(20px) saturate(64%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(64%) !important;
+}
+
+/* Table surfaces also cover the canvas; only row interaction changes their tone. */
+#app .el-table,
+#app .el-table__inner-wrapper,
+#app .el-table__header-wrapper,
+#app .el-table__body-wrapper {
+  background-color: rgba(252, 253, 253, 0.58) !important;
+  background-image: none !important;
+  backdrop-filter: blur(18px) saturate(65%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(65%) !important;
+}
+
+#app .el-table th.el-table__cell {
+  background-color: rgba(250, 252, 252, 0.78) !important;
+}
+
+#app .el-table__body tr:not(.current-row) > td.el-table__cell {
+  background-color: rgba(252, 253, 253, 0.52) !important;
+}
+
+#app .el-table--striped .el-table__body tr.el-table__row--striped:not(.current-row) > td.el-table__cell {
+  background-color: rgba(247, 250, 250, 0.64) !important;
+}
+
+/* ========================================================================== 
+   Production Split v3.6 - exactly two surfaces on data pages
+   ========================================================================== */
+
+/* Do not stack a third glass layer on the complete routed page. */
+#app .layout-main:not(.layout-main--screen) > *,
+#app .ruoyi-page {
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Block 1: query and actions form one continuous, lightly colored frost panel. */
+#app .ruoyi-query,
+#app .ruoyi-toolbar {
+  background-color: rgba(250, 251, 252, 0.64) !important;
+  background-image: linear-gradient(
+    108deg,
+    rgba(249, 250, 241, 0.5) 0%,
+    rgba(245, 251, 249, 0.44) 48%,
+    rgba(247, 243, 252, 0.48) 100%
+  ) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(22px) saturate(58%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(58%) !important;
+}
+
+#app .ruoyi-query {
+  border-radius: 18px 18px 0 0 !important;
+}
+
+#app .ruoyi-query + .ruoyi-toolbar {
+  margin-top: 0 !important;
+  margin-bottom: 12px !important;
+  border-radius: 0 0 18px 18px !important;
+}
+
+#app .ruoyi-query:not(:has(+ .ruoyi-toolbar)) {
+  margin-bottom: 12px !important;
+  border-radius: 18px !important;
+}
+
+#app .ruoyi-page > .ruoyi-toolbar:first-child,
+#app .ruoyi-page > .ruoyi-toolbar:not(.ruoyi-query + .ruoyi-toolbar) {
+  margin-top: 14px !important;
+  margin-bottom: 12px !important;
+  border-radius: 18px !important;
+}
+
+/* Block 2: table and pagination are one clean, solid-white surface. */
+#app .ruoyi-table-wrap,
+#app .ruoyi-pagination {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#app .ruoyi-table-wrap {
+  border-radius: 18px !important;
+}
+
+#app .ruoyi-page:has(> .ruoyi-pagination) > .ruoyi-table-wrap {
+  border-radius: 18px 18px 0 0 !important;
+}
+
+#app .ruoyi-pagination {
+  margin-top: 0 !important;
+  border-radius: 0 0 18px 18px !important;
+}
+
+#app .ruoyi-table-wrap .el-table,
+#app .ruoyi-table-wrap .el-table__inner-wrapper,
+#app .ruoyi-table-wrap .el-table__header-wrapper,
+#app .ruoyi-table-wrap .el-table__body-wrapper,
+#app .ruoyi-table-wrap .el-table tr,
+#app .ruoyi-table-wrap .el-table th.el-table__cell,
+#app .ruoyi-table-wrap .el-table__body tr:not(.current-row) > td.el-table__cell,
+#app .ruoyi-table-wrap .el-table--striped .el-table__body tr.el-table__row--striped:not(.current-row) > td.el-table__cell {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ========================================================================== 
+   Production Split v3.7 - extend the middle frost through both exposed bands
+   ========================================================================== */
+
+/* One continuous low-chroma frost from the top edge down to the white table. */
+#app .layout-main:not(.layout-main--screen),
+#app .layout-main.ruoyi-app-main:not(.layout-main--screen) {
+  background-color: #f7f9f8 !important;
+  background-image:
+    linear-gradient(108deg, rgba(249, 250, 241, 0.66) 0%, rgba(245, 251, 249, 0.6) 48%, rgba(247, 243, 252, 0.64) 100%),
+    radial-gradient(circle at 18% 6%, rgba(255, 244, 202, 0.18), transparent 28%),
+    radial-gradient(circle at 88% 2%, rgba(231, 218, 250, 0.18), transparent 31%),
+    radial-gradient(circle at 52% 98%, rgba(214, 242, 238, 0.16), transparent 38%) !important;
+  background-position: center top !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+
+/* The page, query and toolbar reveal the same shared frost instead of restarting it. */
+#app .layout-main:not(.layout-main--screen) > *,
+#app .ruoyi-page,
+#app .ruoyi-query,
+#app .ruoyi-toolbar,
+#app .ruoyi-query + .ruoyi-toolbar {
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Remove the rounded cutouts so the upper frost reads as one uninterrupted block. */
+#app .ruoyi-query,
+#app .ruoyi-toolbar,
+#app .ruoyi-query + .ruoyi-toolbar,
+#app .ruoyi-page > .ruoyi-toolbar:first-child {
+  border-radius: 0 !important;
+}
+
+/* ========================================================================== 
+   Production Canvas v3.8 - one exact base color for every application page
+   Background only: no sizing, spacing or positioning changes in this block.
+   ========================================================================== */
+
+#app .layout-right,
+#app .layout-main,
+#app .layout-main.layout-main--screen,
+#app .layout-main.ruoyi-app-main {
+  background-color: #fafbfa !important;
+  background-image:
+    linear-gradient(108deg, rgba(249, 250, 241, 0.5) 0%, rgba(245, 251, 249, 0.46) 48%, rgba(247, 243, 252, 0.48) 100%),
+    radial-gradient(circle at 18% 6%, rgba(255, 244, 202, 0.1), transparent 28%),
+    radial-gradient(circle at 88% 2%, rgba(231, 218, 250, 0.1), transparent 31%),
+    radial-gradient(circle at 52% 98%, rgba(214, 242, 238, 0.09), transparent 38%) !important;
+  background-position: center top !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+
+#app .layout-main > *,
+#app .ruoyi-page,
+#app .mes-page,
+#app .mes-workbench,
+#app .role-dashboard,
+#app .kanban {
+  background-color: transparent !important;
+  background-image: none !important;
 }

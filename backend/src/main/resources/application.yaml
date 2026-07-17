@@ -5,19 +5,33 @@ deepseek:
   temperature: 0.2
   max-tokens: 2048
 
+# 财务与管理员全局 AI 分析（与现有 DeepSeek 功能使用独立 Key）
+deepseek-finance:
+  enabled: true
+  api-key: ${DEEPSEEK_FINANCE_API_KEY:}
+  api-url: ${DEEPSEEK_FINANCE_API_URL:https://api.deepseek.com/v1/chat/completions}
+  model: ${DEEPSEEK_FINANCE_MODEL:deepseek-v4-flash}
+  temperature: 0.2
+  max-tokens: 4096
+
 ai:
-  api-key: sk-ws-H.EMEHYMX.4znb.MEUCIBsN_aKoJABrsA6AERtqeEr2JuOtAHDFPILBRi3ZO6N-AiEA0KYOayIcNjROuFN1rH-gpEEKymrN48N8U3fwgaVh2zs
+  api-key: 
   base-url: https://ws-bcavmxl50shu238w.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
   model: qwen-vl-max
   timeout-seconds: 60
   mock: false
 
-# MES 全局语音助手（NLU/ASR 复用 ai.api-key 与 ai.base-url）
+# MES 全局助手：文本问答复用原有 deepseek.*，ASR 仍复用 ai.*
 assistant:
   confidence-threshold: 0.55
   nlu:
     mock: false
-    model: qwen-plus
+    enabled: true
+    api-key: ${ASSISTANT_DEEPSEEK_API_KEY:}
+    base-url: ${ASSISTANT_DEEPSEEK_API_URL:https://api.deepseek.com/v1/chat/completions}
+    model: deepseek-chat
+    max-tokens: 8192
+    timeout-seconds: 0
   asr:
     mock: false
     model: qwen3-asr-flash
@@ -33,11 +47,14 @@ qwen:
   timeout-ms: 30000
 
 spring:
+  mvc:
+    async:
+      request-timeout: 0
   datasource:
     url: jdbc:mysql://localhost:3306/display_manufacturing?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
-    password: ${MYSQL_PASSWORD:Zyd051104}
+    password: ${MYSQL_PASSWORD:}
   data:
     redis:
       host: localhost

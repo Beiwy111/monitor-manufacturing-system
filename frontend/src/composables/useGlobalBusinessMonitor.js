@@ -5,6 +5,7 @@ import { fetchOperatorNotifications } from '@/api/mes'
 import { useNotificationStore, NOTIF_TYPE } from '@/stores/notification'
 import { useUserStore } from '@/stores/user'
 import { resolveOperatorUsername } from '@/utils/operatorWorkshop'
+import { fetchSystemNotifications } from '@/api/workbench'
 
 const POLL_INTERVAL = 15000
 
@@ -100,21 +101,38 @@ export function useGlobalBusinessMonitor() {
     }))
   }
 
+  /** AI 全局分析等持久化业务消息，后端已按当前登录角色过滤。 */
+  function buildSystemInbox(notices) {
+    const username = user.userInfo?.username || 'anonymous'
+    return (notices || []).map(n => ({
+      type: NOTIF_TYPE.SYSTEM,
+      sourceKey: `system-notification:${n.notificationId}:${username}`,
+      title: n.title || '系统业务提醒',
+      content: n.content || '',
+      from: n.businessType === 'AI_GLOBAL_ACTION' ? '管理员 · AI全局分析' : 'MES 消息系统',
+      link: n.targetPath || null,
+      createdAt: Date.parse(n.createdAt) || Date.now()
+    }))
+  }
+
   async function poll() {
     try {
       const username = resolveOperatorUsername(user.roleKey, user.userInfo?.username)
-      const [alarmRes, noticeRes, dispatchRes] = await Promise.all([
+      const [alarmRes, noticeRes, dispatchRes, systemRes] = await Promise.all([
         fetchAlarmViews(),
         fetchVoiceNotices().catch(() => []),
-        username ? fetchOperatorNotifications(username).catch(() => []) : Promise.resolve([])
+        username ? fetchOperatorNotifications(username).catch(() => []) : Promise.resolve([]),
+        fetchSystemNotifications().catch(() => [])
       ])
       const alarms = Array.isArray(alarmRes) ? alarmRes : alarmRes?.data || []
       const notices = Array.isArray(noticeRes) ? noticeRes : noticeRes?.data || []
       const dispatchNotices = Array.isArray(dispatchRes) ? dispatchRes : dispatchRes?.data || []
+      const systemNotices = Array.isArray(systemRes) ? systemRes : systemRes?.data || []
       notifications.sync([
         ...buildAlarmInbox(alarms),
         ...buildNoticeInbox(notices),
-        ...buildDispatchInbox(dispatchNotices)
+        ...buildDispatchInbox(dispatchNotices),
+        ...buildSystemInbox(systemNotices)
       ])
     } catch {
       // 保留上一次成功同步的收件箱。

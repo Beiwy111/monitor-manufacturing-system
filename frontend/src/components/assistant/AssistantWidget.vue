@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import { Microphone, ChatDotRound, Promotion, Close, Rank } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useMesStore } from '@/stores/mes'
-import { asr, interpret, execute } from '@/api/assistant'
+import { asr, interpretStream, execute } from '@/api/assistant'
 
 const emit = defineEmits(['executed'])
 
@@ -150,9 +150,27 @@ async function send(text) {
   inputText.value = ''
   push('user', t)
   busy.value = true
+  let streamMessage = null
   try {
-    const r = await interpret({ sessionId, text: t, module: currentModule.value })
-    handle(r)
+    const conversation = messages.value.slice(0, -1).map((item) => ({
+      role: item.role,
+      text: item.text
+    }))
+    const r = await interpretStream(
+      { sessionId, text: t, module: currentModule.value, conversation },
+      {
+        onDelta(delta) {
+          if (!delta) return
+          if (!streamMessage) {
+            streamMessage = { role: 'assistant', text: '' }
+            messages.value.push(streamMessage)
+          }
+          streamMessage.text += delta
+          nextTick(() => { if (listEl.value) listEl.value.scrollTop = listEl.value.scrollHeight })
+        }
+      }
+    )
+    handle(r, { skipReply: Boolean(streamMessage) || r.streamed })
   } catch (e) {
     push('assistant', '出错了：' + (e.message || '请求失败'))
   } finally {
@@ -160,8 +178,8 @@ async function send(text) {
   }
 }
 
-function handle(r) {
-  if (r.reply) push('assistant', r.reply)
+function handle(r, { skipReply = false } = {}) {
+  if (r.reply && !skipReply) push('assistant', r.reply)
   if (r.type === 'confirm') {
     confirmCard.value = r
     editParam.value = ''

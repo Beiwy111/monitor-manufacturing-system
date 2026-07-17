@@ -7,6 +7,7 @@
         <span class="lite-topbar__time">{{ data.refreshTime || '—' }}</span>
       </div>
       <div class="lite-topbar__tools">
+        <slot name="header-actions" />
         <el-select v-model="days" size="small" class="lite-select" @change="onFilterChange">
           <el-option :value="7" label="近7天" />
           <el-option :value="14" label="近14天" />

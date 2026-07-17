@@ -8,7 +8,7 @@ import {
 import { useUserStore } from '@/stores/user'
 import { useMesStore } from '@/stores/mes'
 import { useChatStore } from '@/stores/chat'
-import { asr, interpret, execute } from '@/api/assistant'
+import { asr, interpretStream, execute } from '@/api/assistant'
 import ChatBubble from '@/components/chat/ChatBubble.vue'
 import ChatComposer from '@/components/chat/ChatComposer.vue'
 
@@ -142,14 +142,32 @@ async function send(text) {
   inputText.value = ''
   push('user', t)
   busy.value = true
+  let streamMessage = null
   try {
-    const r = await interpret({
+    const conversation = (chat.activeSession?.messages || []).slice(0, -1).map((item) => ({
+      role: item.role,
+      text: item.text
+    }))
+    const r = await interpretStream({
       sessionId: chat.activeSession?.apiSessionId,
       text: t,
-      module: moduleKey.value
+      module: moduleKey.value,
+      conversation
+    }, {
+      onDelta(delta) {
+        if (!delta) return
+        if (!streamMessage) {
+          chat.pushMessage('assistant', '')
+          streamMessage = chat.activeSession?.messages?.at(-1)
+        }
+        if (streamMessage) streamMessage.text += delta
+        scrollBottom()
+      }
     })
-    handle(r)
+    if (streamMessage) chat.persist()
+    handle(r, { skipReply: Boolean(streamMessage) || r.streamed })
   } catch (e) {
+    if (streamMessage) chat.persist()
     push('assistant', '出错了：' + (e.message || '请求失败'))
   } finally {
     busy.value = false
@@ -157,8 +175,8 @@ async function send(text) {
   }
 }
 
-function handle(r) {
-  if (r.reply) push('assistant', r.reply)
+function handle(r, { skipReply = false } = {}) {
+  if (r.reply && !skipReply) push('assistant', r.reply)
   if (r.type === 'confirm') {
     confirmCard.value = r
     editParam.value = ''

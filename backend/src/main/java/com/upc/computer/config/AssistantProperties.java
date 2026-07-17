@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
  * 售后语音助手配置。前缀 assistant。
  * asr：语音识别。走阿里云百炼 OpenAI 兼容 /chat/completions + 语音识别模型（qwen3-asr-flash），
  *      复用 ai.* 的 api-key 与 base-url（也可在此单独覆写）。
- * nlu：自然语言理解（复用 deepseek.* 文本模型；解析失败自动回退规则解析）。
+ * nlu：全局自然语言问答与写操作理解（默认复用原有 deepseek.*；解析失败自动回退规则解析）。
  */
 @Component
 @ConfigurationProperties(prefix = "assistant")
@@ -49,16 +49,20 @@ public class AssistantProperties {
         public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
     }
 
-    /** 自然语言理解（百炼 qwen-plus，复用 ai.api-key/ai.base-url） */
+    /** 全局问答与自然语言理解（默认复用原有 deepseek.*，也可单独覆写） */
     public static class Nlu {
         /** true：强制走规则解析，不调用大模型（离线联调用） */
         private boolean mock = false;
-        /** NLU 文本模型（百炼上非思维链、出 JSON 干净的模型） */
-        private String model = "qwen-plus";
-        /** 可覆写 api-key（留空则用 ai.api-key） */
+        /** 文本模型名称。 */
+        private String model = "deepseek-chat";
+        /** 可覆写 api-key（留空则用原有 deepseek.api-key，最后兼容 ai.api-key） */
         private String apiKey;
-        /** 可覆写 base-url（留空则用 ai.base-url） */
+        /** 可覆写完整 chat/completions 地址或兼容 API 根地址（留空则用 deepseek.api-url） */
         private String baseUrl;
+        /** 模型单次回答最大输出 token；详细分析需要高于普通意图识别的默认值。 */
+        private int maxTokens = 8192;
+        /** 模型回答超时秒数；<= 0 表示不限制生成耗时，只保留连接建立超时。 */
+        private int timeoutSeconds = 0;
 
         public boolean isMock() { return mock; }
         public void setMock(boolean mock) { this.mock = mock; }
@@ -68,5 +72,9 @@ public class AssistantProperties {
         public void setApiKey(String apiKey) { this.apiKey = apiKey; }
         public String getBaseUrl() { return baseUrl; }
         public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
+        public int getMaxTokens() { return maxTokens; }
+        public void setMaxTokens(int maxTokens) { this.maxTokens = maxTokens; }
+        public int getTimeoutSeconds() { return timeoutSeconds; }
+        public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
     }
 }

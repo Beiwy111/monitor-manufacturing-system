@@ -1,15 +1,26 @@
 package com.upc.computer.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.upc.computer.assistant.AsrClient;
 import com.upc.computer.assistant.AssistantService;
 import com.upc.computer.common.BusinessException;
 import com.upc.computer.common.Result;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * 全 MES 语音助手编排接口（原售后专用入口升级，旧路径 /afterSales/assistant 保留兼容）。
@@ -25,6 +36,7 @@ public class AssistantController {
 
     @Autowired private AsrClient asrClient;
     @Autowired private AssistantService assistant;
+    @Autowired private ObjectMapper objectMapper;
 
     @PostMapping("/asr")
     public Result<Map<String, Object>> asr(@RequestParam("file") MultipartFile file) throws Exception {
@@ -38,7 +50,44 @@ public class AssistantController {
         String sessionId = str(body, "sessionId");
         String module = str(body, "module");            // 当前页面模块（device/production/...），意图偏置用
         String text = str(body, "text");
-        return Result.success(assistant.interpret(sessionId, module, text));
+        return Result.success(assistant.interpret(sessionId, module, text, conversation(body.get("conversation"))));
+    }
+
+    /** POST NDJSON 流：delta 事件逐段输出纯文本，result 事件承载确认卡或最终元数据。 */
+    @PostMapping(value = "/interpret/stream", produces = "application/x-ndjson")
+    public ResponseEntity<StreamingResponseBody> interpretStream(@RequestBody Map<String, Object> body) {
+        String sessionId = str(body, "sessionId");
+        String module = str(body, "module");
+        String text = str(body, "text");
+        List<Map<String, String>> history = conversation(body.get("conversation"));
+
+        StreamingResponseBody responseBody = output -> {
+            Consumer<String> deltaConsumer = delta -> {
+                try {
+                    writeStreamEvent(output, Map.of("type", "delta", "text", delta));
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            };
+
+            try {
+                Map<String, Object> result = assistant.interpretStreaming(
+                        sessionId, module, text, history, deltaConsumer);
+                writeStreamEvent(output, Map.of("type", "result", "data", result));
+                writeStreamEvent(output, Map.of("type", "done"));
+            } catch (UncheckedIOException disconnected) {
+                throw disconnected.getCause();
+            } catch (Exception e) {
+                writeStreamEvent(output, Map.of(
+                        "type", "error",
+                        "message", "智能对话流式请求失败：" + safeMessage(e)));
+            }
+        };
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setCacheControl(CacheControl.noCache().noTransform());
+        headers.set("X-Accel-Buffering", "no");
+        return ResponseEntity.ok().headers(headers).body(responseBody);
     }
 
     @PostMapping("/execute")
@@ -60,5 +109,36 @@ public class AssistantController {
     private String str(Map<String, Object> m, String k) {
         Object v = m.get(k);
         return v != null ? v.toString() : "";
+    }
+
+    private void writeStreamEvent(OutputStream output, Map<String, Object> event) throws IOException {
+        output.write(objectMapper.writeValueAsBytes(event));
+        output.write('\n');
+        output.flush();
+    }
+
+    private String safeMessage(Exception e) {
+        String message = e.getMessage();
+        if (message == null || message.isBlank()) return "未知错误";
+        return message.length() > 160 ? message.substring(0, 160) : message;
+    }
+
+    /** 只接受 user/assistant 历史，防止客户端伪造 system 消息覆盖助手规则。 */
+    private List<Map<String, String>> conversation(Object value) {
+        if (!(value instanceof List<?> list)) return List.of();
+        List<Map<String, String>> messages = new ArrayList<>();
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> map)) continue;
+            String role = map.get("role") == null ? "" : String.valueOf(map.get("role")).trim();
+            if (!"user".equals(role) && !"assistant".equals(role)) continue;
+            Object rawText = map.containsKey("text") ? map.get("text") : map.get("content");
+            String text = rawText == null ? "" : String.valueOf(rawText).trim();
+            if (text.isBlank()) continue;
+            Map<String, String> message = new LinkedHashMap<>();
+            message.put("role", role);
+            message.put("content", text);
+            messages.add(message);
+        }
+        return messages;
     }
 }
