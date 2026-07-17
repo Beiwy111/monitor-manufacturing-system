@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.*;
 @Mapper
 public interface PurchaseRequirementMapper {
 
-    @Select("SELECT requirement_id, material_id, material_code, material_name, required_quantity, stock_quantity, on_purchase_quantity, shortage_quantity, suggested_purchase_quantity, status, priority, expected_arrival_date, purchase_order_id, supplier_id, supplier_name, remark, created_at, updated_at FROM purchase_requirement ORDER BY priority ASC, shortage_quantity DESC")
+    @Select("SELECT requirement_id, material_id, material_code, material_name, required_quantity, stock_quantity, on_purchase_quantity, shortage_quantity, suggested_purchase_quantity, status, priority, expected_arrival_date, purchase_order_id, supplier_id, supplier_name, remark, created_at, updated_at FROM purchase_requirement ORDER BY created_at DESC, requirement_id DESC")
     ArrayList<PurchaseRequirement> requirementList();
 
     @Select("SELECT requirement_id, material_id, material_code, material_name, required_quantity, stock_quantity, on_purchase_quantity, shortage_quantity, suggested_purchase_quantity, status, priority, expected_arrival_date, purchase_order_id, supplier_id, supplier_name, remark, created_at, updated_at FROM purchase_requirement WHERE requirement_id = #{requirementId}")

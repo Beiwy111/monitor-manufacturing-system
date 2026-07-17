@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { createInitialMesData, now } from '@/mock/mesData'
 import { MES_LIVE_MODE } from '@/config/mes'
 import { fetchMesSnapshot, postMesAction } from '@/api/mes'
+import { sortNewestFirst } from '@/utils/sortNewestFirst'
 import { finishedGoodsQty, isProductionStep } from '@/utils/productionProgress'
 import { OPERATOR_BINDINGS } from '@/utils/operatorWorkshop'
 
@@ -29,6 +30,9 @@ const LIST_KEYS = [
   'deliveries', 'equipment', 'alarms', 'maintenanceRecords', 'qualityReports', 'aftersaleCases',
   'costSettlements', 'operationLogs'
 ]
+
+/** 菜单等需保留服务端/配置顺序的列表 */
+const LIST_KEYS_KEEP_ORDER = new Set(['sysMenus'])
 
 function emptyLiveState() {
   return {
@@ -269,7 +273,12 @@ export const useMesStore = defineStore('mes', {
           const data = await fetchMesSnapshot()
           const selectedId = this.selectedId
           Object.keys(data).forEach((key) => {
-            this[key] = data[key]
+            const val = data[key]
+            if (Array.isArray(val) && LIST_KEYS.includes(key) && !LIST_KEYS_KEEP_ORDER.has(key)) {
+              this[key] = sortNewestFirst(val)
+            } else {
+              this[key] = val
+            }
           })
           this.selectedId = selectedId
           this.hydrated = true

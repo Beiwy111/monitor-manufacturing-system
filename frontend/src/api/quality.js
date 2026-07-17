@@ -85,3 +85,8 @@ export function detectAppearance(file) {
     timeout: 120000
   })
 }
+
+/** YOLO 外观检测结果 → AI 质检报告（千问，失败模板兜底） */
+export function generateVisionReport(data) {
+  return request.post('/quality/vision/report', data, { timeout: 60000 })
+}

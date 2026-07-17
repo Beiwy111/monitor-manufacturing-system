@@ -227,6 +227,7 @@ import { ref, computed, reactive, watch, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
+import { sortNewestFirst } from '@/utils/sortNewestFirst'
 import { useUserStore } from '@/stores/user'
 import { ORDER_STATUS } from '@/mock/constants'
 import { fetchOrderPlanningContext } from '@/api/planner'
@@ -269,12 +270,13 @@ const scheduleTargets = computed(() => {
 
 const filteredOrders = computed(() => {
   const kw = appliedKeyword.value.trim().toLowerCase()
-  return mes.orders.filter((o) => {
+  const list = mes.orders.filter((o) => {
     if (appliedStatus.value && o.status !== appliedStatus.value) return false
     if (!kw) return true
     const hay = `${o.id} ${o.customerName || ''} ${o.productModel || ''}`.toLowerCase()
     return hay.includes(kw)
   })
+  return sortNewestFirst(list)
 })
 
 const basicRows = computed(() => {

@@ -219,6 +219,7 @@ import { ElMessage } from 'element-plus'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { useMesDelete } from '@/composables/useMesDelete'
+import { sortNewestFirst } from '@/utils/sortNewestFirst'
 import { postOrderOcrRecognize } from '@/api/mes'
 import StatusBadge from '@/components/mes/StatusBadge.vue'
 import {
@@ -249,10 +250,13 @@ const pendingOrders = computed(() => mes.orders.filter((o) => o.status === 'å¾…å
 
 const filteredOrders = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
-  if (!kw) return pendingOrders.value
-  return pendingOrders.value.filter((o) =>
-    [o.id, o.customerName, o.productModel].some((v) => String(v || '').toLowerCase().includes(kw))
-  )
+  let list = pendingOrders.value
+  if (kw) {
+    list = list.filter((o) =>
+      [o.id, o.customerName, o.productModel].some((v) => String(v || '').toLowerCase().includes(kw))
+    )
+  }
+  return sortNewestFirst(list)
 })
 
 const bomProduct = computed(() => (selected.value ? findBomProduct(selected.value, mes.bomGuide) : null))

@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 public interface OperationLogMapper {
 
     // 查询所有操作日志
-    @Select("SELECT log_id, user_id, module_name, operation_type, business_table, business_id, operation_content, ip_address, result_status, error_message, operated_at FROM operation_log")
+    @Select("SELECT log_id, user_id, module_name, operation_type, business_table, business_id, operation_content, ip_address, result_status, error_message, operated_at FROM operation_log ORDER BY operated_at DESC, log_id DESC")
     public ArrayList<OperationLog> operationLogList();
 
     // 根据主键查询操作日志

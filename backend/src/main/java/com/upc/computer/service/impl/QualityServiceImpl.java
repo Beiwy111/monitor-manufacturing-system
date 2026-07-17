@@ -346,8 +346,12 @@ public class QualityServiceImpl implements QualityService {
     public NonconformingProduct handleNonconforming(Long ncId, String handleMethod, String remark, String operator) {
         NonconformingProduct nc = nonconformingMapper.getNonconformingById(ncId);
         if (nc == null) throw new BusinessException("不合格品记录不存在");
-        if ("DONE".equals(nc.getHandleStatus())) throw new BusinessException("该不良品已处置完成");
-        nc.setHandleMethod(handleMethod); nc.setHandleStatus("DONE");
+        if ("DONE".equals(nc.getHandleStatus()) || "COMPLETED".equals(nc.getHandleStatus())) {
+            throw new BusinessException("该不良品已处置完成");
+        }
+        nc.setHandleMethod(handleMethod);
+        // 与表约束 chk_nonconforming_status 一致：PENDING / PROCESSING / COMPLETED
+        nc.setHandleStatus("COMPLETED");
         nc.setHandledAt(LocalDateTime.now()); nc.setRemark(remark); nc.setUpdatedAt(LocalDateTime.now());
         nonconformingMapper.updateNonconforming(nc); return nc;
     }

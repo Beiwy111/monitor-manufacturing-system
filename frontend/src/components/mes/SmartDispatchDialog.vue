@@ -56,8 +56,11 @@
 
       <SchedulingThoughtPanel
         embedded
+        right-mode="dispatch-validation"
         :title="engineTitle"
         subtitle="工艺 → 设备 → 人员 → 匹配 → 推荐"
+        :dispatch-preview="preview"
+        :dispatch-mes="mes"
         :thought-stream="thoughtStream"
         :evidence-list="evidenceList"
         :all-evidence="allEvidence"
@@ -477,9 +480,12 @@ async function loadPreview() {
   viewMode.value = 'auto'
   loading.value = true
   try {
-    preview.value = await runAnimatedPreview(() =>
-      mes.previewSmartDispatch(selectedPlanId.value, userStore.username, userStore.roleKey)
-    )
+    const data = await runAnimatedPreview(async () => {
+      const result = await mes.previewSmartDispatch(selectedPlanId.value, userStore.username, userStore.roleKey)
+      preview.value = result
+      return result
+    })
+    preview.value = data
     if (!selectedPlanId.value && preview.value?.planId) selectedPlanId.value = preview.value.planId
     editableRows.value = mapEditableRows(
       (preview.value?.recommendations || []).map((r) => ({
@@ -572,14 +578,17 @@ async function confirm() {
 }
 
 .dispatch-phase {
-  min-height: 200px;
+  flex: 1;
+  min-height: 0;
 }
 
 .dispatch-phase--analysis {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  min-height: 480px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .dispatch-phase--result {
@@ -587,13 +596,16 @@ async function confirm() {
   flex-direction: column;
   gap: 12px;
   width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .dispatch-phase--idle {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 280px;
+  overflow: hidden;
 }
 
 .idle-hint {
@@ -752,10 +764,19 @@ async function confirm() {
 .smart-dispatch-dialog.el-dialog {
   border-radius: 0 !important;
   max-width: calc(100vw - 32px);
+  width: min(1580px, calc(100vw - 32px)) !important;
+  height: min(820px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
+  margin-top: 24px !important;
+  margin-bottom: 24px !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .smart-dispatch-dialog .el-dialog__header {
   border-radius: 0 !important;
+  flex-shrink: 0;
 }
 
 .smart-dispatch-dialog .el-dialog__body {
@@ -763,6 +784,28 @@ async function confirm() {
   color: #344054;
   padding-left: 20px;
   padding-right: 20px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.smart-dispatch-dialog .el-dialog__footer {
+  flex-shrink: 0;
+}
+
+.smart-dispatch-dialog .dispatch-steps,
+.smart-dispatch-dialog .dispatch-toolbar {
+  flex-shrink: 0;
+}
+
+.smart-dispatch-dialog .dispatch-phase {
+  min-height: 0;
+}
+
+.smart-dispatch-dialog .dispatch-workflow {
+  flex-shrink: 0;
 }
 
 .smart-dispatch-dialog .el-dialog__title {

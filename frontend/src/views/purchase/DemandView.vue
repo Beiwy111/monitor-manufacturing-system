@@ -384,6 +384,7 @@ import {
   fetchActiveSupplierList
 } from '@/api/business'
 import { materialImageByCode } from '@/utils/materialImages'
+import { sortNewestFirst } from '@/utils/sortNewestFirst'
 import ModulePageShell from '@/components/module/ModulePageShell.vue'
 import { moduleStatusType } from '@/constants/moduleStatus'
 
@@ -574,7 +575,7 @@ async function loadList() {
     const params = { scope: listScope.value }
     if (filterName.value) params.materialName = filterName.value
     if (filterPriority.value != null) params.priority = filterPriority.value
-    requirements.value = normalizeRequirements(await fetchWorkbenchList(params) || [])
+    requirements.value = sortNewestFirst(normalizeRequirements(await fetchWorkbenchList(params) || []))
     initRowQtyMap(requirements.value)
     selection.value = []
   } catch {
@@ -587,7 +588,7 @@ async function loadList() {
 async function loadOrderView() {
   orderLoading.value = true
   try {
-    orderGroups.value = await fetchWorkbenchByOrder() || []
+    orderGroups.value = sortNewestFirst(await fetchWorkbenchByOrder() || [])
   } catch {
     ElMessage.error('加载订单维度数据失败')
   } finally {

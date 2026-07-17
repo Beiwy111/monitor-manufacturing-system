@@ -95,15 +95,15 @@
 
 .ruoyi-table-wrap .el-table th.el-table__cell {
   background: #ffffff !important;
-  color: var(--layout-text-caption, #71717a);
-  font-weight: 600;
+  color: var(--layout-text-title, #1f2937);
+  font-weight: 700;
   font-size: var(--fs-table, 14px);
 }
 
 .ruoyi-table-wrap .el-table td.el-table__cell {
   font-size: var(--fs-table, 14px);
   font-weight: 500;
-  color: var(--layout-text-table, #25272a);
+  color: var(--layout-text-body, #334155);
 }
 
 /* 仓储出入库：铺满整行、列宽均衡 */
@@ -798,7 +798,7 @@
 
 .ruoyi-breadcrumb {
   font-size: var(--fs-caption, 13px);
-  color: var(--layout-text-caption, #71717a);
+  color: var(--layout-text-caption, #475569);
 }
 
 .ruoyi-breadcrumb__current,

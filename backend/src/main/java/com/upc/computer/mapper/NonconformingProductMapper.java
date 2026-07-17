@@ -10,7 +10,7 @@ import java.util.Map;
 @Mapper
 public interface NonconformingProductMapper {
 
-    @Select("SELECT nonconforming_id, nonconforming_no, inspection_id, work_order_id, work_report_id, material_id, batch_no, defect_type, defect_description, quantity, severity, handle_method, handle_status, registered_by, registered_at, handled_by, handled_at, remark, created_at, updated_at FROM nonconforming_product")
+    @Select("SELECT nonconforming_id, nonconforming_no, inspection_id, work_order_id, work_report_id, material_id, batch_no, defect_type, defect_description, quantity, severity, handle_method, handle_status, registered_by, registered_at, handled_by, handled_at, remark, created_at, updated_at FROM nonconforming_product ORDER BY created_at DESC, nonconforming_id DESC")
     ArrayList<NonconformingProduct> nonconformingList();
 
     @Select("SELECT nonconforming_id, nonconforming_no, inspection_id, work_order_id, work_report_id, material_id, batch_no, defect_type, defect_description, quantity, severity, handle_method, handle_status, registered_by, registered_at, handled_by, handled_at, remark, created_at, updated_at FROM nonconforming_product WHERE nonconforming_id = #{nonconformingId}")

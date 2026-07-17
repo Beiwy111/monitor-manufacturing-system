@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public interface DispatchTaskMapper {
 
     // 查询所有派工任务
-    @Select("SELECT dispatch_id, dispatch_no, work_order_id, step_id, operator_id, equipment_id, assigned_quantity, accepted_quantity, completed_quantity, assigned_by, assigned_at, accepted_at, status, remark, created_at, updated_at FROM dispatch_task")
+    @Select("SELECT dispatch_id, dispatch_no, work_order_id, step_id, operator_id, equipment_id, assigned_quantity, accepted_quantity, completed_quantity, assigned_by, assigned_at, accepted_at, status, remark, created_at, updated_at FROM dispatch_task ORDER BY created_at DESC, dispatch_id DESC")
     public ArrayList<DispatchTask> dispatchList();
 
     // 根据主键查询派工任务

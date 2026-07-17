@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="po-page">
     <div class="po-header">
       <div class="po-header__left">
@@ -251,6 +251,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
+import { sortNewestFirst } from '@/utils/sortNewestFirst'
 import { savePurchaseOrderDraft } from '@/api/business'
 
 const orders = ref([])
@@ -285,13 +286,14 @@ const editTotalAmount = computed(() =>
 )
 
 const filteredOrders = computed(() => {
-  return orders.value.filter(o => {
+  const list = orders.value.filter(o => {
     if (filterNo.value && !(o.purchaseOrderNo || '').includes(filterNo.value)) return false
     if (filterStatus.value === 'PENDING_ARRIVAL' && isHistoryOrder(o)) return false
     if (filterStatus.value === 'OVERDUE' && !isOverdue(o)) return false
     if (filterStatus.value && !['PENDING_ARRIVAL', 'OVERDUE'].includes(filterStatus.value) && o.status !== filterStatus.value) return false
     return true
   })
+  return sortNewestFirst(list)
 })
 
 const activeOrders = computed(() => filteredOrders.value.filter(o => !isHistoryOrder(o)))

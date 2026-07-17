@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public interface WorkOrderMapper {
 
     // 查询所有工单
-    @Select("SELECT work_order_id, work_order_no, plan_id, plan_item_id, material_id, route_id, planned_quantity, completed_quantity, qualified_quantity, unqualified_quantity, planned_start_time, planned_end_time, actual_start_time, actual_end_time, status, created_by, released_by, released_at, remark, created_at, updated_at FROM work_order")
+    @Select("SELECT work_order_id, work_order_no, plan_id, plan_item_id, material_id, route_id, planned_quantity, completed_quantity, qualified_quantity, unqualified_quantity, planned_start_time, planned_end_time, actual_start_time, actual_end_time, status, created_by, released_by, released_at, remark, created_at, updated_at FROM work_order ORDER BY created_at DESC, work_order_id DESC")
     public ArrayList<WorkOrder> workOrderList();
 
     // 根据主键查询工单

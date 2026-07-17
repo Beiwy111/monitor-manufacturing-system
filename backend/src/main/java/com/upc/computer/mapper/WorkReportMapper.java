@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 public interface WorkReportMapper {
 
     // 查询所有报工
-    @Select("SELECT report_id, report_no, work_order_id, dispatch_id, step_id, operator_id, equipment_id, report_date, start_time, end_time, completed_quantity, qualified_quantity, unqualified_quantity, work_hours, report_status, confirmed_by, confirmed_at, remark, created_at, updated_at FROM work_report")
+    @Select("SELECT report_id, report_no, work_order_id, dispatch_id, step_id, operator_id, equipment_id, report_date, start_time, end_time, completed_quantity, qualified_quantity, unqualified_quantity, work_hours, report_status, confirmed_by, confirmed_at, remark, created_at, updated_at FROM work_report ORDER BY created_at DESC, report_id DESC")
     public ArrayList<WorkReport> reportList();
 
     // 根据主键查询报工

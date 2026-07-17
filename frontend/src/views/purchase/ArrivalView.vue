@@ -140,6 +140,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
+import { sortNewestFirst } from '@/utils/sortNewestFirst'
 import { confirmArrival, revokePurchaseOrder } from '@/api/business'
 
 const orders = ref([])
@@ -155,11 +156,12 @@ const detailItems = ref([])
 const detailLoading = ref(false)
 
 const filtered = computed(() => {
-  return orders.value.filter(o => {
+  const list = orders.value.filter(o => {
     if (filterNo.value && !(o.purchaseOrderNo || '').includes(filterNo.value)) return false
     if (filterStatus.value && o.status !== filterStatus.value) return false
     return true
   })
+  return sortNewestFirst(list)
 })
 
 const pendingCount = computed(() =>

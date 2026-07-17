@@ -275,12 +275,14 @@ export function usePlannerAgent(options = {}) {
     selectedScheme.value = null
     resetFlow()
     try {
-      analysis.value = await runAnimatedPreview(async () => {
-        return await mes.previewPlanAgent(
+      const result = await runAnimatedPreview(async () => {
+        const data = await mes.previewPlanAgent(
           { orderId: firstOrderId, planStart: form.planStart, planEnd: form.planEnd, plannedQty: 0 },
           userStore.username,
           userStore.roleKey
         )
+        analysis.value = data
+        return data
       }, {
         stepPauseMs: 900,
         charMs: 20,

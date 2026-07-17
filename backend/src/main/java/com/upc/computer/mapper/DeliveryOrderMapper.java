@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 public interface DeliveryOrderMapper {
 
     // 查询所有发货单
-    @Select("SELECT delivery_id, delivery_no, order_id, work_order_id, customer_name, material_id, batch_no, delivery_quantity, delivery_date, logistics_company, logistics_no, receiver_name, receiver_phone, receiver_address, delivery_status, shipped_by, remark, created_at, updated_at FROM delivery_order")
+    @Select("SELECT delivery_id, delivery_no, order_id, work_order_id, customer_name, material_id, batch_no, delivery_quantity, delivery_date, logistics_company, logistics_no, receiver_name, receiver_phone, receiver_address, delivery_status, shipped_by, remark, created_at, updated_at FROM delivery_order ORDER BY created_at DESC, delivery_id DESC")
     public ArrayList<DeliveryOrder> deliveryList();
 
     // 根据主键查询发货单

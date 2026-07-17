@@ -32,9 +32,11 @@ build/
 ### VS Code ###
 .vscode/
 
+/backend/target/
+backend/src/main/resources/application-local.yaml
+
 # 手机屏幕缺陷检测项目
 Mobile-Phone-Defect/
-Mobile-Phone-Defect-Segmentation-YOLOv8-main/
 
 /miniprogram/
 /doc-work/

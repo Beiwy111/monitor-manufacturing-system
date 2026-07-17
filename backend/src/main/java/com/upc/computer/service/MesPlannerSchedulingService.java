@@ -762,25 +762,45 @@ public class MesPlannerSchedulingService {
         if (suggestions.isEmpty()) {
             return List.of();
         }
+        List<Map<String, Object>> uniqueSteps = dedupeSuggestionsByProcessStep(suggestions);
+        long availableDays = Math.max(1, ChronoUnit.DAYS.between(start, end) + 1);
+
+        List<Long> needDaysList = new ArrayList<>();
+        for (Map<String, Object> s : uniqueSteps) {
+            needDaysList.add(stepDaysForSchedule(str(s, "processStep"), qty));
+        }
+        long totalNeed = needDaysList.stream().mapToLong(Long::longValue).sum();
+        if (totalNeed > availableDays) {
+            double scale = (double) availableDays / totalNeed;
+            for (int i = 0; i < needDaysList.size(); i++) {
+                needDaysList.set(i, Math.max(1L, (long) Math.floor(needDaysList.get(i) * scale)));
+            }
+            long scaled = needDaysList.stream().mapToLong(Long::longValue).sum();
+            if (scaled > availableDays) {
+                needDaysList.set(needDaysList.size() - 1,
+                        Math.max(1L, needDaysList.get(needDaysList.size() - 1) - (scaled - availableDays)));
+            }
+        }
+
         List<Map<String, Object>> rows = new ArrayList<>();
         LocalDate cursor = start;
-        int idx = 0;
-        for (Map<String, Object> s : suggestions) {
-            long remainingSteps = suggestions.size() - idx;
+        for (int idx = 0; idx < uniqueSteps.size(); idx++) {
+            Map<String, Object> s = uniqueSteps.get(idx);
+            if (cursor.isAfter(end)) {
+                break;
+            }
+            long stepDays = needDaysList.get(idx);
             long remainingDays = ChronoUnit.DAYS.between(cursor, end) + 1;
             if (remainingDays <= 0) {
                 break;
             }
-            long stepDays = Math.max(1, remainingDays / remainingSteps);
-            if ("DELIVERY".equals(schemeKey)) {
-                stepDays = Math.max(1, remainingDays / (remainingSteps + 1L));
-            }
+            stepDays = Math.min(stepDays, remainingDays);
 
             int splitQty = qty;
-            if ("BALANCE".equals(schemeKey) && suggestions.size() > 1) {
-                splitQty = (int) Math.ceil(qty / (double) suggestions.size());
+            if ("BALANCE".equals(schemeKey) && uniqueSteps.size() > 1) {
+                splitQty = (int) Math.ceil(qty / (double) uniqueSteps.size());
             } else if ("COST".equals(schemeKey) && idx > 0) {
-                splitQty = Math.max(1, qty / suggestions.size());
+                splitQty = Math.max(1, qty / uniqueSteps.size());
             }
 
             LocalDate rowStart = cursor;
@@ -788,25 +808,67 @@ public class MesPlannerSchedulingService {
             if (rowEnd.isAfter(end)) {
                 rowEnd = end;
             }
-            if (rowEnd.isBefore(rowStart)) {
-                rowEnd = rowStart;
-            }
 
+            String stepName = str(s, "processStep");
+            double hours = lookupStandardHours(stepName);
             Map<String, Object> row = new LinkedHashMap<>();
-            row.put("stepName", s.get("processStep"));
+            row.put("stepName", stepName);
             row.put("workshop", s.get("workshop"));
             row.put("equipmentCode", s.get("equipmentCode"));
             row.put("plannedQuantity", splitQty);
             row.put("plannedStart", rowStart.atTime(8, 0).format(DT_FMT));
             row.put("plannedEnd", rowEnd.atTime(18, 0).format(DT_FMT));
-            row.put("standardHours", 1.0);
+            row.put("standardHours", hours);
             rows.add(row);
 
             long advance = "BALANCE".equals(schemeKey) ? 2L : 1L;
             cursor = rowEnd.plusDays(advance);
-            idx++;
         }
         return collapseAssemblySchedules(rows, qty);
+    }
+
+    private List<Map<String, Object>> dedupeSuggestionsByProcessStep(List<Map<String, Object>> suggestions) {
+        Map<String, Map<String, Object>> firstByStep = new LinkedHashMap<>();
+        for (Map<String, Object> s : suggestions) {
+            String step = str(s, "processStep");
+            if (!step.isBlank()) {
+                firstByStep.putIfAbsent(step, s);
+            }
+        }
+        return firstByStep.values().stream()
+                .sorted(Comparator.comparingInt(s -> stepOrderByName(str(s, "processStep"))))
+                .toList();
+    }
+
+    private int stepOrderByName(String stepName) {
+        if (stepName == null || stepName.isBlank()) {
+            return 99;
+        }
+        return ProductionWorkshopCatalog.PRODUCTION_STAGES.stream()
+                .filter(stage -> stepName.equals(stage.stepName())
+                        || stage.stepKeywords().stream().anyMatch(stepName::contains))
+                .mapToInt(ProductionWorkshopCatalog.ProcessStageDef::stepOrder)
+                .findFirst()
+                .orElse(99);
+    }
+
+    private long stepDaysForSchedule(String stepName, int qty) {
+        double hours = lookupStandardHours(stepName);
+        if (hours <= 0) {
+            hours = 0.5;
+        }
+        return Math.max(1L, (long) Math.ceil(hours * Math.max(1, qty) / SHIFT_HOURS));
+    }
+
+    private double lookupStandardHours(String stepName) {
+        if (stepName == null || stepName.isBlank()) {
+            return 0.5;
+        }
+        return processStepMapper.stepList().stream()
+                .filter(ps -> stepName.equals(ps.getStepName()))
+                .map(ps -> ps.getStandardWorkHours() != null ? ps.getStandardWorkHours().doubleValue() : 0.5)
+                .findFirst()
+                .orElse(0.5);
     }
 
     /** 组装工序只保留一个车间排程（业务规则：整机组装由单一车间完成） */

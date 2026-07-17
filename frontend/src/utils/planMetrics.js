@@ -249,6 +249,60 @@ function buildGanttRow(plan, sch, mes, fallback = false) {
   }
 }
 
+const GANTT_SHIFT_HOURS = 16
+const GANTT_DAY_MS = 86400000
+
+function formatGanttDateTime(ms, hour = 8) {
+  const d = new Date(ms)
+  d.setHours(hour, 0, 0, 0)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:00:00`
+}
+
+function ganttStepWorkDays(row) {
+  const hours = Number(row.standardHours) || 0.5
+  const qty = Number(row.plannedQuantity) || 1
+  return Math.max(1, Math.ceil((hours * qty) / GANTT_SHIFT_HOURS))
+}
+
+/** 按标准工时×数量重算甘特条时间跨度，避免前几道工序仅 1 天导致条带过窄 */
+function applyGanttTimelineFromWorkHours(rows) {
+  if (!rows.length) return rows
+  const byPlan = new Map()
+  rows.forEach((row, idx) => {
+    if (!byPlan.has(row.planId)) byPlan.set(row.planId, [])
+    byPlan.get(row.planId).push({ row, idx })
+  })
+
+  const adjusted = rows.map((r) => ({ ...r }))
+  for (const items of byPlan.values()) {
+    items.sort((a, b) => (a.row.stepNo ?? 0) - (b.row.stepNo ?? 0) || a.idx - b.idx)
+    const planStartMs = items.reduce((min, { row }) => {
+      const t = parseTs(row.plannedStart)
+      return t && (!min || t < min) ? t : min
+    }, null) || Date.now()
+
+    let cursor = planStartMs
+    for (const { row, idx } of items) {
+      const days = ganttStepWorkDays(row)
+      const startMs = cursor
+      const endMs = startMs + (days - 1) * GANTT_DAY_MS
+      const plannedStart = formatGanttDateTime(startMs, 8)
+      const plannedEnd = formatGanttDateTime(endMs, 18)
+      adjusted[idx] = {
+        ...row,
+        plannedStart,
+        plannedEnd,
+        startLabel: formatDisplayTime(plannedStart),
+        endLabel: formatDisplayTime(plannedEnd),
+        dateRangeLabel: `${formatShortDate(plannedStart)} ~ ${formatShortDate(plannedEnd)}`
+      }
+      cursor = startMs + days * GANTT_DAY_MS
+    }
+  }
+  return adjusted
+}
+
 export function buildGanttRows(plans, scheduleMap, mes) {
   const rows = []
   plans.forEach((plan) => {
@@ -259,7 +313,7 @@ export function buildGanttRows(plans, scheduleMap, mes) {
       .sort((a, b) => (a.stepNo ?? 0) - (b.stepNo ?? 0))
       .forEach((sch) => rows.push(buildGanttRow(plan, sch, mes, false)))
   })
-  return dedupeAssemblyRows(rows)
+  return applyGanttTimelineFromWorkHours(dedupeAssemblyRows(rows))
 }
 
 /** 甘特视图分组：plan | equipment | workshop */

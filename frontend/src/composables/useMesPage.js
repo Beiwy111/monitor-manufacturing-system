@@ -1,4 +1,5 @@
 import { ref, computed, inject } from 'vue'
+import { sortNewestFirst } from '@/utils/sortNewestFirst'
 
 export function useMesFilter(source, searchFields = []) {
   const injected = inject('mesPageFilters', null)
@@ -19,7 +20,7 @@ export function useMesFilter(source, searchFields = []) {
         searchFields.some((f) => String(row[f] ?? '').toLowerCase().includes(kw))
       )
     }
-    return list
+    return sortNewestFirst(list)
   })
 
   function onRowClick(row) {

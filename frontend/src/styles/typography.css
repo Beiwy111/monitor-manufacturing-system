@@ -7,13 +7,13 @@
   --font-num: Inter, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-display: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
 
-  /* 文字颜色层级 */
-  --text-main: #25272a;
-  --text-muted: #25272a;
-  --text-subtle: #7e838b;
-  --text-placeholder: #9ca3a0;
+  /* 文字颜色层级 — 与用户管理页一致：深灰正文、近黑标题 */
+  --text-main: #334155;
+  --text-muted: #334155;
+  --text-subtle: #475569;
+  --text-placeholder: #94a3b8;
   --text-inverse: #ffffff;
-  --heading-color: #25272a;
+  --heading-color: #1f2937;
 
   /* 字重层级：标题 700 / 模块标题与表头 700 / 菜单与标签 600 / 正文 500 */
   --heading-weight: 700;
@@ -159,13 +159,13 @@ h1, h2, h3, h4, h5, h6 {
 .el-table th.el-table__cell {
   font-size: var(--fs-table-head);
   font-weight: var(--table-head-weight) !important;
-  color: var(--text-subtle);
+  color: var(--heading-color);
 }
 
 .el-table td.el-table__cell {
   font-size: var(--fs-table-body);
   font-weight: var(--body-weight);
-  color: var(--text-muted);
+  color: var(--text-main);
 }
 
 /* 核心指标数字 — Inter 大号加粗，数字使用等宽数位 */

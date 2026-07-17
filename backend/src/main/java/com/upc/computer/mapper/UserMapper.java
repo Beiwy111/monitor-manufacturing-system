@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 public interface UserMapper {
 
     // 查询所有用户
-    @Select("SELECT user_id, role_id, username, password_hash, real_name, employee_no, phone, email, department, customer_name, shipping_address, status, last_login_at, created_at, updated_at FROM `user`")
+    @Select("SELECT user_id, role_id, username, password_hash, real_name, employee_no, phone, email, department, customer_name, shipping_address, status, last_login_at, created_at, updated_at FROM `user` ORDER BY created_at DESC, user_id DESC")
     public ArrayList<User> userList();
 
     // 根据主键查询用户

@@ -15,16 +15,31 @@
       </div>
     </header>
 
+    <section class="isc-status-strip">
+      <div class="isc-status-strip__summary">
+        <span>设备运行概览</span>
+        <strong>{{ statusOverview.total }}</strong>
+        <small>台设备</small>
+      </div>
+      <div class="isc-status-strip__items">
+        <div v-for="item in statusOverview.items" :key="item.key" class="isc-status-item">
+          <i :style="{ backgroundColor: item.color }" />
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+          <small>台</small>
+        </div>
+      </div>
+      <div class="isc-status-strip__progress" aria-hidden="true">
+        <span
+          v-for="item in statusOverview.items"
+          :key="item.key"
+          :style="{ backgroundColor: item.color, flexGrow: item.value || 0.08 }"
+        />
+      </div>
+    </section>
+
     <main class="isc-main">
       <FactoryScene ref="factorySceneRef" />
-
-      <div class="isc-chart">
-        <div class="isc-chart__head">
-          <span class="isc-chart__title">设备运行情况</span>
-          <span class="isc-chart__total">共 {{ kpi.total || 0 }} 台</span>
-        </div>
-        <BoardChart :option="statusChartOption" class="isc-chart__body" />
-      </div>
     </main>
   </div>
 </template>
@@ -33,7 +48,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import FactoryScene from '@/views/device/FactoryScene.vue'
-import BoardChart from '@/components/board/BoardChart.vue'
 import {
   fetchEquipmentKpi, fetchEquipmentViews, fetchEquipmentHealth
 } from '@/api/business'
@@ -70,7 +84,7 @@ const clockText = computed(() => {
 })
 
 
-const statusChartOption = computed(() => {
+const statusOverview = computed(() => {
   const source = healthList.value.length ? healthList.value : equipments.value
   const count = (status) => source.filter((e) => e.status === status).length
 
@@ -89,57 +103,9 @@ const statusChartOption = computed(() => {
     items[idleIdx].value += Math.max(0, total - listed)
   }
 
-  const data = items
-    .map(({ key, value }) => ({
-      name: STATUS_META[key].label,
-      value,
-      itemStyle: { color: STATUS_META[key].color }
-    }))
-    .filter((d) => d.value > 0)
-
-  if (!data.length && total > 0) {
-    data.push({ name: '设备', value: total, itemStyle: { color: '#3b82f6' } })
-  }
-
   return {
-    tooltip: {
-      trigger: 'item',
-      formatter: '{b}：{c} 台 ({d}%)'
-    },
-    legend: {
-      orient: 'vertical',
-      right: 8,
-      top: 'middle',
-      itemWidth: 10,
-      itemHeight: 10,
-      textStyle: { fontSize: 12, color: '#606266' },
-      formatter: (name) => {
-        const hit = data.find((d) => d.name === name)
-        return hit ? `${name}  ${hit.value}台` : name
-      }
-    },
-    series: [{
-      type: 'pie',
-      radius: ['46%', '72%'],
-      center: ['34%', '50%'],
-      avoidLabelOverlap: true,
-      label: {
-        show: true,
-        formatter: '{b}\n{c}台',
-        fontSize: 12,
-        color: '#4a5568',
-        lineHeight: 16
-      },
-      labelLine: {
-        show: true,
-        length: 10,
-        length2: 8
-      },
-      emphasis: {
-        label: { show: true, fontSize: 13, fontWeight: 600 }
-      },
-      data
-    }]
+    total: total || items.reduce((sum, item) => sum + item.value, 0),
+    items: items.map(({ key, value }) => ({ key, value, ...STATUS_META[key] }))
   }
 })
 
@@ -283,51 +249,113 @@ onUnmounted(() => {
   background: #f5f7fa;
 }
 
-.isc-chart {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 4;
-  width: 340px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid #e4e7ed;
-  box-shadow: 0 2px 10px rgba(0, 27, 63, 0.08);
-  pointer-events: auto;
-}
-
-.isc-chart__head {
+.isc-status-strip {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px 4px;
-  border-bottom: 1px solid #eef1f5;
+  gap: 22px;
+  min-height: 56px;
+  padding: 7px 18px 9px;
+  border-bottom: 1px solid #e4e7ed;
+  background: rgba(255, 255, 255, 0.98);
+  flex-shrink: 0;
 }
 
-.isc-chart__title {
+.isc-status-strip__summary {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 166px;
+  padding-right: 20px;
+  border-right: 1px solid #e8edf4;
+}
+
+.isc-status-strip__summary span {
+  margin-right: 5px;
+  color: #334155;
   font-size: 12px;
   font-weight: 600;
-  color: #001b3f;
 }
 
-.isc-chart__total {
+.isc-status-strip__summary strong {
+  color: #0f2747;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.isc-status-strip__summary small,
+.isc-status-item small {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.isc-status-strip__items {
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 4vw, 54px);
+  flex: 1;
+}
+
+.isc-status-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.isc-status-item i {
+  align-self: center;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.12);
+}
+
+.isc-status-item span {
+  color: #64748b;
   font-size: 11px;
-  color: #909399;
 }
 
-.isc-chart__body {
-  height: 220px;
+.isc-status-item strong {
+  color: #0f2747;
+  font-size: 16px;
 }
 
-.isc-chart__body :deep(.board-chart) {
-  min-height: 0;
+.isc-status-strip__progress {
+  position: absolute;
+  right: 18px;
+  bottom: 4px;
+  left: 204px;
+  display: flex;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  opacity: 0.72;
 }
 
-@media (max-width: 768px) {
-  .isc-chart {
-    width: 280px;
+@media (max-width: 900px) {
+  .isc-status-strip {
+    gap: 12px;
+    padding-inline: 12px;
   }
-  .isc-chart__body {
-    height: 180px;
+
+  .isc-status-strip__summary {
+    min-width: 140px;
+    padding-right: 10px;
+  }
+
+  .isc-status-strip__summary span {
+    display: none;
+  }
+
+  .isc-status-strip__items {
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .isc-status-strip__progress {
+    right: 12px;
+    left: 164px;
   }
 }
 </style>

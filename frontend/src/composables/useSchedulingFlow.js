@@ -84,7 +84,7 @@ function buildPlannerStepsFromResult(result) {
     {
       key: 'inventory', agentName: '库存协调员', actionType: '执行', badge: '执行',
       action: '核查 WMS 成品库存',
-      summary: `「成品仓」库存 ${fgStock} 台，可直发 ${shipStock} 台，缺口 ${needProduce} 台；累计证据库 2 条。`,
+      summary: `「成品仓」库存 ${fgStock} 台，可直发 ${shipStock} 台，缺口 ${needProduce} 台。`,
       thought: `【库存协调员】成品仓 ${fgStock} 台，可直发 ${shipStock} 台，需生产 ${needProduce} 台。`,
       detailLines: [`成品库存：${fgStock} 台`, `可现货发货：${shipStock} 台`, `需生产补足：${needProduce} 台`],
       evidenceCount: 2, section: 'inventory'
@@ -92,7 +92,7 @@ function buildPlannerStepsFromResult(result) {
     {
       key: 'material', agentName: '物料计划员', actionType: '执行', badge: '执行',
       action: '展开 BOM 做齐套分析',
-      summary: `「BOM」核查 ${mats.length} 种物料，物料上限 ${inv.recommendedPlanQty ?? recQty} 台；累计证据库 ${2 + mats.length} 条。`,
+      summary: `「BOM」核查 ${mats.length} 种物料，物料上限 ${inv.recommendedPlanQty ?? recQty} 台。`,
       thought: `【物料计划员】${mats.length} 种原材料，瓶颈：${(inv.bottlenecks || []).join('、') || '无'}。`,
       detailLines: matLines.length ? matLines : ['无子项物料'],
       evidenceCount: 2 + mats.length, section: 'inventory'
@@ -100,7 +100,7 @@ function buildPlannerStepsFromResult(result) {
     {
       key: 'equipment', agentName: '设备调度员', actionType: '派遣', badge: '派遣',
       action: '统计设备资源并测算产能',
-      summary: `「设备池」设备上限 ${cap.equipmentLimit ?? '-'} 台；累计证据库 3 条。`,
+      summary: `「设备池」设备上限 ${cap.equipmentLimit ?? '-'} 台。`,
       thought: `【设备调度员】设备产能上限 ${cap.equipmentLimit ?? '-'} 台，分配设备 ${result.totalMachines ?? '-'} 台。`,
       detailLines: (cap.limits || []).slice(0, 4).length
         ? (cap.limits || []).slice(0, 4)
@@ -110,7 +110,7 @@ function buildPlannerStepsFromResult(result) {
     {
       key: 'operator', agentName: '人员协调员', actionType: '派遣', badge: '派遣',
       action: '统计操作员编制与负荷',
-      summary: `「人员池」在岗 ${result.availableOperators ?? 0} 人，可行 ${cap.operatorLimit ?? '-'} 台；累计证据库 4 条。`,
+      summary: `「人员池」在岗 ${result.availableOperators ?? 0} 人，可行 ${cap.operatorLimit ?? '-'} 台。`,
       thought: `【人员协调员】在岗 ${result.availableOperators ?? 0} 人，人员可行产量 ${cap.operatorLimit ?? '-'} 台。`,
       detailLines: [`在岗操作员：${result.availableOperators ?? 0} 人`, `人员上限：${cap.operatorLimit ?? '-'} 台`],
       evidenceCount: 4, section: 'capacity'
@@ -118,7 +118,7 @@ function buildPlannerStepsFromResult(result) {
     {
       key: 'allocate', agentName: '产能优化员', actionType: '执行', badge: '执行',
       action: '分配车间设备与工序资源',
-      summary: `「车间分配」${workshops.length} 个车间；累计证据库 5 条。`,
+      summary: `「车间分配」${workshops.length} 个车间。`,
       thought: `【产能优化员】分配至 ${workshops.length} 个车间，设备 ${result.totalMachines} 台、人员 ${result.totalOperators} 人。`,
       detailLines: wsLines.length ? wsLines : ['暂无车间分配'],
       evidenceCount: 5, section: 'workshops'
@@ -126,7 +126,7 @@ function buildPlannerStepsFromResult(result) {
     {
       key: 'result', agentName: '计划汇总员', actionType: '发现', badge: '发现',
       action: '汇总约束输出生产计划',
-      summary: `「排产结论」建议排产 ${recQty} 台；累计证据库 6 条。`,
+      summary: `「排产结论」建议排产 ${recQty} 台。`,
       thought: `【计划汇总员】建议排产 ${recQty} 台。${result.recommendation || ''}`,
       detailLines: [
         `订单：${orderQty} 台`,
@@ -217,39 +217,39 @@ function buildDispatchStepsFromResult(result) {
       summary: `「${result.planId}」排产 ${result.planQuantity ?? '-'} 台，${recs.length} 道工序。`,
       thought: `【工艺工程师】计划 ${result.planId}，产量 ${result.planQuantity} 台。`,
       detailLines: [`计划号：${result.planId}`, `计划数量：${result.planQuantity} 台`, `工序数：${recs.length} 道`],
-      evidenceCount: 1, section: null
+      section: null
     },
     {
       key: 'equipment', agentName: '设备调度员', actionType: '派遣', badge: '派遣',
       action: '扫描设备状态并匹配工序',
-      summary: '「设备池」按工序类型筛选可用机台；累计证据库 2 条。',
+      summary: '「设备池」按工序类型筛选可用机台。',
       thought: '【设备调度员】扫描全厂设备，按工序类型匹配。',
       detailLines: ['排除故障/维保机台', '按工序设备类型筛选'],
-      evidenceCount: 2, section: 'table'
+      section: 'table'
     },
     {
       key: 'operator', agentName: '人员协调员', actionType: '执行', badge: '执行',
       action: '评估操作员岗位与在途负荷',
-      summary: '「人员池」统计在岗操作员；累计证据库 3 条。',
+      summary: '「人员池」统计在岗操作员。',
       thought: '【人员协调员】计算岗位匹配度与空闲度。',
       detailLines: recs.map((r) => `候选：${r.recommendedOperatorName}`).slice(0, 5),
-      evidenceCount: 3, section: 'table'
+      section: 'table'
     },
     {
       key: 'match', agentName: '派工优化员', actionType: '执行', badge: '执行',
       action: '逐道工序匹配负责人与设备',
-      summary: `「智能匹配」完成 ${recs.length} 道工序；累计证据库 ${3 + recs.length} 条。`,
+      summary: `「智能匹配」完成 ${recs.length} 道工序。`,
       thought: `【派工优化员】生成 ${recs.length} 条推荐。`,
       detailLines: recLines,
-      evidenceCount: 3 + recs.length, section: 'table'
+      section: 'table'
     },
     {
       key: 'result', agentName: '派工汇总员', actionType: '发现', badge: '发现',
       action: '输出派工方案',
-      summary: `「派工结论」${recs.length} 道工序推荐完成；累计证据库 ${8 + recs.length} 条。`,
+      summary: `「派工结论」${recs.length} 道工序推荐完成。`,
       thought: result.summary || '派工推荐完成。',
       detailLines: [result.summary || '确认后将生成工单并派工'],
-      evidenceCount: 4 + recs.length, section: 'result'
+      section: 'result'
     }
   ]
 }

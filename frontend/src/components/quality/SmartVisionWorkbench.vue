@@ -14,7 +14,7 @@
           <span class="sv-head__icon">🔬</span>
           <div>
             <h2>AI 智能外观检测</h2>
-            <p>YOLOv8 分割模型 · 显示器屏幕划痕 / 表面缺陷识别</p>
+            <p>YOLOv8 分割模型 · 支持最多 10 张照片 · 显示器屏幕划痕识别</p>
           </div>
         </div>
         <div class="sv-head__tags">
@@ -39,34 +39,51 @@
         </div>
 
         <div class="sv-card sv-card--upload">
-          <h4>上传检测图片</h4>
+          <h4>上传检测图片 <small>{{ items.length }}/10</small></h4>
           <el-upload
+            ref="uploadRef"
             class="sv-upload"
             drag
+            multiple
             :auto-upload="false"
-            :limit="1"
+            :limit="10"
             accept="image/*"
             :show-file-list="false"
             :on-change="onFileChange"
+            :on-exceed="onExceed"
           >
             <div class="sv-upload__inner">
               <div class="sv-upload__ring">
                 <span>📷</span>
               </div>
               <p>拖入或点击选择屏幕照片</p>
-              <small>JPG / PNG · 建议正面清晰拍摄</small>
-              <em v-if="fileName">{{ fileName }}</em>
+              <small>JPG / PNG · 最多 10 张 · 可多选</small>
             </div>
           </el-upload>
+
+          <div v-if="items.length" class="sv-thumbs">
+            <div
+              v-for="(it, idx) in items"
+              :key="it.id"
+              class="sv-thumb"
+              :class="{ active: activeIndex === idx, defect: it.result?.defect, done: it.status === 'done', err: it.status === 'error' }"
+              @click="selectItem(idx)"
+            >
+              <img :src="it.previewUrl" :alt="it.name" />
+              <button type="button" class="sv-thumb__del" title="移除" @click.stop="removeItem(idx)">×</button>
+              <em>{{ idx + 1 }}</em>
+            </div>
+          </div>
+
           <el-button
             type="primary"
             size="large"
             class="sv-detect-btn"
-            :disabled="!file"
+            :disabled="!items.length"
             :loading="detecting"
             @click="detect"
           >
-            {{ detecting ? 'AI 分析中…' : '开始 YOLO 检测' }}
+            {{ detectButtonText }}
           </el-button>
         </div>
 
@@ -75,82 +92,121 @@
           <ul>
             <li><b>屏幕划痕</b> — 表面线性 / 点状损伤</li>
             <li><b>缺陷定位</b> — 分割掩膜 + 检测框</li>
-            <li><b>置信度评分</b> — 逐区域量化输出</li>
+            <li><b>多图汇总</b> — 网格排列 + AI 报告</li>
           </ul>
-          <p class="sv-tip-note">结论需质检员人工确认，可一键写入检测备注。</p>
-        </div>
-
-        <div v-if="history.length" class="sv-card sv-card--history">
-          <h4>本次会话记录</h4>
-          <button
-            v-for="(h, i) in history"
-            :key="i"
-            type="button"
-            class="sv-history-row"
-            @click="restoreHistory(h)"
-          >
-            <span :class="h.defect ? 'bad' : 'ok'">{{ h.defect ? '缺陷' : '正常' }}</span>
-            <small>{{ h.time }}</small>
-            <em>{{ h.summary }}</em>
-          </button>
+          <p class="sv-tip-note">结论需质检员人工确认，可一键写入检测备注或导出报告。</p>
         </div>
       </aside>
 
-      <!-- 中间：图像对比 -->
+      <!-- 中间：图像区 -->
       <main class="sv-main">
-        <div class="sv-view-tabs">
-          <button
-            v-for="tab in viewTabs"
-            :key="tab.key"
-            type="button"
-            :class="{ active: activeTab === tab.key }"
-            @click="activeTab = tab.key"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
-
-        <div class="sv-canvas" :class="{ scanning: detecting }">
-          <div v-if="detecting" class="sv-scan">
-            <div class="sv-scan__line" />
-            <span>YOLO 推理中 · 特征提取 & 缺陷分割…</span>
+        <!-- 多图网格 -->
+        <template v-if="isMulti && !detailMode">
+          <div class="sv-view-tabs">
+            <button type="button" class="active">结果网格</button>
+            <span class="sv-view-hint">点击卡片可查看单图详情</span>
           </div>
-
-          <div v-if="activeTab === 'compare' && previewUrl && result?.resultImage" class="sv-compare">
-            <div class="sv-compare__pane">
-              <label>原始图片</label>
-              <img :src="previewUrl" alt="原始" />
+          <div class="sv-grid-wrap" :class="{ scanning: detecting }">
+            <div v-if="detecting" class="sv-scan">
+              <div class="sv-scan__line" />
+              <span>YOLO 推理中 · {{ detectProgressText }}</span>
             </div>
-            <div class="sv-compare__divider" />
-            <div class="sv-compare__pane">
-              <label>AI 标注结果</label>
-              <img :src="result.resultImage" alt="标注" />
-            </div>
-          </div>
-
-          <div v-else-if="activeTab === 'original'" class="sv-single">
-            <img v-if="previewUrl" :src="previewUrl" alt="原始图片" />
-            <div v-else class="sv-placeholder">
-              <span>🖼️</span>
-              <p>上传图片后将在此预览</p>
-            </div>
-          </div>
-
-          <div v-else class="sv-single">
-            <img v-if="result?.resultImage" :src="result.resultImage" alt="检测结果" />
-            <div v-else class="sv-placeholder">
+            <div v-if="!hasAnyResult && !detecting" class="sv-placeholder sv-placeholder--grid">
               <span>🤖</span>
-              <p>点击「开始 YOLO 检测」生成标注图</p>
+              <p>上传多张照片后点击「开始 YOLO 检测」</p>
+            </div>
+            <div v-else class="sv-grid">
+              <button
+                v-for="(it, idx) in items"
+                :key="it.id"
+                type="button"
+                class="sv-grid-card"
+                @click="openDetail(idx)"
+              >
+                <div class="sv-grid-card__imgs">
+                  <img :src="it.previewUrl" alt="原图" />
+                  <img v-if="it.result?.resultImage" :src="it.result.resultImage" alt="标注" />
+                  <div v-else class="sv-grid-card__empty">
+                    {{ it.status === 'error' ? '失败' : it.status === 'running' ? '检测中…' : '待检测' }}
+                  </div>
+                </div>
+                <div class="sv-grid-card__meta">
+                  <strong>{{ it.name }}</strong>
+                  <el-tag
+                    v-if="it.result"
+                    :type="it.result.defect ? 'danger' : 'success'"
+                    size="small"
+                  >{{ it.result.defect ? `缺陷 ${it.result.count}` : '正常' }}</el-tag>
+                  <el-tag v-else-if="it.status === 'error'" type="info" size="small">失败</el-tag>
+                </div>
+              </button>
             </div>
           </div>
-        </div>
+        </template>
+
+        <!-- 单图 / 详情模式 -->
+        <template v-else>
+          <div class="sv-view-tabs">
+            <button
+              v-if="isMulti"
+              type="button"
+              class="sv-back"
+              @click="detailMode = false"
+            >← 返回网格</button>
+            <button
+              v-for="tab in viewTabs"
+              :key="tab.key"
+              type="button"
+              :class="{ active: activeTab === tab.key }"
+              @click="activeTab = tab.key"
+            >
+              {{ tab.label }}
+            </button>
+            <span v-if="activeItem" class="sv-view-hint">{{ activeItem.name }}</span>
+          </div>
+
+          <div class="sv-canvas" :class="{ scanning: detecting && !isMulti }">
+            <div v-if="detecting && !isMulti" class="sv-scan">
+              <div class="sv-scan__line" />
+              <span>YOLO 推理中 · 特征提取 & 缺陷分割…</span>
+            </div>
+
+            <div v-if="activeTab === 'compare' && previewUrl && result?.resultImage" class="sv-compare">
+              <div class="sv-compare__pane">
+                <label>原始图片</label>
+                <img :src="previewUrl" alt="原始" />
+              </div>
+              <div class="sv-compare__divider" />
+              <div class="sv-compare__pane">
+                <label>AI 标注结果</label>
+                <img :src="result.resultImage" alt="标注" />
+              </div>
+            </div>
+
+            <div v-else-if="activeTab === 'original'" class="sv-single">
+              <img v-if="previewUrl" :src="previewUrl" alt="原始图片" />
+              <div v-else class="sv-placeholder">
+                <span>🖼️</span>
+                <p>上传图片后将在此预览</p>
+              </div>
+            </div>
+
+            <div v-else class="sv-single">
+              <img v-if="result?.resultImage" :src="result.resultImage" alt="检测结果" />
+              <div v-else class="sv-placeholder">
+                <span>🤖</span>
+                <p>点击「开始 YOLO 检测」生成标注图</p>
+              </div>
+            </div>
+          </div>
+        </template>
       </main>
 
       <!-- 右侧：结果面板 -->
       <aside class="sv-result">
         <div
           class="sv-verdict"
-          :class="result ? (result.defect ? 'is-defect' : 'is-ok') : 'is-idle'"
+          :class="verdictClass"
         >
           <div class="sv-verdict__icon">{{ verdictIcon }}</div>
           <div>
@@ -159,7 +215,16 @@
           </div>
         </div>
 
-        <div v-if="result" class="sv-kpi-grid">
+        <!-- 多图汇总 KPI -->
+        <div v-if="isMulti && hasAnyResult" class="sv-kpi-grid">
+          <div class="sv-kpi"><b>{{ batchStats.totalImages }}</b><span>检测图片</span></div>
+          <div class="sv-kpi"><b>{{ batchStats.defectImages }}</b><span>缺陷图</span></div>
+          <div class="sv-kpi"><b>{{ batchStats.defectCount }}</b><span>缺陷区域</span></div>
+          <div class="sv-kpi"><b>{{ batchStats.maxConfidenceText }}</b><span>最高置信度</span></div>
+        </div>
+
+        <!-- 单图 KPI -->
+        <div v-else-if="result" class="sv-kpi-grid">
           <div class="sv-kpi">
             <b>{{ result.defectType || '—' }}</b>
             <span>缺陷类型</span>
@@ -178,7 +243,7 @@
           </div>
         </div>
 
-        <div v-if="result" class="sv-card sv-card--summary">
+        <div v-if="result && (!isMulti || detailMode)" class="sv-card sv-card--summary">
           <h4>检测结论</h4>
           <p>{{ result.summary }}</p>
           <el-progress
@@ -189,7 +254,7 @@
           />
         </div>
 
-        <div v-if="tableRows.length" class="sv-card sv-card--table">
+        <div v-if="tableRows.length && (!isMulti || detailMode)" class="sv-card sv-card--table">
           <h4>缺陷明细（{{ tableRows.length }}）</h4>
           <ul class="sv-defect-list">
             <li v-for="(row, idx) in tableRows" :key="idx" class="sv-defect-item">
@@ -206,9 +271,47 @@
           </ul>
         </div>
 
-        <div v-else-if="result && !result.defect" class="sv-card sv-card--pass">
+        <div v-else-if="result && !result.defect && (!isMulti || detailMode)" class="sv-card sv-card--pass">
           <span>✓</span>
           <p>未检出表面划痕，建议结合人工目视与其他工序综合判定。</p>
+        </div>
+
+        <!-- AI 报告区 -->
+        <div v-if="hasAnyResult" class="sv-card sv-card--report">
+          <h4>
+            AI 外观检测报告
+            <el-tag v-if="aiReport?.aiGenerated" type="success" size="small">千问</el-tag>
+            <el-tag v-else-if="aiReport" type="info" size="small">模板</el-tag>
+          </h4>
+          <div class="sv-report-actions">
+            <el-button
+              type="primary"
+              size="small"
+              :loading="reportLoading"
+              @click="generateReport"
+            >
+              {{ aiReport ? '重新生成' : 'AI 一键生成报告' }}
+            </el-button>
+            <el-button
+              type="warning"
+              size="small"
+              :loading="pdfLoading"
+              :disabled="!aiReport"
+              @click="exportPdf"
+            >
+              导出 PDF
+            </el-button>
+          </div>
+          <div v-if="aiReport" class="sv-report-body">
+            <template v-if="aiSections.length">
+              <div v-for="sec in aiSections" :key="sec.key" class="sv-report-sec">
+                <strong>【{{ sec.key }}】</strong>
+                <p>{{ sec.text }}</p>
+              </div>
+            </template>
+            <p v-else>{{ aiReport.fullText || aiReport.summary }}</p>
+          </div>
+          <p v-else class="sv-tip-note">检测完成后可一键生成报告并导出 PDF。</p>
         </div>
       </aside>
     </div>
@@ -216,13 +319,22 @@
     <template #footer>
       <div class="sv-footer">
         <el-button @click="visible = false">关闭</el-button>
-        <el-button v-if="result?.defect" type="warning" @click="applyToRemark(false)">
+        <el-button
+          v-if="hasAnyResult && batchStats.defectImages > 0"
+          type="warning"
+          @click="applyToRemark(false)"
+        >
           写入备注 · 标记不合格
         </el-button>
-        <el-button v-if="result && !result.defect" type="success" plain @click="applyToRemark(true)">
+        <el-button
+          v-if="hasAnyResult && batchStats.defectImages === 0"
+          type="success"
+          plain
+          @click="applyToRemark(true)"
+        >
           写入备注 · 外观正常
         </el-button>
-        <el-button type="primary" :disabled="!file" :loading="detecting" @click="detect">
+        <el-button type="primary" :disabled="!items.length" :loading="detecting" @click="detect">
           重新检测
         </el-button>
       </div>
@@ -233,7 +345,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { detectAppearance } from '@/api/quality'
+import { detectAppearance, generateVisionReport } from '@/api/quality'
+import { exportVisionReportPdf } from '@/utils/visionReportPdfExport'
+
+const MAX_FILES = 10
 
 const MOCK_PRODUCTS = [
   '27寸 IPS 办公显示器',
@@ -257,6 +372,11 @@ function genMockContext() {
   }
 }
 
+let idSeq = 0
+function nextId() {
+  return `img-${Date.now()}-${++idSeq}`
+}
+
 const props = defineProps({
   inspection: { type: Object, default: null },
   unitLabel: { type: String, default: '' }
@@ -265,14 +385,17 @@ const emit = defineEmits(['applied'])
 
 const visible = defineModel({ type: Boolean, default: false })
 
-const file = ref(null)
-const fileName = ref('')
-const previewUrl = ref('')
+const items = ref([])
+const activeIndex = ref(0)
+const detailMode = ref(false)
 const detecting = ref(false)
-const result = ref(null)
+const detectCursor = ref(0)
 const activeTab = ref('compare')
-const history = ref([])
 const mockContext = ref(null)
+const aiReport = ref(null)
+const reportLoading = ref(false)
+const pdfLoading = ref(false)
+const uploadRef = ref(null)
 
 const usingMockContext = computed(() => !props.inspection?.inspectionNo)
 
@@ -286,11 +409,49 @@ const displayContext = computed(() => {
   }
 })
 
+const isMulti = computed(() => items.value.length > 1)
+const activeItem = computed(() => items.value[activeIndex.value] || null)
+const previewUrl = computed(() => activeItem.value?.previewUrl || '')
+const result = computed(() => activeItem.value?.result || null)
+const hasAnyResult = computed(() => items.value.some((it) => it.result))
+
+const batchStats = computed(() => {
+  const list = items.value.filter((it) => it.result)
+  const totalImages = list.length
+  let defectImages = 0
+  let defectCount = 0
+  let maxConfidence = 0
+  for (const it of list) {
+    if (it.result.defect) {
+      defectImages++
+      defectCount += Number(it.result.count) || 0
+    }
+    maxConfidence = Math.max(maxConfidence, Number(it.result.maxConfidence) || 0)
+  }
+  return {
+    totalImages,
+    defectImages,
+    normalImages: Math.max(0, totalImages - defectImages),
+    defectCount,
+    maxConfidence,
+    maxConfidenceText: maxConfidence ? `${Math.round(maxConfidence * 100)}%` : '—',
+    passRate: totalImages > 0 ? Math.round(((totalImages - defectImages) * 1000) / totalImages) / 10 : 100,
+    verdict: defectImages > 0 ? '发现外观缺陷' : totalImages ? '外观检测正常' : '等待检测'
+  }
+})
+
 const modelShortName = computed(() => {
   const m = result.value?.model || 'YOLOv8'
   if (m.length <= 14) return m
   return m.replace(/\([^)]+\)/, '').trim() || 'YOLOv8-Seg'
 })
+
+const detectButtonText = computed(() => {
+  if (!detecting.value) return items.value.length > 1 ? `开始 YOLO 检测（${items.value.length} 张）` : '开始 YOLO 检测'
+  return `AI 分析中… ${detectCursor.value}/${items.value.length}`
+})
+
+const detectProgressText = computed(() => `${detectCursor.value}/${items.value.length}`)
 
 watch(visible, (open) => {
   if (open && !props.inspection?.inspectionNo) {
@@ -314,19 +475,28 @@ const confidenceText = computed(() =>
   result.value?.maxConfidence ? `${Math.round(result.value.maxConfidence * 100)}%` : '—'
 )
 
+const verdictClass = computed(() => {
+  if (!hasAnyResult.value) return 'is-idle'
+  return batchStats.value.defectImages > 0 ? 'is-defect' : 'is-ok'
+})
+
 const verdictIcon = computed(() => {
-  if (!result.value) return '⏳'
-  return result.value.defect ? '⚠️' : '✅'
+  if (!hasAnyResult.value) return '⏳'
+  return batchStats.value.defectImages > 0 ? '⚠️' : '✅'
 })
 
 const verdictTitle = computed(() => {
-  if (!result.value) return '等待检测'
-  return result.value.defect ? '发现外观缺陷' : '外观检测正常'
+  if (!hasAnyResult.value) return '等待检测'
+  if (isMulti.value && !detailMode.value) return batchStats.value.verdict
+  return result.value?.defect ? '发现外观缺陷' : '外观检测正常'
 })
 
 const verdictSub = computed(() => {
-  if (!result.value) return '上传屏幕照片并启动 YOLO 推理'
-  return result.value.summary || ''
+  if (!hasAnyResult.value) return '上传 1~10 张屏幕照片并启动 YOLO 推理'
+  if (isMulti.value && !detailMode.value) {
+    return `共 ${batchStats.value.totalImages} 张 · 缺陷图 ${batchStats.value.defectImages} · 缺陷区域 ${batchStats.value.defectCount}`
+  }
+  return result.value?.summary || ''
 })
 
 const tableRows = computed(() =>
@@ -338,24 +508,72 @@ const tableRows = computed(() =>
   }))
 )
 
+const aiSections = computed(() => {
+  const sections = aiReport.value?.sections
+  if (!sections || typeof sections !== 'object') return []
+  return Object.entries(sections).map(([key, text]) => ({ key, text }))
+})
+
+function onExceed() {
+  ElMessage.warning(`最多上传 ${MAX_FILES} 张图片`)
+}
+
 function onFileChange(uploadFile) {
-  resetFile()
-  file.value = uploadFile.raw
-  fileName.value = uploadFile.name || uploadFile.raw?.name || '已选择图片'
-  previewUrl.value = URL.createObjectURL(uploadFile.raw)
-  result.value = null
-  activeTab.value = 'original'
+  const raw = uploadFile.raw
+  if (!raw || !raw.type?.startsWith('image/')) return
+  if (items.value.length >= MAX_FILES) {
+    ElMessage.warning(`最多上传 ${MAX_FILES} 张图片`)
+    return
+  }
+  // 避免同一选择事件里重复追加（el-upload multiple 会逐个触发）
+  const dup = items.value.some((it) => it.file === raw || (it.name === raw.name && it.file?.size === raw.size))
+  if (dup) return
+
+  items.value.push({
+    id: nextId(),
+    file: raw,
+    name: uploadFile.name || raw.name || `图片${items.value.length + 1}`,
+    previewUrl: URL.createObjectURL(raw),
+    result: null,
+    status: 'pending',
+    error: ''
+  })
+  activeIndex.value = items.value.length - 1
+  aiReport.value = null
+  if (items.value.length === 1) {
+    detailMode.value = false
+    activeTab.value = 'original'
+  } else {
+    detailMode.value = false
+  }
 }
 
-function resetFile() {
-  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
-  file.value = null
-  fileName.value = ''
-  previewUrl.value = ''
-  result.value = null
+function removeItem(idx) {
+  const it = items.value[idx]
+  if (it?.previewUrl) URL.revokeObjectURL(it.previewUrl)
+  items.value.splice(idx, 1)
+  aiReport.value = null
+  uploadRef.value?.clearFiles?.()
+  if (!items.value.length) {
+    activeIndex.value = 0
+    detailMode.value = false
+    return
+  }
+  if (activeIndex.value >= items.value.length) activeIndex.value = items.value.length - 1
+  if (items.value.length === 1) detailMode.value = false
 }
 
-function buildSummary(data, passed) {
+function selectItem(idx) {
+  activeIndex.value = idx
+  if (isMulti.value) detailMode.value = true
+  activeTab.value = items.value[idx]?.result ? 'compare' : 'original'
+}
+
+function openDetail(idx) {
+  selectItem(idx)
+}
+
+function buildSingleSummary(data, passed) {
   if (passed) return 'AI智能检测：未发现屏幕表面划痕，外观正常'
   if (!data?.defect) return 'AI智能检测：未发现屏幕表面划痕'
   const lines = (data.detections || []).map((d, i) => {
@@ -365,58 +583,178 @@ function buildSummary(data, passed) {
   return `AI智能检测：发现 ${data.count} 处${data.defectType || '屏幕划痕'}\n${lines.join('\n')}`
 }
 
-function pushHistory(data) {
-  history.value.unshift({
-    defect: data.defect,
-    summary: data.summary || (data.defect ? `发现 ${data.count} 处缺陷` : '未检出缺陷'),
-    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    data: { ...data }
-  })
-  if (history.value.length > 5) history.value.pop()
-}
-
-function restoreHistory(h) {
-  result.value = h.data
-  activeTab.value = 'compare'
+function buildBatchSummary(passed) {
+  const stats = batchStats.value
+  if (passed || stats.defectImages === 0) {
+    return `AI智能检测（${stats.totalImages} 张）：未发现屏幕表面划痕，外观正常`
+  }
+  const lines = items.value
+    .filter((it) => it.result?.defect)
+    .map((it, i) => `${i + 1}. ${it.name}：${it.result.count} 处${it.result.defectType || '缺陷'}（置信度 ${Math.round((it.result.maxConfidence || 0) * 100)}%）`)
+  return `AI智能检测（${stats.totalImages} 张）：缺陷图 ${stats.defectImages} 张，缺陷区域合计 ${stats.defectCount} 处\n${lines.join('\n')}`
 }
 
 async function detect() {
-  if (!file.value) return
+  if (!items.value.length) return
   detecting.value = true
-  activeTab.value = 'compare'
-  try {
-    result.value = await detectAppearance(file.value)
-    pushHistory(result.value)
-    ElMessage.success(result.value.defect ? `检测到 ${result.value.count} 处缺陷` : '未检测到表面划痕')
-  } catch (error) {
-    const msg = error?.message || ''
+  aiReport.value = null
+  detectCursor.value = 0
+  if (items.value.length === 1) {
+    activeTab.value = 'compare'
+    detailMode.value = false
+  } else {
+    detailMode.value = false
+  }
+
+  let ok = 0
+  let fail = 0
+  let defectTotal = 0
+
+  for (let i = 0; i < items.value.length; i++) {
+    detectCursor.value = i + 1
+    const it = items.value[i]
+    it.status = 'running'
+    it.error = ''
+    try {
+      const data = await detectAppearance(it.file)
+      it.result = data
+      it.status = 'done'
+      ok++
+      if (data.defect) defectTotal += data.count || 0
+    } catch (error) {
+      it.status = 'error'
+      it.error = error?.message || '检测失败'
+      it.result = null
+      fail++
+    }
+  }
+
+  detecting.value = false
+
+  if (ok === 0) {
+    const msg = items.value.find((it) => it.error)?.error || ''
     if (msg.includes('YOLO') || msg.includes('8000') || msg.includes('Network')) {
       ElMessage.error('检测服务未就绪：请先在 Mobile-Phone-Defect 目录运行 start-yolo.bat')
     } else {
       ElMessage.error(msg || 'AI 检测失败')
     }
-  } finally {
-    detecting.value = false
+    return
+  }
+
+  if (fail > 0) {
+    ElMessage.warning(`完成 ${ok} 张，失败 ${fail} 张${defectTotal ? `，共检出 ${defectTotal} 处缺陷` : ''}`)
+  } else if (defectTotal > 0) {
+    ElMessage.success(`检测到 ${defectTotal} 处缺陷（${ok} 张）`)
+  } else {
+    ElMessage.success(ok > 1 ? `${ok} 张均未检测到表面划痕` : '未检测到表面划痕')
   }
 }
 
 function applyToRemark(passed) {
-  if (!result.value) return
+  if (!hasAnyResult.value) return
+  const summary = isMulti.value
+    ? buildBatchSummary(passed)
+    : buildSingleSummary(result.value, passed)
+  const defect = !passed && batchStats.value.defectImages > 0
   emit('applied', {
-    summary: buildSummary(result.value, passed),
-    defect: !passed && result.value.defect,
+    summary,
+    defect,
     passed,
-    result: result.value
+    result: isMulti.value
+      ? {
+          defect,
+          count: batchStats.value.defectCount,
+          maxConfidence: batchStats.value.maxConfidence,
+          summary,
+          batch: true,
+          images: items.value.filter((it) => it.result).map((it) => ({
+            name: it.name,
+            ...it.result
+          }))
+        }
+      : result.value
   })
   ElMessage.success('已写入当前工序检测备注')
   visible.value = false
 }
 
+function buildReportPayload() {
+  return {
+    context: displayContext.value,
+    images: items.value
+      .filter((it) => it.result)
+      .map((it) => ({
+        name: it.name,
+        defect: !!it.result.defect,
+        count: it.result.count ?? 0,
+        maxConfidence: it.result.maxConfidence ?? 0,
+        summary: it.result.summary || '',
+        defectType: it.result.defectType || '',
+        detections: it.result.detections || []
+      }))
+  }
+}
+
+async function generateReport() {
+  if (!hasAnyResult.value) return
+  reportLoading.value = true
+  try {
+    aiReport.value = await generateVisionReport(buildReportPayload())
+    ElMessage.success(aiReport.value?.aiGenerated ? 'AI 外观检测报告已生成' : '已生成模板报告（千问暂不可用）')
+  } catch (e) {
+    ElMessage.error(e?.message || '生成报告失败')
+  } finally {
+    reportLoading.value = false
+  }
+}
+
+async function exportPdf() {
+  if (!aiReport.value && !hasAnyResult.value) return
+  pdfLoading.value = true
+  try {
+    if (!aiReport.value) await generateReport()
+    const images = items.value
+      .filter((it) => it.result)
+      .map((it) => ({
+        name: it.name,
+        defect: !!it.result.defect,
+        count: it.result.count ?? 0,
+        maxConfidence: it.result.maxConfidence ?? 0,
+        summary: it.result.summary || '',
+        resultImage: it.result.resultImage || ''
+      }))
+    await exportVisionReportPdf({
+      context: displayContext.value,
+      stats: {
+        ...batchStats.value,
+        maxConfidence: batchStats.value.maxConfidence
+      },
+      images,
+      report: aiReport.value
+    })
+    ElMessage.success('外观检测报告 PDF 已导出')
+  } catch (e) {
+    ElMessage.error(e?.message || '导出 PDF 失败')
+  } finally {
+    pdfLoading.value = false
+  }
+}
+
 function reset() {
-  resetFile()
-  history.value = []
+  for (const it of items.value) {
+    if (it.previewUrl) URL.revokeObjectURL(it.previewUrl)
+  }
+  items.value = []
+  activeIndex.value = 0
+  detailMode.value = false
+  detecting.value = false
+  detectCursor.value = 0
   activeTab.value = 'compare'
   mockContext.value = null
+  aiReport.value = null
+  reportLoading.value = false
+  pdfLoading.value = false
+  uploadRef.value?.clearFiles?.()
 }
 </script>
 
@@ -488,7 +826,7 @@ function reset() {
 
 .sv-body {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr) minmax(300px, 360px);
+  grid-template-columns: 260px minmax(0, 1fr) minmax(300px, 360px);
   gap: 0;
   min-height: calc(100vh - 124px);
   max-height: var(--layout-content-min-h, calc(100vh - 92px));
@@ -534,6 +872,12 @@ function reset() {
   font-size: 13px;
   font-weight: 700;
   color: #3d4654;
+}
+
+.sv-card h4 small {
+  margin-left: 6px;
+  font-weight: 500;
+  color: #9aa5b5;
 }
 
 .sv-card--info dl {
@@ -600,13 +944,62 @@ function reset() {
   color: #9aa5b5;
 }
 
-.sv-upload__inner em {
-  display: block;
-  margin-top: 8px;
-  font-style: normal;
+.sv-thumbs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.sv-thumb {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  background: #0d1117;
+}
+
+.sv-thumb.active {
+  border-color: #409eff;
+}
+
+.sv-thumb.defect {
+  box-shadow: inset 0 0 0 1px #f56c6c;
+}
+
+.sv-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sv-thumb__del {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
   font-size: 12px;
-  color: #409eff;
-  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sv-thumb em {
+  position: absolute;
+  left: 3px;
+  bottom: 2px;
+  font-style: normal;
+  font-size: 10px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0 4px;
+  border-radius: 4px;
 }
 
 .sv-detect-btn {
@@ -628,28 +1021,11 @@ function reset() {
   color: #9aa5b5;
 }
 
-.sv-history-row {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 8px;
-  width: 100%;
-  text-align: left;
-  padding: 8px 10px;
-  margin-bottom: 6px;
-  border: 1px solid #e8edf3;
-  border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
-}
-
-.sv-history-row span.ok { color: #67c23a; font-weight: 700; font-size: 12px; }
-.sv-history-row span.bad { color: #f56c6c; font-weight: 700; font-size: 12px; }
-.sv-history-row small { font-size: 11px; color: #9aa5b5; }
-.sv-history-row em { grid-column: 1 / -1; font-style: normal; font-size: 11px; color: #606266; }
-
 .sv-view-tabs {
   display: flex;
   gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .sv-view-tabs button {
@@ -669,17 +1045,29 @@ function reset() {
   font-weight: 600;
 }
 
-.sv-canvas {
+.sv-view-tabs .sv-back {
+  background: #f4f6f8;
+}
+
+.sv-view-hint {
+  font-size: 12px;
+  color: #9aa5b5;
+  margin-left: 4px;
+}
+
+.sv-canvas,
+.sv-grid-wrap {
   flex: 1;
   position: relative;
   min-height: 420px;
   background: #0d1117;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: auto;
   border: 1px solid #2d333b;
 }
 
-.sv-canvas.scanning::after {
+.sv-canvas.scanning::after,
+.sv-grid-wrap.scanning::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -768,6 +1156,80 @@ function reset() {
   font-size: 48px;
   display: block;
   margin-bottom: 12px;
+}
+
+.sv-placeholder--grid {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.sv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 14px;
+}
+
+.sv-grid-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  background: #161b22;
+  cursor: pointer;
+  text-align: left;
+  color: #e6edf3;
+}
+
+.sv-grid-card:hover {
+  border-color: #409eff;
+}
+
+.sv-grid-card__imgs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  min-height: 100px;
+}
+
+.sv-grid-card__imgs img,
+.sv-grid-card__empty {
+  width: 100%;
+  height: 100px;
+  object-fit: contain;
+  background: #0d1117;
+  border-radius: 6px;
+}
+
+.sv-grid-card__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #8b949e;
+}
+
+.sv-grid-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.sv-grid-card__meta strong {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .sv-verdict {
@@ -910,13 +1372,6 @@ function reset() {
   line-height: 1.5;
 }
 
-.sv-kpi-grid {
-  margin: 0 0 10px;
-  font-size: 13px;
-  line-height: 1.6;
-  color: #606266;
-}
-
 .sv-card--pass {
   text-align: center;
   padding: 24px 16px;
@@ -933,10 +1388,42 @@ function reset() {
   color: #606266;
 }
 
+.sv-card--report .sv-report-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.sv-report-body {
+  max-height: 280px;
+  overflow-y: auto;
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.65;
+}
+
+.sv-report-sec {
+  margin-bottom: 10px;
+}
+
+.sv-report-sec strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #1f2937;
+  font-size: 12px;
+}
+
+.sv-report-sec p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 .sv-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 1200px) {

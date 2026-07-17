@@ -10,40 +10,103 @@
         class="isc-eq-tag"
         :class="[
           `isc-eq-tag--${item.level}`,
-          { 'isc-eq-tag--active': selectedId === item.id, 'isc-eq-tag--expanded': item.expanded }
+          { 'isc-eq-tag--active': selectedId === item.id }
         ]"
         :style="{ left: item.x + 'px', top: item.y + 'px', opacity: item.visible ? 1 : 0 }"
         @click.stop="selectEq(item.id)"
       >
-        <template v-if="item.expanded">
-          <div class="isc-eq-card__head">
-            <span class="isc-eq-card__code">{{ item.code }}</span>
-            <button class="isc-eq-card__close" @click.stop="closeDetail">×</button>
-          </div>
-          <div class="isc-eq-card__name">{{ item.name }}</div>
-          <div class="isc-eq-card__meta">{{ item.stageName || '—' }} · {{ item.workshopName || '—' }}</div>
-          <div class="isc-eq-card__status">
-            <span class="isc-eq-card__pill" :style="{ borderColor: item.statusColor, color: item.statusColor }">
-              {{ item.statusCn }}
-            </span>
-            <span class="isc-eq-card__score" :style="{ color: item.levelColor }">健康 {{ item.score }}</span>
-          </div>
-          <div class="isc-eq-card__grid">
-            <span>运行 <em>{{ item.runHours ?? '—' }}h</em></span>
-            <span>报警7d <em :class="{ 'isc-eq-card__warn': item.alarm7d > 0 }">{{ item.alarm7d ?? 0 }}</em></span>
-            <span>保养 <em>{{ item.daysSinceMaint ?? '—' }}天前</em></span>
-            <span>缺陷30d <em>{{ item.faultCount30d ?? 0 }}</em></span>
-          </div>
-          <div v-if="item.advice" class="isc-eq-card__advice">{{ item.advice }}</div>
-        </template>
-        <template v-else>
-          <span class="isc-eq-tag__dot" :style="{ background: item.statusColor }" />
-          <span class="isc-eq-tag__code">{{ item.code }}</span>
-          <span class="isc-eq-tag__status">{{ item.statusCn }}</span>
-          <span class="isc-eq-tag__score" :style="{ color: item.levelColor }">{{ item.score }}</span>
-        </template>
+        <span class="isc-eq-tag__dot" :style="{ background: item.statusColor }" />
+        <span class="isc-eq-tag__code">{{ item.code }}</span>
+        <span class="isc-eq-tag__status">{{ item.statusCn }}</span>
+        <span class="isc-eq-tag__score" :style="{ color: item.levelColor }">{{ item.score }}</span>
       </div>
     </div>
+
+    <!-- 设备详情固定在场景右侧，避免遮挡设备和其他标签 -->
+    <Transition name="isc-detail">
+      <aside v-if="selectedEq" class="isc-detail" @click.stop>
+        <header class="isc-detail__head">
+          <div>
+            <span class="isc-detail__eyebrow">设备实时档案</span>
+            <h3>{{ selectedEq.equipmentName || '未命名设备' }}</h3>
+            <p>{{ selectedEq.equipmentCode || '—' }}</p>
+          </div>
+          <button class="isc-detail__close" aria-label="关闭设备详情" @click="closeDetail">×</button>
+        </header>
+
+        <div class="isc-detail__location">
+          <span>{{ selectedEq.stageName || '未关联工序' }}</span>
+          <i />
+          <span>{{ selectedEq.workshopName || '未关联车间' }}</span>
+        </div>
+
+        <section class="isc-detail__status">
+          <div>
+            <span>运行状态</span>
+            <strong :style="{ color: STATUS_COLOR[selectedEq.status] || '#52c1a2' }">
+              {{ STATUS_CN[selectedEq.status] || selectedEq.status || '未知' }}
+            </strong>
+          </div>
+          <div>
+            <span>健康评分</span>
+            <strong :style="{ color: HEALTH_COLOR[selectedEq.healthLevel] || '#3dd68c' }">
+              {{ selectedEq.healthScore ?? selectedEq.score ?? '—' }}
+            </strong>
+          </div>
+        </section>
+
+        <section class="isc-detail__grid">
+          <div><span>累计运行</span><strong>{{ selectedEq.runHours ?? '—' }}<small>h</small></strong></div>
+          <div><span>近7日报警</span><strong :class="{ 'is-danger': Number(selectedEq.alarm7d) > 0 }">{{ selectedEq.alarm7d ?? 0 }}</strong></div>
+          <div><span>距上次保养</span><strong>{{ selectedEq.daysSinceMaint ?? '—' }}<small>天</small></strong></div>
+          <div><span>近30日维修</span><strong>{{ selectedEq.faultCount30d ?? 0 }}</strong></div>
+        </section>
+
+        <section class="isc-health-basis">
+          <div class="isc-health-basis__head">
+            <span>健康评分依据</span>
+            <strong>基础分 100</strong>
+          </div>
+          <div class="isc-health-basis__rows">
+            <div>
+              <span>运行时长 <small>{{ selectedEq.runHours ?? '—' }}h · 估算</small></span>
+              <strong>-{{ selectedEq.deductRun ?? 0 }}</strong>
+            </div>
+            <div>
+              <span>近7日报警 <small>{{ selectedEq.alarm7d ?? 0 }}次</small></span>
+              <strong>-{{ selectedEq.deductAlarm ?? 0 }}</strong>
+            </div>
+            <div>
+              <span>维保间隔 <small>{{ selectedEq.daysSinceMaint ?? '—' }}天</small></span>
+              <strong>-{{ selectedEq.deductMaint ?? 0 }}</strong>
+            </div>
+            <div>
+              <span>近30日维修 <small>{{ selectedEq.faultCount30d ?? 0 }}次</small></span>
+              <strong>-{{ selectedEq.deductNc ?? 0 }}</strong>
+            </div>
+          </div>
+          <div class="isc-health-basis__result">
+            <span>
+              100 - {{ selectedEq.deductRun ?? 0 }} - {{ selectedEq.deductAlarm ?? 0 }}
+              - {{ selectedEq.deductMaint ?? 0 }} - {{ selectedEq.deductNc ?? 0 }}
+            </span>
+            <strong>= {{ selectedEq.healthScore ?? selectedEq.score ?? '—' }}</strong>
+          </div>
+          <details class="isc-health-rules">
+            <summary>查看扣分规则</summary>
+            <p>运行时长：超过500/800小时扣10/20分</p>
+            <p>7日报警：达到3/6/10次扣10/20/30分</p>
+            <p>维保间隔：超过30/60/90天扣10/18/25分</p>
+            <p>30日维修：达到2/5/10次扣5/15/25分</p>
+          </details>
+        </section>
+
+        <section v-if="selectedEq.advice" class="isc-detail__advice">
+          <span>维护建议</span>
+          <p>{{ selectedEq.advice }}</p>
+        </section>
+      </aside>
+    </Transition>
 
     <!-- 场景内工具条 -->
     <div class="isc-scene__toolbar">
@@ -80,13 +143,16 @@ import {
 const emit = defineEmits(['select', 'deselect'])
 
 const canvasRef = ref(null)
-const autoRotate = ref(false)
+const autoRotate = ref(true)
 const labelItems = ref([])
 const selectedEq = ref(null)
 const selectedId = ref(null)
 const equipList = ref([])
 
 let renderer, scene, camera, controls, animId, timer = null
+let introFrameId = null
+let introPlayed = false
+let introRunning = false
 const meshMap = new Map()
 let layoutMap = {}
 
@@ -136,7 +202,7 @@ function initScene() {
   scene.fog = new THREE.Fog(0xf5f7fa, 50, 95)
 
   camera = new THREE.PerspectiveCamera(44, W / H, 0.1, 200)
-  camera.position.set(2, 7.5, 12)
+  camera.position.set(2, 10, 14)
   camera.lookAt(4, 0, 0)
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.75))
@@ -175,7 +241,7 @@ function initScene() {
   controls.minDistance = 5
   controls.maxDistance = 32
   controls.maxPolarAngle = Math.PI / 2.15
-  controls.autoRotate = false
+  controls.autoRotate = true
   controls.target.set(4, 0, 0)
   controls.update()
 
@@ -313,12 +379,18 @@ function placeEquipments(list) {
     const hit = sceneEqs.find((e) => e.equipmentId === selectedId.value)
     if (hit) selectedEq.value = enrichEq(hit)
   }
+
+  if (!introPlayed && sceneEqs.length) {
+    introPlayed = true
+    introFrameId = requestAnimationFrame(playCinematicIntro)
+  }
 }
 
 const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
 
 function onCanvasClick(e) {
+  if (introRunning) return
   const canvas = canvasRef.value
   if (!canvas) return
   const r = canvas.getBoundingClientRect()
@@ -340,6 +412,69 @@ function onCanvasClick(e) {
   if (pos) {
     flyTo(new THREE.Vector3(pos.x, 7, pos.z + 9), new THREE.Vector3(pos.x, 0, pos.z))
   }
+}
+
+function stopCinematicIntro() {
+  if (introFrameId) cancelAnimationFrame(introFrameId)
+  introFrameId = null
+  introRunning = false
+  if (controls) controls.enabled = true
+}
+
+function playCinematicIntro() {
+  if (!camera || !controls) return
+  const zones = buildStageZones().slice().sort((a, b) => a.x - b.x)
+  if (!zones.length) return
+
+  introRunning = true
+  controls.enabled = false
+  controls.autoRotate = false
+
+  const firstX = zones[0].x
+  const lastX = zones[zones.length - 1].x
+  const startCam = new THREE.Vector3(firstX - 2.5, 5.2, 8.8)
+  const endCam = new THREE.Vector3(lastX + 1.8, 5.8, 8.8)
+  const overviewCam = new THREE.Vector3(2, 10, 14)
+  const startLook = new THREE.Vector3(firstX + 2.2, 0, 0)
+  const endLook = new THREE.Vector3(lastX - 1.5, 0, 0)
+  const overviewLook = new THREE.Vector3(4, 0, 0)
+  const sweepDuration = 1750
+  const settleDuration = 850
+  const startedAt = performance.now()
+
+  camera.position.copy(startCam)
+  controls.target.copy(startLook)
+  controls.update()
+
+  const ease = (p) => p * p * (3 - 2 * p)
+  const tick = (now) => {
+    if (!introRunning || !camera || !controls) return
+    const elapsed = now - startedAt
+
+    if (elapsed < sweepDuration) {
+      const p = ease(Math.min(elapsed / sweepDuration, 1))
+      camera.position.lerpVectors(startCam, endCam, p)
+      camera.position.y += Math.sin(p * Math.PI) * 1.15
+      controls.target.lerpVectors(startLook, endLook, p)
+    } else {
+      const p = ease(Math.min((elapsed - sweepDuration) / settleDuration, 1))
+      camera.position.lerpVectors(endCam, overviewCam, p)
+      controls.target.lerpVectors(endLook, overviewLook, p)
+      if (p >= 1) {
+        stopCinematicIntro()
+        camera.position.copy(overviewCam)
+        controls.target.copy(overviewLook)
+        controls.autoRotate = autoRotate.value
+        controls.update()
+        return
+      }
+    }
+
+    controls.update()
+    introFrameId = requestAnimationFrame(tick)
+  }
+
+  introFrameId = requestAnimationFrame(tick)
 }
 
 function flyTo(camTarget, lookTarget) {
@@ -367,13 +502,12 @@ function updateLabels() {
     const pos = getPos(eq.equipmentCode)
     if (!pos) return null
     const enriched = enrichEq(eq)
-    const expanded = selectedId.value === eq.equipmentId
-    const anchorY = expanded ? 4.8 : 3.2 + (idx % 2) * 0.7
+    const anchorY = 3.2 + (idx % 2) * 0.7
     const v = new THREE.Vector3(pos.x, anchorY, pos.z).project(camera)
     const x = (v.x * 0.5 + 0.5) * W
     const y = (-v.y * 0.5 + 0.5) * H
-    const cardW = expanded ? 108 : 48
-    const cardH = expanded ? 72 : 28
+    const cardW = 48
+    const cardH = 28
     return {
       id: eq.equipmentId,
       code: eq.equipmentCode,
@@ -390,7 +524,6 @@ function updateLabels() {
       level: (eq.healthLevel ?? 'GOOD').toLowerCase(),
       levelColor: HEALTH_COLOR[eq.healthLevel] ?? '#3dd68c',
       statusColor: STATUS_COLOR[eq.status] ?? '#52c1a2',
-      expanded,
       x: x - cardW,
       y: y - cardH,
       visible: v.z < 1 && x > 60 && x < W - 60 && y > 30 && y < H - 30
@@ -400,7 +533,7 @@ function updateLabels() {
 
 function animate() {
   animId = requestAnimationFrame(animate)
-  controls.autoRotate = autoRotate.value
+  controls.autoRotate = autoRotate.value && !introRunning
   controls.autoRotateSpeed = 0.35
   controls.update()
   renderer.render(scene, camera)
@@ -408,7 +541,8 @@ function animate() {
 }
 
 function resetCamera() {
-  camera.position.set(2, 7.5, 12)
+  stopCinematicIntro()
+  camera.position.set(2, 10, 14)
   controls.target.set(4, 0, 0)
   controls.update()
 }
@@ -448,6 +582,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   cancelAnimationFrame(animId)
+  stopCinematicIntro()
   canvasRef.value?.removeEventListener('click', onCanvasClick)
   controls?.dispose()
   renderer?.dispose()
@@ -509,23 +644,11 @@ defineExpose({ syncEquipments })
   box-shadow: 0 1px 4px rgba(0, 27, 63, 0.08);
 }
 
-.isc-eq-tag--expanded {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  width: 216px;
-  padding: 8px 10px;
-  white-space: normal;
-  border-color: #3b82f6;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.18);
-  z-index: 6;
-  cursor: default;
-}
-
 .isc-eq-tag:hover,
-.isc-eq-tag--active:not(.isc-eq-tag--expanded) {
+.isc-eq-tag--active {
   border-color: #3b82f6;
   background: #f0f7ff;
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.2);
 }
 
 .isc-eq-tag--danger,
@@ -543,86 +666,263 @@ defineExpose({ syncEquipments })
 .isc-eq-tag__status { color: #909399; font-size: 9px; }
 .isc-eq-tag__score { font-weight: 700; margin-left: 2px; }
 
-.isc-eq-card__head {
+.isc-detail {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  bottom: 52px;
+  z-index: 8;
+  width: 300px;
+  padding: 18px;
+  overflow: auto;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(14px);
+}
+
+.isc-detail__head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
 }
 
-.isc-eq-card__code {
+.isc-detail__eyebrow {
+  color: #3b82f6;
   font-size: 10px;
-  color: #909399;
+  font-weight: 700;
+  letter-spacing: 1.6px;
 }
 
-.isc-eq-card__close {
-  width: 18px;
-  height: 18px;
-  border: 1px solid #e4e7ed;
-  background: #f5f7fa;
-  color: #909399;
+.isc-detail__head h3 {
+  margin: 5px 0 2px;
+  color: #0f2747;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.isc-detail__head p {
+  margin: 0;
+  color: #94a3b8;
+  font-family: Consolas, monospace;
+  font-size: 11px;
+}
+
+.isc-detail__close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #64748b;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 20px;
   line-height: 1;
   padding: 0;
 }
 
-.isc-eq-card__name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #001b3f;
-  font-family: 'Microsoft YaHei', sans-serif;
+.isc-detail__close:hover {
+  border-color: #93c5fd;
+  color: #2563eb;
+  background: #eff6ff;
 }
 
-.isc-eq-card__meta {
+.isc-detail__location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.isc-detail__location i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.isc-detail__status {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.isc-detail__status > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #e8edf4;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.isc-detail__status span,
+.isc-detail__grid span,
+.isc-detail__advice > span {
+  color: #94a3b8;
   font-size: 10px;
-  color: #909399;
-  font-family: 'Microsoft YaHei', sans-serif;
 }
 
-.isc-eq-card__status {
+.isc-detail__status strong {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.isc-detail__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.isc-detail__grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid #e8edf4;
+  border-radius: 8px;
+}
+
+.isc-detail__grid strong {
+  color: #0f2747;
+  font-size: 17px;
+}
+
+.isc-detail__grid small {
+  margin-left: 2px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.isc-detail__grid .is-danger { color: #ef4444; }
+
+.isc-health-basis {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #dce6f2;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.isc-health-basis__head,
+.isc-health-basis__rows > div,
+.isc-health-basis__result {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
 }
 
-.isc-eq-card__pill {
-  padding: 1px 6px;
-  border: 1px solid;
-  font-size: 10px;
-  background: #fafbfc;
-  font-family: 'Microsoft YaHei', sans-serif;
+.isc-health-basis__head {
+  padding-bottom: 9px;
+  border-bottom: 1px solid #e5edf6;
 }
 
-.isc-eq-card__score {
-  font-size: 11px;
+.isc-health-basis__head > span {
+  color: #0f2747;
+  font-size: 12px;
   font-weight: 700;
 }
 
-.isc-eq-card__grid {
+.isc-health-basis__head > strong {
+  color: #2563eb;
+  font-size: 11px;
+}
+
+.isc-health-basis__rows {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px 8px;
-  font-size: 10px;
-  color: #909399;
-  font-family: 'Microsoft YaHei', sans-serif;
+  gap: 7px;
+  padding: 9px 0;
 }
 
-.isc-eq-card__grid em {
-  font-style: normal;
-  color: #001b3f;
-  font-weight: 600;
+.isc-health-basis__rows span {
+  color: #64748b;
+  font-size: 10px;
 }
 
-.isc-eq-card__warn { color: #f56c6c !important; }
+.isc-health-basis__rows small {
+  margin-left: 4px;
+  color: #94a3b8;
+  font-size: 9px;
+}
 
-.isc-eq-card__advice {
-  font-size: 10px;
-  color: #606266;
+.isc-health-basis__rows strong {
+  color: #dc2626;
+  font-size: 11px;
+}
+
+.isc-health-basis__result {
+  padding-top: 9px;
+  border-top: 1px solid #e5edf6;
+}
+
+.isc-health-basis__result span {
+  color: #64748b;
+  font-family: Consolas, monospace;
+  font-size: 9px;
+}
+
+.isc-health-basis__result strong {
+  color: #0f2747;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.isc-health-rules {
+  margin-top: 9px;
+  color: #64748b;
+  font-size: 9px;
+}
+
+.isc-health-rules summary {
+  color: #3b82f6;
+  cursor: pointer;
+  user-select: none;
+}
+
+.isc-health-rules p {
+  margin: 5px 0 0;
+  line-height: 1.35;
+}
+
+.isc-detail__advice {
+  margin-top: 10px;
+  padding: 12px;
+  border-left: 3px solid #f59e0b;
+  border-radius: 4px 8px 8px 4px;
+  background: #fffbeb;
+}
+
+.isc-detail__advice p {
+  margin: 6px 0 0;
+  color: #475569;
+  font-size: 11px;
   line-height: 1.4;
-  border-top: 1px dashed #eef1f5;
-  padding-top: 4px;
-  font-family: 'Microsoft YaHei', sans-serif;
+}
+
+.isc-detail-enter-active,
+.isc-detail-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.isc-detail-enter-from,
+.isc-detail-leave-to {
+  opacity: 0;
+  transform: translateX(24px);
 }
 
 .isc-scene__toolbar {

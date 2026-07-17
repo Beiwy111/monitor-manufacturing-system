@@ -10,7 +10,7 @@ public interface PurchaseRequirementSourceMapper {
     @Select("SELECT source_id, requirement_id, customer_order_id, customer_order_no, work_order_id, work_order_no, source_type, material_id, required_quantity, shortage_quantity, created_at FROM purchase_requirement_source WHERE requirement_id = #{requirementId}")
     ArrayList<PurchaseRequirementSource> listByRequirementId(Long requirementId);
 
-    @Select("SELECT source_id, requirement_id, customer_order_id, customer_order_no, work_order_id, work_order_no, source_type, material_id, required_quantity, shortage_quantity, created_at FROM purchase_requirement_source")
+    @Select("SELECT source_id, requirement_id, customer_order_id, customer_order_no, work_order_id, work_order_no, source_type, material_id, required_quantity, shortage_quantity, created_at FROM purchase_requirement_source ORDER BY source_id DESC")
     ArrayList<PurchaseRequirementSource> sourceList();
 
     @Insert("INSERT INTO purchase_requirement_source (requirement_id, customer_order_id, customer_order_no, work_order_id, work_order_no, source_type, material_id, required_quantity, shortage_quantity, created_at) VALUES (#{requirementId}, #{customerOrderId}, #{customerOrderNo}, #{workOrderId}, #{workOrderNo}, #{sourceType}, #{materialId}, #{requiredQuantity}, #{shortageQuantity}, #{createdAt})")

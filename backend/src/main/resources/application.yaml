@@ -1,5 +1,5 @@
 deepseek:
-  api-key: sk-b6e79c6eaf9742a9805979920e1c74eb
+  api-key: 
   api-url: https://api.deepseek.com/v1/chat/completions
   model: deepseek-chat
   temperature: 0.2
@@ -8,7 +8,7 @@ deepseek:
 # 财务与管理员全局 AI 分析（与现有 DeepSeek 功能使用独立 Key）
 deepseek-finance:
   enabled: true
-  api-key: ${DEEPSEEK_FINANCE_API_KEY:}
+  api-key: ${DEEPSEEK_FINANCE_API_KEY}
   api-url: ${DEEPSEEK_FINANCE_API_URL:https://api.deepseek.com/v1/chat/completions}
   model: ${DEEPSEEK_FINANCE_MODEL:deepseek-v4-flash}
   temperature: 0.2
@@ -27,7 +27,7 @@ assistant:
   nlu:
     mock: false
     enabled: true
-    api-key: ${ASSISTANT_DEEPSEEK_API_KEY:}
+    api-key: ${ASSISTANT_DEEPSEEK_API_KEY}
     base-url: ${ASSISTANT_DEEPSEEK_API_URL:https://api.deepseek.com/v1/chat/completions}
     model: deepseek-chat
     max-tokens: 8192
@@ -47,6 +47,8 @@ qwen:
   timeout-ms: 30000
 
 spring:
+  config:
+    import: optional:classpath:application-local.yaml
   mvc:
     async:
       request-timeout: 0

@@ -169,6 +169,7 @@ import {
   fetchActiveSupplierList
 } from '@/api/business'
 import { materialImageUrl } from '@/utils/materialImages'
+import { sortNewestFirst } from '@/utils/sortNewestFirst'
 
 const router = useRouter()
 const orders = ref([])
@@ -358,7 +359,7 @@ async function buildOrderDemandsFallback() {
         })
       }
     }
-    return rows
+    return sortNewestFirst(rows)
   } catch {
     return []
   }
@@ -382,9 +383,9 @@ async function loadData() {
       fetchWorkbenchList({ scope: 'all' }),
       fetchOrderDemandOverview()
     ])
-    orders.value = orderRes.status === 'fulfilled' ? (orderRes.value || []) : []
-    requirements.value = reqRes.status === 'fulfilled' ? (reqRes.value || []) : []
-    orderDemands.value = demandRes.status === 'fulfilled' ? (demandRes.value || []) : []
+    orders.value = sortNewestFirst(orderRes.status === 'fulfilled' ? (orderRes.value || []) : [])
+    requirements.value = sortNewestFirst(reqRes.status === 'fulfilled' ? (reqRes.value || []) : [])
+    orderDemands.value = sortNewestFirst(demandRes.status === 'fulfilled' ? (demandRes.value || []) : [])
     if (!orderDemands.value.length) {
       orderDemands.value = await buildOrderDemandsFallback()
     }
@@ -392,10 +393,10 @@ async function loadData() {
       try {
         await calculatePurchaseRequirements({ silent: true })
         const retry = await fetchWorkbenchList({ scope: 'all' })
-        requirements.value = retry || []
+        requirements.value = sortNewestFirst(retry || [])
         const retryDemand = await fetchOrderDemandOverview().catch(() => null)
         if (retryDemand?.length) {
-          orderDemands.value = retryDemand
+          orderDemands.value = sortNewestFirst(retryDemand)
         } else {
           orderDemands.value = await buildOrderDemandsFallback()
         }

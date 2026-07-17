@@ -29,7 +29,7 @@
       </div>
     </div>
 
-    <div class="thought-layout" :class="layoutClass">
+    <div class="thought-layout" :class="[layoutClass, layoutModeClass]">
       <div class="thought-stream">
         <div class="thought-stream__header">
           <span class="thought-stream__title">
@@ -74,7 +74,7 @@
                   {{ item.badge || item.actionType || '执行' }}
                 </span>
                 <span class="thought-item__agent">{{ item.agentName }}</span>
-                <span v-if="item.evidenceCount" class="thought-item__ev-count">证据 {{ item.evidenceCount }}</span>
+                <span v-if="rightMode === 'evidence' && item.evidenceCount" class="thought-item__ev-count">证据 {{ item.evidenceCount }}</span>
                 <span class="thought-item__step">#{{ idx + 1 }}</span>
               </div>
 
@@ -97,7 +97,7 @@
                   <li v-for="(line, li) in item.detailLines" :key="li">{{ line }}</li>
                 </ul>
 
-                <div v-if="stepEvidence(item.key).length" class="thought-item__linked-ev">
+                <div v-if="rightMode === 'evidence' && stepEvidence(item.key).length" class="thought-item__linked-ev">
                   <span>关联证据 {{ stepEvidence(item.key).length }} 条</span>
                   <el-button link type="primary" size="small" @click.stop="focusEvidence(item.key)">
                     在证据库中查看
@@ -125,7 +125,23 @@
         </div>
       </div>
 
-      <div class="evidence-panel">
+      <SchedulingCalcEnginePanel
+        v-if="rightMode === 'calc-engine'"
+        :analysis="analysis"
+        :revealed-step-keys="calcRevealedStepKeys"
+        :active-step-key="activeStepKey"
+        :running="running"
+        :fullscreen="fullscreen"
+      />
+      <DispatchValidationPanel
+        v-else-if="rightMode === 'dispatch-validation'"
+        :preview="dispatchPreview"
+        :mes="dispatchMes"
+        :revealed-step-keys="dispatchRevealedStepKeys"
+        :active-step-key="activeStepKey"
+        :running="running"
+      />
+      <div v-else class="evidence-panel">
         <div class="evidence-panel__header">
           <span>证据库</span>
           <em>({{ visibleEvidence.length }}{{ allEvidenceCount ? ` / ${allEvidenceCount}` : '' }})</em>
@@ -175,12 +191,21 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { ArrowDown, Loading } from '@element-plus/icons-vue'
+import SchedulingCalcEnginePanel from '@/components/mes/SchedulingCalcEnginePanel.vue'
+import DispatchValidationPanel from '@/components/mes/DispatchValidationPanel.vue'
+import { STEP_ORDER } from '@/composables/useSchedulingCalcEngine'
+import { DISPATCH_STEP_ORDER } from '@/composables/useDispatchValidation'
+import { scrollChildIntoView } from '@/utils/scrollFocus'
 
 const props = defineProps({
   title: { type: String, default: '智能排产引擎' },
   subtitle: { type: String, default: '订单 → 库存 → 物料 → 设备 → 人员 → 车间分配 → 生产计划' },
   embedded: { type: Boolean, default: false },
   fullscreen: { type: Boolean, default: false },
+  rightMode: { type: String, default: 'evidence' },
+  analysis: { type: Object, default: null },
+  dispatchPreview: { type: Object, default: null },
+  dispatchMes: { type: Object, default: null },
   thoughtStream: { type: Array, default: () => [] },
   evidenceList: { type: Array, default: () => [] },
   allEvidence: { type: Array, default: () => [] },
@@ -235,6 +260,32 @@ const pendingLoaderText = computed(() => {
   return props.pendingText || '正在启动智能排产引擎，接入订单、库存、设备与人员数据…'
 })
 
+const revealedStepKeys = computed(() =>
+  props.thoughtStream.map((t) => t.key).filter(Boolean)
+)
+
+/** 计算引擎：运行中随思维流推进；完成后可随选中步骤回溯 */
+const calcRevealedStepKeys = computed(() => {
+  const streamKeys = revealedStepKeys.value
+  if (props.running || !props.selectedStepKey) return streamKeys
+  const idx = STEP_ORDER.indexOf(props.selectedStepKey)
+  if (idx < 0) return streamKeys
+  return STEP_ORDER.slice(0, idx + 1)
+})
+
+const dispatchRevealedStepKeys = computed(() => {
+  const streamKeys = revealedStepKeys.value
+  if (props.running || !props.selectedStepKey) return streamKeys
+  const idx = DISPATCH_STEP_ORDER.indexOf(props.selectedStepKey)
+  if (idx < 0) return streamKeys
+  return DISPATCH_STEP_ORDER.slice(0, idx + 1)
+})
+
+const layoutModeClass = computed(() => ({
+  'thought-layout--calc-engine': props.rightMode === 'calc-engine',
+  'thought-layout--dispatch-validation': props.rightMode === 'dispatch-validation'
+}))
+
 const filterKey = computed(() => props.selectedStepKey || '')
 
 const visibleEvidence = computed(() => {
@@ -254,6 +305,8 @@ const visibleEvidence = computed(() => {
   return cumulative.length ? cumulative : list.slice(0, Math.max(1, revealedKeys.length))
 })
 
+let thoughtScrollRaf = 0
+
 watch(() => props.activeStepKey, (key) => {
   if (props.running && key) {
     if (!props.fullscreen) {
@@ -262,7 +315,7 @@ watch(() => props.activeStepKey, (key) => {
       expandedKey.value = ''
     }
     emit('select-step', key)
-    scrollThoughtToBottom()
+    scrollThoughtToFocus()
   }
 })
 
@@ -274,33 +327,49 @@ watch(() => props.thoughtStream.length, (len, prev) => {
     } else {
       expandedKey.value = ''
     }
-    scrollThoughtToBottom()
+    scrollThoughtToFocus()
   }
   if (!props.running && len && !expandedKey.value) {
     expandedKey.value = props.fullscreen ? '' : (props.thoughtStream[len - 1]?.key || '')
   }
 })
 
+watch(
+  () => {
+    if (!props.running || !props.thoughtStream.length) return 0
+    const last = props.thoughtStream[props.thoughtStream.length - 1]
+    return (last?.displaySummary ?? '').length
+  },
+  () => {
+    if (props.running) scrollThoughtToFocus()
+  }
+)
+
+watch(expandedKey, () => {
+  if (props.running) scrollThoughtToFocus()
+})
+
 watch(() => visibleEvidence.value.length, (len, prev) => {
   if (len > prev && props.running) {
-    scrollEvidenceToBottom()
+    scrollEvidenceToFocus()
   }
 })
 
-function scrollThoughtToBottom() {
-  nextTick(() => {
-    const el = thoughtListRef.value
-    if (!el) return
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+function scrollThoughtToFocus() {
+  if (thoughtScrollRaf) cancelAnimationFrame(thoughtScrollRaf)
+  thoughtScrollRaf = requestAnimationFrame(() => {
+    scrollChildIntoView(
+      thoughtListRef.value,
+      (container) => container.querySelector('.thought-item--active, .thought-item--pending')
+    )
   })
 }
 
-function scrollEvidenceToBottom() {
-  nextTick(() => {
-    const el = evidenceListRef.value
-    if (!el) return
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-  })
+function scrollEvidenceToFocus() {
+  scrollChildIntoView(
+    evidenceListRef.value,
+    (container) => container.querySelector('.evidence-card--new') || container.querySelector('.evidence-card:last-child')
+  )
 }
 
 function stepEvidence(stepKey) {
@@ -371,6 +440,11 @@ function metricEntries(ev) {
   border: 1px solid #e5e7eb;
   box-shadow: none;
   background: #fff;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .thought-shell__bar {
   display: flex;
@@ -380,6 +454,7 @@ function metricEntries(ev) {
   padding: 10px 14px;
   border-bottom: 1px solid #e5e7eb;
   background: #fafafa;
+  flex-shrink: 0;
 }
 .thought-shell__bar h3 {
   margin: 0 0 2px;
@@ -405,11 +480,31 @@ function metricEntries(ev) {
   min-width: 36px;
 }
 .thought-layout--embedded {
-  min-height: 420px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
+
+.thought-shell--embedded .thought-stream,
+.thought-shell--embedded :deep(.dispatch-validation),
+.thought-shell--embedded .evidence-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.thought-shell--embedded .thought-stream__header,
+.thought-shell--embedded .evidence-panel__header {
+  flex-shrink: 0;
+}
+
 .thought-shell--embedded .thought-list,
 .thought-shell--embedded .evidence-list {
-  max-height: 420px;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
 }
 .thought-shell {
   border-radius: 14px;
@@ -780,8 +875,23 @@ function metricEntries(ev) {
   min-height: 0;
 }
 
+.thought-layout--fullscreen.thought-layout--calc-engine {
+  grid-template-columns: minmax(0, 1.2fr) minmax(380px, 1fr);
+}
+
+.thought-layout--embedded.thought-layout--dispatch-validation {
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.85fr);
+}
+
+.thought-layout--fullscreen.thought-layout--dispatch-validation {
+  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.95fr);
+}
+
 .thought-shell--fullscreen .thought-stream,
-.thought-shell--fullscreen .evidence-panel {
+.thought-shell--fullscreen .evidence-panel,
+.thought-shell--fullscreen :deep(.calc-engine),
+.thought-shell--fullscreen :deep(.dispatch-validation) {
   display: flex;
   flex-direction: column;
   min-height: 0;

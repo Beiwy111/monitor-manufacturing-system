@@ -1,5 +1,5 @@
 <template>
-  <div class="ruoyi-page">
+  <div class="ruoyi-page user-view">
     <div class="ruoyi-split">
       <aside class="ruoyi-split__tree">
         <div class="ruoyi-split__tree-title">组织架构</div>
@@ -16,28 +16,29 @@
       <div class="ruoyi-split__main">
         <div class="ruoyi-query user-view__query">
           <el-form :inline="true" :model="query" class="user-view__query-form" @submit.prevent="handleSearch">
-            <el-form-item label="登录名称">
-              <el-input v-model="query.username" placeholder="请输入登录名称" clearable style="width: 160px" />
-            </el-form-item>
-            <el-form-item label="手机号码">
-              <el-input v-model="query.phone" placeholder="请输入手机号码" clearable style="width: 160px" />
-            </el-form-item>
-            <el-form-item label="状态">
-              <el-select v-model="query.status" placeholder="用户状态" clearable style="width: 120px">
-                <el-option label="启用" value="启用" />
-                <el-option label="禁用" value="禁用" />
-                <el-option label="待分配角色" value="待分配角色" />
-              </el-select>
-            </el-form-item>
-            <el-form-item class="user-view__query-btns">
-              <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
-              <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
-              <span class="user-view__btn-gap" aria-hidden="true" />
-              <el-button type="primary" :icon="Plus" @click="openDialog()">新增</el-button>
-              <el-button type="success" :icon="Edit" :disabled="!selectedRow" @click="openDialog(selectedRow)">修改</el-button>
-              <el-button type="danger" :icon="Delete" :disabled="!selectedRows.length" @click="handleDelete">删除</el-button>
-              <el-button type="warning" :icon="Download" @click="exportCsv">导出</el-button>
-            </el-form-item>
+            <div class="user-view__filter-row">
+              <el-form-item label="登录名称">
+                <el-input v-model="query.username" placeholder="请输入登录名称" clearable style="width: 160px" />
+              </el-form-item>
+              <el-form-item label="手机号码">
+                <el-input v-model="query.phone" placeholder="请输入手机号码" clearable style="width: 160px" />
+              </el-form-item>
+              <el-form-item label="状态">
+                <el-select v-model="query.status" placeholder="用户状态" clearable style="width: 120px">
+                  <el-option label="启用" value="启用" />
+                  <el-option label="禁用" value="禁用" />
+                  <el-option label="待分配角色" value="待分配角色" />
+                </el-select>
+              </el-form-item>
+              <el-form-item class="user-view__filter-actions">
+                <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
+                <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
+                <el-button type="primary" :icon="Plus" @click="openDialog()">新增</el-button>
+                <el-button type="success" :icon="Edit" :disabled="!selectedRow" @click="openDialog(selectedRow)">修改</el-button>
+                <el-button type="danger" :icon="Delete" :disabled="!selectedRows.length" @click="handleDelete">删除</el-button>
+                <el-button type="warning" :icon="Download" @click="exportCsv">导出</el-button>
+              </el-form-item>
+            </div>
           </el-form>
           <el-tooltip content="刷新">
             <el-button circle :icon="Refresh" class="user-view__refresh" @click="reload" />
@@ -76,18 +77,12 @@
               </template>
             </el-table-column>
             <el-table-column prop="createdAt" label="创建时间" min-width="160" show-overflow-tooltip />
-            <el-table-column label="操作" width="180" align="center" fixed="right">
+            <el-table-column label="操作" width="150" align="center" fixed="right">
               <template #default="{ row }">
-                <el-button link type="primary" :icon="Edit" @click="openDialog(row)">修改</el-button>
-                <el-button link type="danger" :icon="Delete" @click="removeOne(row)">删除</el-button>
-                <el-dropdown trigger="click" @command="(cmd) => onMore(cmd, row)">
-                  <el-button link type="primary">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="resetPwd">重置密码</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+                <div class="user-view__row-actions">
+                  <el-button link type="primary" :icon="Edit" @click="openDialog(row)">修改</el-button>
+                  <el-button link type="danger" :icon="Delete" @click="removeOne(row)">删除</el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -106,7 +101,7 @@
       </div>
     </div>
 
-    <el-dialog v-model="dialogVisible" :title="form.id ? '修改用户' : '添加用户'" width="520px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" class="user-view__dialog" :title="form.id ? '修改用户' : '添加用户'" width="520px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="登录名称" prop="username">
           <el-input v-model="form.username" :disabled="!!form.id" placeholder="请输入登录名称" />
@@ -150,9 +145,9 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Edit, Delete, Download, ArrowDown } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Edit, Delete, Download } from '@element-plus/icons-vue'
 import { useMesStore } from '@/stores/mes'
 import { useUserStore } from '@/stores/user'
 import { useRuoyiTable } from '@/composables/useRuoyiTable'
@@ -230,7 +225,13 @@ const rules = {
   roleKey: [{ required: true, message: '请选择角色', trigger: 'change' }]
 }
 
-onMounted(() => reload())
+onMounted(() => {
+  document.documentElement.classList.add('user-view-active')
+  reload()
+})
+onUnmounted(() => {
+  document.documentElement.classList.remove('user-view-active')
+})
 
 async function reload() {
   loading.value = true
@@ -313,22 +314,6 @@ async function handleDelete() {
   await reload()
 }
 
-async function onMore(cmd, row) {
-  if (cmd !== 'resetPwd') return
-  try {
-    const { value } = await ElMessageBox.prompt('请输入新密码', `重置密码 · ${row.username}`, {
-      inputType: 'password',
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      inputValidator: (v) => (v && v.length >= 6 ? true : '密码至少 6 位')
-    })
-    await mes.resetUserPassword(row.id, value, userStore.displayName, userStore.roleKey)
-    ElMessage.success(`用户 ${row.username} 密码已重置`)
-  } catch {
-    /* cancelled */
-  }
-}
-
 function exportCsv() {
   const header = '用户编号,登录名称,用户名称,部门,手机,状态,创建时间\n'
   const rows = filtered.value.map((u) =>
@@ -344,6 +329,155 @@ function exportCsv() {
 </script>
 
 <style scoped>
+.user-view {
+  --uv-text: #334155;
+  --uv-title: #1f2937;
+  --uv-muted: #475569;
+  --uv-placeholder: #94a3b8;
+  --uv-primary: #6ea9a4;
+  --uv-primary-hover: #5c9792;
+  --uv-primary-active: #4f8782;
+  --uv-primary-disabled: #9fc5c2;
+  --uv-secondary-bg: #dcebec;
+  --uv-secondary-border: #b7ced0;
+  --uv-secondary-text: #2f3b52;
+  --uv-secondary-hover-bg: #c8dadc;
+  --uv-secondary-hover-border: #a5bfc1;
+  --uv-secondary-active-bg: #b8cfd2;
+  --uv-secondary-active-border: #95b5b8;
+  --uv-danger-bg: #d9b6be;
+  --uv-danger-border: #c9a0aa;
+  --uv-danger-hover: #cfa3ad;
+  --uv-danger-active: #c4919c;
+  --uv-danger-disabled: #e6ccd2;
+  --uv-danger-text: #fff;
+  --uv-link: #2d5a62;
+  --uv-link-hover: #234a50;
+  --uv-link-danger: #9a4f5d;
+  --uv-link-danger-hover: #834252;
+  --uv-disabled-opacity: 1;
+  color: var(--uv-text);
+}
+
+/* —— 表单与筛选 —— */
+.user-view :deep(.el-form-item__label) {
+  color: var(--uv-title);
+  font-weight: 600;
+}
+
+.user-view :deep(.el-input__wrapper),
+.user-view :deep(.el-select__wrapper) {
+  --el-input-text-color: var(--uv-text);
+}
+
+.user-view :deep(.el-input__inner::placeholder),
+.user-view :deep(input::placeholder) {
+  color: var(--uv-placeholder);
+}
+
+.user-view :deep(.el-select__placeholder) {
+  color: var(--uv-placeholder);
+}
+
+/* —— 左侧组织树 —— */
+.user-view :deep(.ruoyi-split__tree-title) {
+  color: var(--uv-title);
+  font-weight: 700;
+}
+
+.user-view :deep(.el-tree-node__label) {
+  color: var(--uv-text);
+  font-weight: 500;
+}
+
+.user-view :deep(.el-tree-node.is-current > .el-tree-node__content .el-tree-node__label) {
+  color: var(--uv-title);
+  font-weight: 600;
+}
+
+/* —— 表格 —— */
+.user-view :deep(.el-table th.el-table__cell) {
+  color: var(--uv-title);
+  font-weight: 600;
+}
+
+.user-view :deep(.el-table th.el-table__cell .cell) {
+  color: var(--uv-title);
+  font-weight: 600;
+}
+
+.user-view :deep(.el-table td.el-table__cell) {
+  color: var(--uv-text);
+  font-weight: 500;
+}
+
+.user-view :deep(.el-table td.el-table__cell .cell) {
+  color: var(--uv-text);
+}
+
+/* —— 分页 —— */
+.user-view :deep(.ruoyi-pagination),
+.user-view :deep(.el-pagination) {
+  color: var(--uv-muted);
+  font-weight: 500;
+}
+
+.user-view :deep(.el-pagination__total),
+.user-view :deep(.el-pagination__jump) {
+  color: var(--uv-muted);
+}
+
+.user-view :deep(.el-pager li) {
+  color: var(--uv-text);
+  font-weight: 500;
+}
+
+.user-view :deep(.el-pager li.is-active) {
+  color: var(--uv-title);
+  font-weight: 600;
+}
+
+/* —— 表格操作文字按钮 —— */
+.user-view :deep(.el-button.is-link.el-button--primary) {
+  color: var(--uv-link);
+  font-weight: 600;
+}
+
+.user-view :deep(.el-button.is-link.el-button--primary:hover) {
+  color: var(--uv-link-hover);
+}
+
+.user-view :deep(.el-button.is-link.el-button--danger) {
+  color: var(--uv-link-danger);
+  font-weight: 600;
+}
+
+.user-view :deep(.el-button.is-link.el-button--danger:hover) {
+  color: var(--uv-link-danger-hover);
+}
+
+/* —— 弹窗标题与表单 —— */
+.user-view__dialog {
+  --uv-primary: #6ea9a4;
+  --uv-primary-hover: #5c9792;
+  --uv-primary-active: #4f8782;
+  --uv-secondary-bg: #dcebec;
+  --uv-secondary-border: #b7ced0;
+  --uv-secondary-text: #2f3b52;
+  --uv-text: #334155;
+  --uv-title: #1f2937;
+}
+
+.user-view__dialog :deep(.el-dialog__title) {
+  color: var(--uv-title);
+  font-weight: 700;
+}
+
+.user-view__dialog :deep(.el-form-item__label) {
+  color: var(--uv-title);
+  font-weight: 600;
+}
+
 .user-view__query {
   display: flex;
   align-items: flex-start;
@@ -357,14 +491,25 @@ function exportCsv() {
   min-width: 0;
 }
 
-.user-view__query-btns :deep(.el-form-item__content) {
-  flex-wrap: wrap;
-  row-gap: 8px;
+.user-view__filter-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
-.user-view__btn-gap {
-  display: inline-block;
-  width: 8px;
+.user-view__filter-row :deep(.el-form-item) {
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.user-view__filter-actions :deep(.el-form-item__label) {
+  display: none;
+}
+
+.user-view__filter-actions :deep(.el-form-item__content) {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
 }
 
 .user-view__refresh {
@@ -376,10 +521,245 @@ function exportCsv() {
   white-space: nowrap;
 }
 
+.user-view__row-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.user-view__table :deep(.user-view__row-actions .el-button.is-link) {
+  padding: 2px 4px;
+}
+
+.user-view__table :deep(.user-view__row-actions .el-button + .el-button) {
+  margin-left: 0;
+}
+
 .form-tip {
   margin-top: 6px;
   font-size: 12px;
-  color: #e6a23c;
+  color: #b45309;
   line-height: 1.4;
+  font-weight: 500;
+}
+</style>
+
+<style>
+/* 用户管理页激活时：提升面包屑、顶栏文字对比度（侧栏菜单保持全局原样） */
+html.user-view-active #app .layout-breadcrumb,
+html.user-view-active #app .layout-breadcrumb .ruoyi-breadcrumb__link {
+  color: #475569 !important;
+  font-weight: 500;
+}
+
+html.user-view-active #app .layout-breadcrumb .ruoyi-breadcrumb__link:hover {
+  color: #334155 !important;
+}
+
+html.user-view-active #app .layout-breadcrumb .ruoyi-breadcrumb__current {
+  color: #1f2937 !important;
+  font-weight: 700;
+}
+
+html.user-view-active #app .layout-breadcrumb .ruoyi-breadcrumb__sep {
+  color: #94a3b8 !important;
+}
+
+html.user-view-active #app .header-user__trigger {
+  color: #334155 !important;
+  font-weight: 500;
+}
+
+/* —— 用户管理页按钮：压过 theme.css 的 .ruoyi-page 全局规则 —— */
+html.user-view-active #app .ruoyi-page.user-view .el-button--primary:not(.is-link),
+html.user-view-active #app .ruoyi-page.user-view .el-button--warning:not(.is-link),
+.user-view__dialog .el-button--primary:not(.is-link) {
+  --el-button-bg-color: #6ea9a4 !important;
+  --el-button-border-color: #6ea9a4 !important;
+  --el-button-hover-bg-color: #5c9792 !important;
+  --el-button-hover-border-color: #5c9792 !important;
+  --el-button-active-bg-color: #4f8782 !important;
+  --el-button-active-border-color: #4f8782 !important;
+  --el-button-text-color: #fff !important;
+  --el-button-hover-text-color: #fff !important;
+  --el-button-active-text-color: #fff !important;
+  --el-button-disabled-bg-color: #9fc5c2 !important;
+  --el-button-disabled-border-color: #9fc5c2 !important;
+  --el-button-disabled-text-color: rgba(255, 255, 255, 0.88) !important;
+  background: #6ea9a4 !important;
+  border-color: #6ea9a4 !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button--primary:not(.is-link):hover,
+html.user-view-active #app .ruoyi-page.user-view .el-button--primary:not(.is-link):focus-visible,
+html.user-view-active #app .ruoyi-page.user-view .el-button--warning:not(.is-link):hover,
+html.user-view-active #app .ruoyi-page.user-view .el-button--warning:not(.is-link):focus-visible,
+.user-view__dialog .el-button--primary:not(.is-link):hover,
+.user-view__dialog .el-button--primary:not(.is-link):focus-visible {
+  background: #5c9792 !important;
+  border-color: #5c9792 !important;
+  color: #fff !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button--primary:not(.is-link):active,
+html.user-view-active #app .ruoyi-page.user-view .el-button--warning:not(.is-link):active,
+.user-view__dialog .el-button--primary:not(.is-link):active {
+  background: #4f8782 !important;
+  border-color: #4f8782 !important;
+  color: #fff !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button--default:not(.is-link),
+html.user-view-active #app .ruoyi-page.user-view .el-button--success:not(.is-link),
+html.user-view-active #app .ruoyi-page.user-view .user-view__refresh,
+.user-view__dialog .el-button--default:not(.is-link) {
+  --el-button-bg-color: #dcebec !important;
+  --el-button-border-color: #b7ced0 !important;
+  --el-button-text-color: #2f3b52 !important;
+  --el-button-hover-bg-color: #c8dadc !important;
+  --el-button-hover-border-color: #a5bfc1 !important;
+  --el-button-hover-text-color: #2f3b52 !important;
+  --el-button-active-bg-color: #b8cfd2 !important;
+  --el-button-active-border-color: #95b5b8 !important;
+  --el-button-active-text-color: #2f3b52 !important;
+  --el-button-disabled-bg-color: #e8f2f3 !important;
+  --el-button-disabled-border-color: #c8d8da !important;
+  --el-button-disabled-text-color: #94a3b8 !important;
+  background: #dcebec !important;
+  border-color: #b7ced0 !important;
+  color: #2f3b52 !important;
+  font-weight: 600 !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button--default:not(.is-link):hover,
+html.user-view-active #app .ruoyi-page.user-view .el-button--default:not(.is-link):focus-visible,
+html.user-view-active #app .ruoyi-page.user-view .el-button--success:not(.is-link):hover,
+html.user-view-active #app .ruoyi-page.user-view .el-button--success:not(.is-link):focus-visible,
+html.user-view-active #app .ruoyi-page.user-view .user-view__refresh:hover,
+html.user-view-active #app .ruoyi-page.user-view .user-view__refresh:focus-visible,
+.user-view__dialog .el-button--default:not(.is-link):hover,
+.user-view__dialog .el-button--default:not(.is-link):focus-visible {
+  background: #c8dadc !important;
+  border-color: #a5bfc1 !important;
+  color: #2f3b52 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button--default:not(.is-link):active,
+html.user-view-active #app .ruoyi-page.user-view .el-button--success:not(.is-link):active,
+html.user-view-active #app .ruoyi-page.user-view .user-view__refresh:active,
+.user-view__dialog .el-button--default:not(.is-link):active {
+  background: #b8cfd2 !important;
+  border-color: #95b5b8 !important;
+  color: #2f3b52 !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button--danger:not(.is-link),
+.user-view__dialog .el-button--danger:not(.is-link) {
+  --el-button-bg-color: #d9b6be !important;
+  --el-button-border-color: #c9a0aa !important;
+  --el-button-text-color: #fff !important;
+  --el-button-hover-bg-color: #cfa3ad !important;
+  --el-button-hover-border-color: #bf8f9a !important;
+  --el-button-hover-text-color: #fff !important;
+  --el-button-active-bg-color: #c4919c !important;
+  --el-button-active-border-color: #b37d89 !important;
+  --el-button-active-text-color: #fff !important;
+  --el-button-disabled-bg-color: #e6ccd2 !important;
+  --el-button-disabled-border-color: #d9bcc3 !important;
+  --el-button-disabled-text-color: rgba(255, 255, 255, 0.78) !important;
+  background: #d9b6be !important;
+  border-color: #c9a0aa !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button--danger:not(.is-link):hover,
+html.user-view-active #app .ruoyi-page.user-view .el-button--danger:not(.is-link):focus-visible,
+.user-view__dialog .el-button--danger:not(.is-link):hover,
+.user-view__dialog .el-button--danger:not(.is-link):focus-visible {
+  background: #cfa3ad !important;
+  border-color: #bf8f9a !important;
+  color: #fff !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button--danger:not(.is-link):active,
+.user-view__dialog .el-button--danger:not(.is-link):active {
+  background: #c4919c !important;
+  border-color: #b37d89 !important;
+  color: #fff !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button--primary.is-disabled:not(.is-link),
+html.user-view-active #app .ruoyi-page.user-view .el-button--warning.is-disabled:not(.is-link),
+.user-view__dialog .el-button--primary.is-disabled:not(.is-link) {
+  background: #9fc5c2 !important;
+  border-color: #9fc5c2 !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button--default.is-disabled:not(.is-link),
+html.user-view-active #app .ruoyi-page.user-view .el-button--success.is-disabled:not(.is-link),
+html.user-view-active #app .ruoyi-page.user-view .user-view__refresh.is-disabled,
+.user-view__dialog .el-button--default.is-disabled:not(.is-link) {
+  background: #e8f2f3 !important;
+  border-color: #c8d8da !important;
+  color: #94a3b8 !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button--danger.is-disabled:not(.is-link),
+.user-view__dialog .el-button--danger.is-disabled:not(.is-link) {
+  background: #e6ccd2 !important;
+  border-color: #d9bcc3 !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-button.is-disabled:not(.is-link),
+html.user-view-active #app .ruoyi-page.user-view .el-button.is-disabled:not(.is-link):hover,
+html.user-view-active #app .ruoyi-page.user-view .el-button.is-disabled:not(.is-link):active,
+.user-view__dialog .el-button.is-disabled:not(.is-link),
+.user-view__dialog .el-button.is-disabled:not(.is-link):hover,
+.user-view__dialog .el-button.is-disabled:not(.is-link):active {
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+
+/* —— 表格勾选：白底绿勾，勾居中 —— */
+html.user-view-active #app .ruoyi-page.user-view .el-checkbox.is-checked .el-checkbox__inner,
+html.user-view-active #app .ruoyi-page.user-view .el-checkbox.is-indeterminate .el-checkbox__inner {
+  background: #fff !important;
+  border-color: #6ea9a4 !important;
+  box-shadow: 0 0 0 1px rgba(110, 169, 164, 0.16) !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-checkbox.is-checked .el-checkbox__inner::after {
+  border-color: #6ea9a4 !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 4px !important;
+  height: 8px !important;
+  border-width: 0 2px 2px 0 !important;
+  transform: translate(-50%, -58%) rotate(45deg) scaleY(1) !important;
+}
+
+html.user-view-active #app .ruoyi-page.user-view .el-checkbox.is-indeterminate .el-checkbox__inner::before {
+  background-color: #6ea9a4 !important;
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  width: 8px !important;
+  height: 2px !important;
+  transform: translate(-50%, -50%) !important;
 }
 </style>

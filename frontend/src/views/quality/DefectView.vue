@@ -78,7 +78,7 @@
           </el-descriptions>
         </div>
 
-        <div v-if="selected.handleStatus !== 'DONE'" class="qc-section">
+        <div v-if="normHandleStatus(selected.handleStatus) !== 'DONE'" class="qc-section">
           <div class="qc-section__title">处置操作</div>
           <el-form label-width="80px" size="small">
             <el-form-item label="处置方式" required>
@@ -119,6 +119,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { fetchNonconformingViews, handleNonconforming } from '@/api/quality'
+import { normHandleStatus } from '@/composables/useQualityDashboard'
 
 const route = useRoute()
 const userStore   = useUserStore()
@@ -135,9 +136,9 @@ const categoryFilter = ref(routeCategory.value)
 
 const handleForm  = reactive({ method: 'SCRAP', remark: '' })
 
-const pending    = computed(() => list.value.filter(r => r.handleStatus === 'PENDING').length)
-const processing = computed(() => list.value.filter(r => r.handleStatus === 'PROCESSING').length)
-const done       = computed(() => list.value.filter(r => r.handleStatus === 'DONE').length)
+const pending    = computed(() => list.value.filter(r => normHandleStatus(r.handleStatus) === 'PENDING').length)
+const processing = computed(() => list.value.filter(r => normHandleStatus(r.handleStatus) === 'PROCESSING').length)
+const done       = computed(() => list.value.filter(r => normHandleStatus(r.handleStatus) === 'DONE').length)
 
 const kpiCards = computed(() => [
   { key: 'all',        label: '全部',   val: list.value.length, cls: '',          filterVal: '' },
@@ -149,7 +150,7 @@ const kpiCards = computed(() => [
 const filtered = computed(() => {
   let data = list.value
   if (categoryFilter.value) data = data.filter(r => r.inspectionCategory === categoryFilter.value)
-  if (filterStatus.value) data = data.filter(r => r.handleStatus === filterStatus.value)
+  if (filterStatus.value) data = data.filter(r => normHandleStatus(r.handleStatus) === filterStatus.value)
   if (keyword.value) {
     const kw = keyword.value.toLowerCase()
     data = data.filter(r =>
@@ -165,7 +166,7 @@ function severityType(s) {
   return { MINOR: '', GENERAL: 'warning', MAJOR: 'danger', CRITICAL: 'danger' }[s] || 'info'
 }
 function handleStatusType(s) {
-  return { PENDING: 'danger', PROCESSING: 'warning', DONE: 'success' }[s] || 'info'
+  return { PENDING: 'danger', PROCESSING: 'warning', DONE: 'success', COMPLETED: 'success' }[normHandleStatus(s)] || 'info'
 }
 function methodCn(s) {
   return { SCRAP: '报废处理', REWORK: '返工修复', CONCESSION: '让步接收', RETURN: '退货供应商' }[s] || s

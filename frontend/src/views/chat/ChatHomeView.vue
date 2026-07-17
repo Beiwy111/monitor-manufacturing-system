@@ -263,10 +263,7 @@ async function toggleMic() {
     <!-- ═══ 欢迎态：居中问候 + 大输入框 + 建议卡 ═══ -->
     <div v-if="!started" class="ch-hero">
       <div class="ch-badge">MES 智能工作台</div>
-      <h1 class="ch-greet">
-        <span class="ch-star">✳</span>
-        {{ greeting }}，{{ user.displayName }}
-      </h1>
+      <h1 class="ch-greet">{{ greeting }}，{{ user.displayName }}</h1>
 
       <ChatComposer
         v-model="inputText"
@@ -311,9 +308,10 @@ async function toggleMic() {
             </div>
           </div>
 
-          <div v-if="busy && !confirmCard" class="ch-typing">
+          <div v-if="busy && !confirmCard" class="ch-typing" aria-label="正在回复">
             <span></span><span></span><span></span>
           </div>
+          <div class="ch-thread-spacer" aria-hidden="true" />
         </div>
       </div>
 
@@ -338,119 +336,169 @@ async function toggleMic() {
   min-height: calc(100vh - 96px);
   display: flex;
   flex-direction: column;
-  font-family: inherit;
+  font-family: Inter, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.7;
+  color: #1f2937;
+  background: #fafbfc;
 }
 
 /* ─── 欢迎态 ─── */
 .ch-hero {
   flex: 1;
-  max-width: 780px;
+  max-width: 900px;
   width: 100%;
   margin: 0 auto;
   padding: 48px 24px 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  box-sizing: border-box;
 }
 .ch-badge {
-  padding: 5px 14px;
-  border-radius: 999px;
-  background: rgba(122, 110, 228, 0.12);
-  color: #6c5fc7;
-  font-size: 12px;
-  letter-spacing: 1px;
-  margin-bottom: 26px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: #ddeff0;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 24px;
 }
 .ch-greet {
-  margin: 0 0 30px;
-  font-size: 34px;
-  font-weight: 500;
-  color: #3d3929;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  margin: 0 0 28px;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #1f2937;
+  text-align: center;
 }
-.ch-star { color: #d97757; font-size: 30px; line-height: 1; }
+.ch-hero :deep(.chat-composer) {
+  width: 100%;
+  max-width: 860px;
+}
 
 .ch-suggest-head {
   align-self: flex-start;
-  margin: 34px 0 12px;
+  width: 100%;
+  max-width: 860px;
+  margin: 32px 0 10px;
   font-size: 13px;
-  color: #8f8975;
+  font-weight: 400;
+  color: #6b7280;
 }
 .ch-suggest-grid {
   width: 100%;
+  max-width: 860px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
 }
 .ch-suggest {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  padding: 14px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(61, 57, 41, 0.1);
-  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #dce3e8;
+  border-radius: 10px;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 .ch-suggest:hover {
-  background: rgba(255, 255, 255, 0.95);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(61, 57, 41, 0.08);
+  background: #f8fafb;
+  border-color: #c5d0d8;
 }
-.ch-suggest-icon { color: #d97757; font-size: 18px; }
-.ch-suggest-title { font-size: 13px; font-weight: 600; color: #3d3929; }
+.ch-suggest-icon {
+  color: #667085;
+  font-size: 17px;
+}
+.ch-suggest-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+}
 .ch-suggest-text {
-  font-size: 12px;
-  color: #8f8975;
-  line-height: 1.4;
+  font-size: 13px;
+  font-weight: 400;
+  color: #667085;
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 /* ─── 对话态 ─── */
+.chat-home.is-started {
+  min-height: calc(100vh - 96px);
+  height: calc(100vh - 96px);
+}
+
 .ch-thread {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 16px 8px;
+  padding: 28px 20px 0;
+  scroll-behavior: smooth;
 }
 .ch-thread-inner {
-  max-width: 780px;
+  max-width: 900px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+  padding-bottom: 8px;
+}
+.ch-thread-spacer {
+  flex-shrink: 0;
+  height: 120px;
 }
 
 .ch-gate {
-  margin-left: 40px;
-  max-width: 78%;
-  background: rgba(255, 250, 240, 0.95);
-  border: 1px solid #f0ce9a;
-  border-radius: 12px;
+  width: 100%;
+  max-width: 100%;
+  background: #fff;
+  border: 1px solid #dce3e8;
+  border-left: 3px solid #7eb8bd;
+  border-radius: 8px;
   padding: 14px 16px;
+  box-sizing: border-box;
 }
-.ch-gate-title { font-size: 12px; font-weight: 700; color: #b07a2c; margin-bottom: 6px; letter-spacing: 1px; }
+.ch-gate-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
 .ch-gate-body {
   margin: 0 0 10px;
-  font-size: 13.5px;
-  line-height: 1.6;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.7;
   white-space: pre-wrap;
   font-family: inherit;
-  color: #6e4a12;
+  color: #2f2f2f;
 }
-.ch-gate-btns { display: flex; gap: 10px; margin-top: 10px; }
+.ch-gate-btns {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
 
-.ch-typing { display: flex; gap: 5px; margin-left: 44px; padding: 6px 0; }
+.ch-typing {
+  display: flex;
+  gap: 5px;
+  padding: 4px 0;
+}
 .ch-typing span {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: #c9c2ae;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #667085;
   animation: ch-blink 1.2s infinite ease-in-out;
 }
 .ch-typing span:nth-child(2) { animation-delay: 0.2s; }
@@ -460,10 +508,40 @@ async function toggleMic() {
 .ch-footer {
   position: sticky;
   bottom: 0;
-  padding: 10px 16px 18px;
+  z-index: 2;
+  padding: 12px 20px 20px;
+  background: linear-gradient(to top, #fafbfc 75%, rgba(250, 251, 252, 0));
+  box-sizing: border-box;
 }
 .ch-footer-composer {
-  max-width: 780px;
+  max-width: 900px;
   margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .ch-hero {
+    padding: 32px 16px 28px;
+  }
+  .ch-greet {
+    font-size: 26px;
+  }
+  .ch-suggest-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ch-thread {
+    padding: 20px 12px 0;
+  }
+  .ch-footer {
+    padding: 10px 12px 16px;
+  }
+  .ch-thread-spacer {
+    height: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ch-suggest-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

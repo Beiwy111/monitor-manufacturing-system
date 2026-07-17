@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 public interface CustomerOrderMapper {
 
     // 查询所有客户订单
-    @Select("SELECT order_id, order_no, customer_name, customer_contact, customer_phone, order_date, required_delivery_date, order_amount, audit_status, audit_user_id, audit_at, audit_opinion, remark, created_by, created_at, updated_at FROM customer_order")
+    @Select("SELECT order_id, order_no, customer_name, customer_contact, customer_phone, order_date, required_delivery_date, order_amount, audit_status, audit_user_id, audit_at, audit_opinion, remark, created_by, created_at, updated_at FROM customer_order ORDER BY created_at DESC, order_id DESC")
     public ArrayList<CustomerOrder> customerOrderList();
 
     // 根据主键查询客户订单

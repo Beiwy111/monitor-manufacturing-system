@@ -13,6 +13,7 @@
       <el-button-group size="small">
         <el-button @click="zoomOut">缩小</el-button>
         <el-button @click="zoomIn">放大</el-button>
+        <el-button @click="fitAllTasks">显示全部</el-button>
         <el-button @click="scrollToday">定位今日</el-button>
       </el-button-group>
       <span class="plan-gantt__legend">
@@ -107,8 +108,10 @@ const leftRef = ref(null)
 const chartRef = ref(null)
 const chartWrapRef = ref(null)
 const hoverIndex = ref(-1)
+const zoomRange = ref({ start: 0, end: 100 })
 let chart = null
 let syncing = false
+let programmaticZoom = false
 
 const chartHeight = computed(() => Math.max(320, props.rows.length * rowHeight + 72))
 
@@ -146,15 +149,16 @@ function shortStartDate(meta) {
   return parts.length === 3 ? `${parts[1]}/${parts[2]}` : ''
 }
 
+const MIN_LABEL_INSIDE_W = 72
+
 function buildBarLabel(meta, barWidth) {
   if (!meta) return ''
   const step = meta.stepName || ''
   const pct = `${meta.progress || 0}%`
   if (barWidth >= 240) return `${step}  ${meta.dateRangeLabel}  ${pct}`
   if (barWidth >= 150) return `${step}  ${shortStartDate(meta)}  ${pct}`
-  if (barWidth >= 80) return step
-  if (barWidth >= 40) return pct
-  return ''
+  if (barWidth >= MIN_LABEL_INSIDE_W) return step
+  return step
 }
 
 function timeRange() {
@@ -171,7 +175,9 @@ function timeRange() {
   }
   const min = Math.min(...stamps)
   const max = Math.max(...stamps, now)
-  return [min - 2 * 86400000, max + 2 * 86400000]
+  const span = max - min
+  const pad = Math.max(2 * 86400000, span * 0.05)
+  return [min - pad, max + pad]
 }
 
 function buildSeriesData() {
@@ -230,7 +236,7 @@ function render() {
   const now = Date.now()
   chart.setOption({
     animation: false,
-    grid: { left: 8, right: 24, top: 36, bottom: 48 },
+    grid: { left: 20, right: 32, top: 36, bottom: 48 },
     tooltip: {
       show: true,
       trigger: 'item',
@@ -269,11 +275,21 @@ function render() {
       show: false
     },
     dataZoom: [
-      { type: 'slider', xAxisIndex: 0, height: 18, bottom: 6, filterMode: 'none', zoomLock: true }
+      {
+        type: 'slider',
+        xAxisIndex: 0,
+        height: 18,
+        bottom: 6,
+        filterMode: 'none',
+        zoomLock: true,
+        start: zoomRange.value.start,
+        end: zoomRange.value.end
+      }
     ],
     series: [{
       type: 'custom',
       name: '工序任务',
+      clip: false,
       emphasis: { focus: 'self' },
       renderItem(params, api) {
         const idx = api.value(0)
@@ -339,17 +355,18 @@ function render() {
         if (meta) {
           const label = buildBarLabel(meta, w)
           if (label) {
+            const labelInside = w >= MIN_LABEL_INSIDE_W
             children.push({
               type: 'text',
               style: {
                 text: label,
-                x: startPt[0] + 8,
+                x: labelInside ? startPt[0] + 8 : startPt[0] + w + 6,
                 y: y + barH / 2,
-                fill: '#fff',
+                fill: labelInside ? '#fff' : '#374151',
                 fontSize: 12,
-                fontWeight: 500,
+                fontWeight: labelInside ? 500 : 600,
                 textVerticalAlign: 'middle',
-                width: Math.max(w - 16, 0),
+                width: labelInside ? Math.max(w - 16, 0) : 120,
                 overflow: 'truncate',
                 ellipsis: '…'
               }
@@ -420,6 +437,35 @@ function render() {
   }, true)
   bindChartEvents()
   bindWheelScroll()
+  bindDataZoomEvents()
+  if (zoomRange.value.start === 0 && zoomRange.value.end === 100) {
+    nextTick(() => {
+      if (chartWrapRef.value) chartWrapRef.value.scrollLeft = 0
+    })
+  }
+}
+
+function bindDataZoomEvents() {
+  if (!chart) return
+  chart.off('dataZoom')
+  chart.on('dataZoom', (ev) => {
+    if (programmaticZoom) return
+    const batch = ev.batch?.[0] || ev
+    if (batch.start != null && batch.end != null) {
+      zoomRange.value = { start: batch.start, end: batch.end }
+    }
+  })
+}
+
+function fitAllTasks() {
+  if (!chart) return
+  programmaticZoom = true
+  zoomRange.value = { start: 0, end: 100 }
+  chart.dispatchAction({ type: 'dataZoom', start: 0, end: 100 })
+  nextTick(() => {
+    if (chartWrapRef.value) chartWrapRef.value.scrollLeft = 0
+    programmaticZoom = false
+  })
 }
 
 function initChart() {
@@ -484,8 +530,15 @@ function scrollToday() {
   if (!chart) return
   const today = new Date().setHours(0, 0, 0, 0)
   const [min, max] = timeRange()
-  const percent = ((today - min) / (max - min)) * 100
-  chart.dispatchAction({ type: 'dataZoom', start: Math.max(0, percent - 20), end: Math.min(100, percent + 30) })
+  const span = max - min
+  if (span <= 0) return
+  const percent = ((today - min) / span) * 100
+  const start = Math.max(0, percent - 20)
+  const end = Math.min(100, percent + 30)
+  programmaticZoom = true
+  zoomRange.value = { start, end }
+  chart.dispatchAction({ type: 'dataZoom', start, end })
+  nextTick(() => { programmaticZoom = false })
 }
 
 function onResize() {
@@ -495,6 +548,7 @@ function onResize() {
 watch(hoverIndex, () => nextTick(render))
 watch(() => props.rows, () => {
   clearHover()
+  zoomRange.value = { start: 0, end: 100 }
   nextTick(render)
 }, { deep: true })
 watch(() => [props.dependencies, props.viewMode, props.conflictIndices], () => nextTick(render), { deep: true })

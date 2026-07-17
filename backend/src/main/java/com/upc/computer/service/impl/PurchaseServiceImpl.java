@@ -505,7 +505,9 @@ public class PurchaseServiceImpl implements PurchaseService {
                 rows.add(row);
             }
         }
-        rows.sort((a, b) -> String.valueOf(b.get("requiredDeliveryDate")).compareTo(String.valueOf(a.get("requiredDeliveryDate"))));
+        rows.sort((a, b) -> Long.compare(
+                (Long) b.getOrDefault("orderId", 0L),
+                (Long) a.getOrDefault("orderId", 0L)));
         return rows;
     }
 
@@ -751,7 +753,11 @@ public class PurchaseServiceImpl implements PurchaseService {
                 latestByMaterial.put(key, req);
             }
         }
-        return new ArrayList<>(latestByMaterial.values());
+        List<PurchaseRequirement> result = new ArrayList<>(latestByMaterial.values());
+        result.sort((a, b) -> Long.compare(
+                b.getRequirementId() != null ? b.getRequirementId() : 0L,
+                a.getRequirementId() != null ? a.getRequirementId() : 0L));
+        return result;
     }
 
     private boolean isBetterWorkbenchRequirement(PurchaseRequirement candidate, PurchaseRequirement existing) {
@@ -837,7 +843,11 @@ public class PurchaseServiceImpl implements PurchaseService {
             line.setShortageQuantity(ceilQuantity(src.getShortageQuantity()));
             vo.getLines().add(line);
         }
-        return new ArrayList<>(grouped.values());
+        List<PurchaseByOrderVO> result = new ArrayList<>(grouped.values());
+        result.sort((a, b) -> Long.compare(
+                b.getSourceId() != null ? b.getSourceId() : 0L,
+                a.getSourceId() != null ? a.getSourceId() : 0L));
+        return result;
     }
 
     // ============ 一键生成采购单（按供应商自动拆单） ============

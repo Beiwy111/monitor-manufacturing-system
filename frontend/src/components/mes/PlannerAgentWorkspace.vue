@@ -90,8 +90,10 @@
         <SchedulingThoughtPanel
           :embedded="!fullscreen"
           :fullscreen="fullscreen"
+          right-mode="calc-engine"
           title="智能排产引擎"
           subtitle="订单 → 库存 → 物料 → 设备 → 人员 → 车间 → 计划"
+          :analysis="analysis"
           :thought-stream="thoughtStream"
           :evidence-list="evidenceList"
           :all-evidence="allEvidence"
@@ -104,9 +106,9 @@
           @select-step="selectStep"
         />
         <div v-if="phase === 'review'" class="review-summary">
-          <span>已搜集证据 <strong>{{ allEvidence.length }}</strong> 条</span>
           <span>推演步骤 <strong>{{ thoughtStream.length }}</strong> 步</span>
-          <span v-if="analysis?.recommendedPlanQty">建议产量 <strong>{{ analysis.recommendedPlanQty }}</strong> 台</span>
+          <span v-if="analysis?.recommendedPlanQty">建议排产 <strong>{{ analysis.recommendedPlanQty }}</strong> 台</span>
+          <span v-if="analysis?.inventoryCheck?.shipFromStock != null">现货 <strong>{{ analysis.inventoryCheck.shipFromStock }}</strong> 台</span>
           <span v-if="analysis?.recommendation">{{ analysis.recommendation }}</span>
         </div>
       </div>

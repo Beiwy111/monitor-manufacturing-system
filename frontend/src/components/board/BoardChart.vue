@@ -11,6 +11,8 @@ const props = defineProps({
   option: { type: Object, required: true }
 })
 
+const emit = defineEmits(['chart-click'])
+
 const chartRef = ref(null)
 const chart = shallowRef(null)
 let observer = null
@@ -19,6 +21,7 @@ function render() {
   if (!chartRef.value) return
   if (!chart.value) {
     chart.value = echarts.init(chartRef.value, 'mes', { renderer: 'canvas' })
+    chart.value.on('click', (params) => emit('chart-click', params))
   }
   chart.value.setOption(mergeChartOption(props.option), { notMerge: true })
 }

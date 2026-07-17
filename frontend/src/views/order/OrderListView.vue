@@ -1,13 +1,11 @@
 <template>
   <MesPageShell
     :status-items="statusItems"
-    toolbar-title="客户订单"
     :status-options="ORDER_STATUS"
-    :toolbar-actions="[{ label: '新建订单', key: 'create', type: 'primary' }]"
+    :toolbar-actions="[]"
     :show-detail-panel="false"
     v-model:model-keyword="keyword"
     v-model:model-status="statusFilter"
-    @toolbar-action="onAction"
   >
     <template #table>
       <div v-if="mes.pendingSubmitToPlanner.length" class="pending-block">
